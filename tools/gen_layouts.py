@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """Lays out every script class and struct the way the xbox's Link does and checks native classes against
-their xbox C++ sizes from symbols/classes.csv, or generates the C++ classes and native layout tables.
+their xbox C++ sizes from symbols/classes.csv, or generates the C++ classes, native layout tables and native
+function tables.
 
 usage: gen_layouts.py <layout-dump .json>                       check the layouts
        gen_layouts.py <layout-dump .json> generate <Package>...  write src/<Package>/{Inc,Src}/<Package>Classes.*
+                                                                 and <Package>NativeStubs.cpp
 the json comes from tools/layout-dump.
 """
 import csv
 import json
 import os
+import re
 import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
@@ -32,7 +35,9 @@ XBOX_SIZES = {
 class Layouts:
     def __init__(self, dump):
         self.structs = {}
+        self.functions = {}
         for package in dump:
+            self.functions[package['name'].lower()] = package.get('natives', [])
             for s in package['structs']:
                 s['package'] = package['name']
                 self.structs[(s['outer'].lower(), s['name'])] = s
@@ -84,6 +89,21 @@ class Layouts:
         return result
 
 
+def xbox_natives():
+    """xbox exec function address and native table entry by (C++ class, function name)"""
+    with open(os.path.join(ROOT, 'symbols', 'natives.csv')) as f:
+        return {(row['class'], row['name'][len('exec'):]): row for row in csv.DictReader(f)}
+
+
+def written_natives(src_dir, generated):
+    """exec functions already hand-written in a module's sources, as (C++ class, function name)"""
+    found = set()
+    for name in os.listdir(src_dir):
+        if name.endswith('.cpp') and name not in generated:
+            found.update(re.findall(r'^\w[\w\s:*&]*?\b(\w+)::exec(\w+)\s*\(', open(os.path.join(src_dir, name)).read(), re.M))
+    return found
+
+
 def xbox_classes():
     with open(os.path.join(ROOT, 'symbols', 'classes.csv')) as f:
         return {(row['package'], row['name']): row for row in csv.DictReader(f)}
@@ -111,7 +131,7 @@ CORE_STRUCTS = {
     'Vector': 'FVector', 'Plane': 'FPlane', 'Rotator': 'FRotator', 'Coords': 'FCoords', 'Quat': 'FQuat',
     'Scale': 'FScale', 'Matrix': 'FMatrix', 'Guid': 'FGuid', 'Color': 'FColor', 'Box': 'FBox', 'Range': 'FRange',
     'RangeVector': 'FRangeVector', 'CompressedPosition': 'FCompressedPosition', 'InterpCurve': 'FInterpCurve',
-    'InterpCurvePoint': 'FInterpCurvePoint',
+    'InterpCurvePoint': 'FInterpCurvePoint', 'IntBox': 'FIntBox', 'FloatBox': 'FFloatBox',
 }
 
 # script members a hand-written C++ type stores under another name
@@ -120,6 +140,17 @@ CPP_MEMBER_NAMES = {('FMatrix', 'XPlane'): 'M[0]', ('FMatrix', 'YPlane'): 'M[1]'
 # classes C++ knows by a name other than prefix + script name, or that have no script
 CPP_CLASS_NAMES = {'Object': 'UObject', 'Class': 'UClass', 'Field': 'UField', 'Struct': 'UStruct', 'Function': 'UFunction',
                    'State': 'UState', 'Package': 'UPackage', 'Subsystem': 'USubsystem', 'Commandlet': 'UCommandlet'}
+
+# C++-only members whose real type script can't express, by (class, member). the type replaces the script
+# placeholder's array size too.
+CPP_MEMBER_TYPES = {('Texture', 'Mips'): 'TArrayNoInit<FMipmap>', ('Sound', 'Data'): 'TLazyArray<BYTE>'}
+
+# hand-written headers with the C++ types those members use, by package
+CPP_TYPE_HEADERS = {'Engine': ['UnTex.h', 'UnFont.h']}
+
+# generated headers of the packages a package's classes build on
+PACKAGE_DEPENDENCIES = {'Gameplay': ['Engine'], 'CTGame': ['Gameplay'], 'CTMarkers': ['CTGame'], 'IpDrv': ['Engine'], 'XGame': ['Engine'],
+                        'XInterface': ['Engine'], 'XInterfaceLive': ['XInterface']}
 
 CPF_NATIVE = 0x1000
 
@@ -131,6 +162,7 @@ class Generator:
         self.layouts = layouts
         self.natives = {(p.lower(), n): row for (p, n), row in natives.items()}
         self.package = package
+        self.xbox_natives = xbox_natives()
         self.classes = {}
         for s in layouts.structs.values():
             if s['kind'] == 'class':
@@ -199,8 +231,11 @@ class Generator:
                 lines.append(f'    BITFIELD {p["name"]} : 1;')
             else:
                 dim = f'[{p["arrayDim"]}]' if p['arrayDim'] > 1 else ''
+                if (s['name'], p['name']) in CPP_MEMBER_TYPES:
+                    t, dim = CPP_MEMBER_TYPES[(s['name'], p['name'])], ''
                 note = '  // C++ only' if p['flags'] & CPF_NATIVE else ''
-                pin = 'alignas(4) ' if self.layouts.element(p)[1] < 4 and prev in (None, 'BITFIELD') else ''
+                overridden = (s['name'], p['name']) in CPP_MEMBER_TYPES
+                pin = 'alignas(4) ' if self.layouts.element(p)[1] < 4 and prev in (None, 'BITFIELD') and not overridden else ''
                 lines.append(f'    {pin}{t} {p["name"]}{dim};{note}')
             prev = t
             prev_align = self.layouts.element(p)[1] if t != 'BITFIELD' else 4
@@ -218,7 +253,8 @@ class Generator:
         return entries
 
     def own_structs(self):
-        """the package's script structs in dependency order, each name once"""
+        """the package's script structs that native C++ sees, in dependency order, each name once: those declared in
+        native classes and those native class members use"""
         result, seen, names = [], set(), {}
         pkg = self.package.lower()
         candidates = [s for s in self.layouts.structs.values() if s['kind'] == 'struct' and s['package'].lower() == pkg]
@@ -246,8 +282,17 @@ class Generator:
             names[s['name']] = s
             result.append(s)
 
+        native_outers = {c['name'] for c in self.classes.values() if self.is_native(c)}
+        used = set()
+        for c in self.classes.values():
+            if self.is_native(c) and c['package'].lower() == pkg:
+                for p in c['properties']:
+                    q = p['inner'] or p
+                    if q['type'] == 'UStructProperty':
+                        used.add((q['structOuter'].lower(), q['structName']))
         for s in sorted(candidates, key=lambda s: (s['outer'], s['name'])):
-            visit(s)
+            if s['outer'] in native_outers or (s['outer'].lower(), s['name']) in used:
+                visit(s)
         return result
 
     def own_classes(self):
@@ -269,8 +314,34 @@ class Generator:
                 visit(s)
         return result
 
+    def shell_classes(self):
+        """the package's native classes that have no script, parents first. they get no members until their code
+        is decompiled."""
+        pkg = self.package.lower()
+        rows = {n: row for (p, n), row in self.natives.items() if p == pkg and n not in self.classes}
+        result = []
+
+        def visit(name):
+            row = rows.pop(name, None)
+            if row:
+                visit(row['super'])
+                result.append(row)
+
+        for name in sorted(rows):
+            visit(name)
+        return result
+
+    def class_natives(self, s):
+        """a class's native functions in xbox table order, then any the xbox table lacks"""
+        cpp = self.class_cpp(s['name'])
+        funcs = [f for f in self.layouts.functions[self.package.lower()] if f['ownerClass'] == s['name']]
+        return sorted(funcs, key=lambda f: self.xbox_natives.get((cpp, f['name']), {}).get('table_entry', 'z'))
+
     def write_header(self, path, structs, classes, cpptext_dir):
-        out = ['#pragma once', '', HEADER_NOTE.rstrip(), '', '#include "Core.h"', '#include "UnMath.h"', '']
+        out = ['#pragma once', '', HEADER_NOTE.rstrip(), '', '#include "Core.h"', '#include "UnMath.h"']
+        out += [f'#include "{d}Classes.h"' for d in PACKAGE_DEPENDENCIES.get(self.package, [])]
+        out += [f'#include "{h}"' for h in CPP_TYPE_HEADERS.get(self.package, [])]
+        out.append('')
         out.append('// the classes members point at, declared ahead')
         declared = set(CPP_CLASS_NAMES.values())
         for s in structs + classes:
@@ -286,6 +357,10 @@ class Generator:
             if cpp not in declared:
                 declared.add(cpp)
                 out.append(f'class {cpp};')
+        for row in self.shell_classes():
+            if row['cpp_name'] not in declared:
+                declared.add(row['cpp_name'])
+                out.append(f'class {row["cpp_name"]};')
         out.append('')
         for s in structs:
             sup = self.layouts.super_of(s)
@@ -305,8 +380,26 @@ class Generator:
             out.append(f'    DECLARE_CLASS({cpp}, {sup}, {row["class_flags"]}, {within})')
             out.append('public:')
             out += self.members(s)
+            natives = self.class_natives(s)
+            if natives:
+                out.append('')
+                out += [f'    DECLARE_FUNCTION(exec{f["name"]})' for f in natives]
             if os.path.exists(os.path.join(cpptext_dir, cpp + '.h')):
                 out.append('')
+                out.append(f'#include "CppText/{cpp}.h"')
+            out.append('};')
+            out.append('')
+        out.append('// native classes without script. their members are added when their code is decompiled.')
+        out.append('')
+        for row in self.shell_classes():
+            cpp = row['cpp_name']
+            sup = self.class_cpp(row['super'])
+            out.append(f'// {row["size"]} bytes on the xbox')
+            out.append(f'class {cpp} : public {sup}')
+            out.append('{')
+            out.append(f'    DECLARE_CLASS({cpp}, {sup}, {row["class_flags"]}, {self.class_cpp(row["within"])})')
+            if os.path.exists(os.path.join(cpptext_dir, cpp + '.h')):
+                out.append('public:')
                 out.append(f'#include "CppText/{cpp}.h"')
             out.append('};')
             out.append('')
@@ -327,7 +420,10 @@ class Generator:
         out = [HEADER_NOTE.rstrip(), '', '#include <cstdint>', '', f'#include "{header}"', '']
         for s in classes:
             out.append(f'IMPLEMENT_CLASS({self.class_cpp(s["name"])}, {self.package})')
+        for row in self.shell_classes():
+            out.append(f'IMPLEMENT_CLASS({row["cpp_name"]}, {self.package})')
         out.append('')
+        out += self.native_tables(classes)
         out.append('// on 32-bit targets, classes without strings or arrays (which the port stores in 12 bytes, the xbox in 8)')
         out.append('// come out exactly the xbox size')
         out.append('#if UINTPTR_MAX == 0xFFFFFFFF')
@@ -339,6 +435,46 @@ class Generator:
         out.append('')
         out += self.layout_tables(structs, classes)
         open(path, 'w').write('\n'.join(out))
+
+    def native_tables(self, classes):
+        """each class's native function table, hooked up right after the IMPLEMENT_CLASS lines"""
+        out = ['// native functions by name, with their fixed native index or 0']
+        for s in classes:
+            natives = self.class_natives(s)
+            if not natives:
+                continue
+            cpp = self.class_cpp(s['name'])
+            out.append(f'static FNativeEntry {cpp}Natives[] =')
+            out.append('{')
+            for f in natives:
+                out.append(f'    {{ TEXT("{f["name"]}"), {{ static_cast<Native>(&{cpp}::exec{f["name"]}) }}, {f["native"]} }},')
+            out.append('    { nullptr, { nullptr }, 0 },')
+            out.append('};')
+            out.append(f'IMPLEMENT_NATIVE_TABLE({cpp}, {cpp}Natives)')
+            out.append('')
+        return out
+
+    def write_stubs(self, path, header, classes, written):
+        """a stub for every native that isn't hand-written yet"""
+        out = [HEADER_NOTE.rstrip(), '// natives that are hand-written elsewhere in Src/ are left out; rerun after writing one.', '',
+               f'#include "{header}"', '']
+        count = 0
+        for s in classes:
+            cpp = self.class_cpp(s['name'])
+            for f in self.class_natives(s):
+                if (cpp, f['name']) in written:
+                    continue
+                row = self.xbox_natives.get((cpp, f['name']))
+                address = f'0x{row["address"]}' if row else 'none'
+                out.append(f'// {address}' if row else '// not in the xbox native table')
+                out.append(f'void {cpp}::exec{f["name"]}(FFrame& Stack, RESULT_DECL)')
+                out.append('{')
+                out.append(f'    NOT_DECOMPILED({address});')
+                out.append('}')
+                out.append('')
+                count += 1
+        open(path, 'w').write('\n'.join(out))
+        return count
 
     def layout_tables(self, structs, classes):
         out = ['#pragma clang diagnostic push', '#pragma clang diagnostic ignored "-Winvalid-offsetof"', '', 'namespace', '{']
@@ -385,7 +521,12 @@ def generate(layouts, natives, package):
     header = f'{package}Classes.h'
     gen.write_header(os.path.join(src, 'Inc', header), structs, classes, os.path.join(src, 'Inc', 'CppText'))
     gen.write_source(os.path.join(src, 'Src', f'{package}Classes.cpp'), header, structs, classes)
-    print(f'{package}: {len(structs)} structs, {len(classes)} classes')
+    stubs = f'{package}NativeStubs.cpp'
+    written = written_natives(os.path.join(src, 'Src'), {f'{package}Classes.cpp', stubs})
+    count = gen.write_stubs(os.path.join(src, 'Src', stubs), header, classes, written)
+    natives = sum(len(gen.class_natives(s)) for s in classes)
+    print(f'{package}: {len(structs)} structs, {len(classes)} classes, {len(gen.shell_classes())} without script, '
+          f'{natives} natives ({count} stubs)')
 
 
 def main():

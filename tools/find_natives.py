@@ -73,7 +73,11 @@ def read_table(xbe):
             cur = []
         cur.append(entry)
     runs.append(cur)
-    return [run for run in runs if len(run) >= 2]
+    # a class with one native has a one-entry table, told apart from stray data by its null terminator
+    def terminated(run):
+        r = xbe.to_raw(run[-1][0] + 12)
+        return r is not None and xbe.d[r:r + 12] == bytes(12)
+    return [run for run in runs if len(run) >= 2 or (run and terminated(run))]
 
 
 def read_scripts():

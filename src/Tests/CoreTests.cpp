@@ -6,7 +6,10 @@
 
 #include "Core.h"
 #include "UnMath.h"
-#include "EngineClasses.h"
+#include "CTMarkersClasses.h"
+#include "IpDrvClasses.h"
+#include "XGameClasses.h"
+#include "XInterfaceLiveClasses.h"
 #include "FConfigCacheIni.h"
 
 namespace
@@ -356,6 +359,13 @@ namespace
     void TestNativeLayouts()
     {
         Check(AActor::StaticClass() != nullptr, "Engine classes are linked in");
+        Check(UScriptedAction::StaticClass() != nullptr, "Gameplay classes are linked in");
+        Check(ACTGameInfo::StaticClass() != nullptr, "CTGame classes are linked in");
+        Check(AExplosiveCharge::StaticClass() != nullptr, "CTMarkers classes are linked in");
+        Check(AInternetLink::StaticClass() != nullptr, "IpDrv classes are linked in");
+        Check(UxUtil::StaticClass() != nullptr, "XGame classes are linked in");
+        Check(AMenuBase::StaticClass() != nullptr, "XInterface classes are linked in");
+        Check(AMenuGamerList::StaticClass() != nullptr, "XInterfaceLive classes are linked in");
         INT Tables = 0;
         UBOOL Ordered = 1;
         for (const FNativeLayout* Layout = FNativeLayout::First(); Layout; Layout = Layout->Next)
@@ -375,6 +385,23 @@ namespace
         }
         Check(Ordered, "native layout offsets are in order and inside the class");
         Check(Tables > 300, "Core and Engine layouts are registered");
+    }
+
+    // Engine.u loads with its natives bound and its native classes at their C++ size
+    void TestLoadEngine()
+    {
+        if (!HaveGame)
+        {
+            printf("skipped loading Engine: no game files\n");
+            return;
+        }
+        UObject* Package = UObject::LoadPackage(nullptr, TEXT("Engine"), 0);
+        Check(Package != nullptr, "Engine.u loads");
+        if (!Package)
+            return;
+        Check(AActor::StaticClass()->GetPropertiesSize() == static_cast<INT>(sizeof(AActor)), "Actor is the size of AActor");
+        UFunction* Function = static_cast<UFunction*>(UObject::StaticFindObject(UFunction::StaticClass(), AActor::StaticClass(), TEXT("Spawn")));
+        Check(Function && Function->Func == static_cast<Native>(&AActor::execSpawn), "Actor.Spawn is bound to its native");
     }
 
     void TestExit()
@@ -411,6 +438,7 @@ int main()
     TestPackageSearch();
     TestMath();
     TestNativeLayouts();
+    TestLoadEngine();
     TestExit();
 
     printf(Failures ? "%d test(s) failed\n" : "all tests passed\n", Failures);

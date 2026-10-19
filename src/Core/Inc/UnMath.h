@@ -118,6 +118,23 @@ struct FRangeVector
 struct FColor
 {
     BYTE B, G, R, A;
+
+    // 0x0003f9e8
+    friend FArchive& operator<<(FArchive& Ar, FColor& Color)
+    {
+        return Ar << Color.R << Color.G << Color.B << Color.A;
+    }
+};
+
+// screen rectangles
+struct FIntBox
+{
+    INT X1, Y1, X2, Y2;
+};
+
+struct FFloatBox
+{
+    FLOAT X1, Y1, X2, Y2;
 };
 
 struct FCompressedPosition

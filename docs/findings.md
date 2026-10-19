@@ -32,10 +32,11 @@ Microsoft libraries outside `.text` are already separated by section. Inside `.t
 
 The engine keeps a table in `.data` of `{name, exec function, native index}` entries, one block per class. It connects each `native` function in the scripts to its C++ code.
 
-- 717 entries found, 712 matched to a script class (`tools/find_natives.py`, output in `symbols/natives.csv`).
+- 737 entries found, 732 matched to a script class (`tools/find_natives.py`, output in `symbols/natives.csv`).
+- A class with one native has a one-entry table. These are found by the null entry that ends every table.
 - The 5 unmatched entries are network functions (`SendBinary`, `ReadBinary`, `BindPort`, `SendText`, `ReadText`) whose class is not in the shipped scripts.
-- All 717 are named in the Ghidra project as `Class::execName` (e.g. `AActor::execAddToSquadInterest`). Ghidra had missed 173 of them as functions.
-- The scripts declare about 1,058 natives. The rest are not in this table yet. Some may be registered another way.
+- The first 717 are named in the Ghidra project as `Class::execName` (e.g. `AActor::execAddToSquadInterest`). The 20 one-entry tables found later are not named there yet.
+- The packages declare 752 natives. Every one except `GameEngine.GetLocalizedKeyName` has an entry. That name is not in the executable at all.
 
 ## Gameplay scripts
 
@@ -83,6 +84,8 @@ Only a few survive in strings:
 - `tools/find_classes.py` reads all 494 registrations into `symbols/classes.csv`: name, package, parent, size, flags, constructors and vtable. 467 vtables were recovered. The other 27 classes share a placeholder constructor (mostly abstract classes).
 - `UObject` is 40 bytes, its constructor is `0x00022c53` and its vtable is `0x003b4e30`.
 - Class names in the executable are often the tail of a longer pooled string, so searching for a class name string finds few references.
+- In the `FArchive` vtable, `operator<<(UObject*&)` is slot 0x24 and `operator<<(FName&)` is slot 0x28. The port declares them in the other order, which changes nothing at run time.
+- The linker merged functions with identical code. The old font character serializer is the same function as `operator<<(FArchive&, FGuid&)` (`0x000b17ef`).
 
 ## Function coverage
 
@@ -150,16 +153,22 @@ Ghidra's first pass missed about 15% of the code (functions reached only through
 
 ## Generated native classes
 
-Engine's native classes and the native layout tables are generated from the packages. Do not edit the output; rerun the generator.
+The native classes of every game package and the native layout tables are generated from the packages. Do not edit the output; rerun the generator.
 
 ```
 dotnet tools/layout-dump/bin/Release/net10.0/layout-dump.dll game/System layouts.json
 python3 tools/gen_layouts.py layouts.json                    # check every class against its xbox size
-python3 tools/gen_layouts.py layouts.json generate Core Engine
+python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame CTMarkers IpDrv XGame XInterface XInterfaceLive
 ```
 
-- Output: `src/Engine/Inc/EngineClasses.h`, `src/Engine/Src/EngineClasses.cpp` and `src/Core/Src/CoreStructLayouts.cpp`.
-- Hand-written methods for a class go in `src/Engine/Inc/CppText/<C++ class name>.h`. The generator includes that file in the class body when it exists.
+- Output per package: `src/<Package>/Inc/<Package>Classes.h`, `src/<Package>/Src/<Package>Classes.cpp` and `src/<Package>/Src/<Package>NativeStubs.cpp`. Core gets only `src/Core/Src/CoreStructLayouts.cpp`.
+- Loading Engine.u pulls in the other packages: string properties with an object path preload that object, and Engine classes name CTGame classes this way. So every game package with native classes is a module. The Xbox platform drivers (D3DDrv, XboxDrv, XBoxAudio) are left out.
+- Each class gets its native function table, in xbox table order, with `IMPLEMENT_NATIVE_TABLE` after the `IMPLEMENT_CLASS` lines. Script binds natives by name when a package loads, and a missing one is a fatal error.
+- `<Package>NativeStubs.cpp` has a stub for every native that is not written yet. A native written by hand anywhere else in that package's `Src/` is left out of it on the next run.
+- Native classes without script are generated as shells: the xbox parent, flags and within class, and no members. Their members are added in their cpptext file when their code is decompiled.
+- Only script structs declared in native classes, or used by their members, are generated. The xbox headers had no others, and two packages declare different structs with the same name in script-only classes.
+- Hand-written methods and members for a class go in `src/<Package>/Inc/CppText/<C++ class name>.h`. The generator includes that file in the class body when it exists.
+- `CPP_MEMBER_TYPES` in the generator gives the real C++ type of a script placeholder (`Texture.Mips`, `Sound.Data`). `CPP_TYPE_HEADERS` lists the hand-written headers those types need.
 - On the xbox, `UClass::Link` checks that a native class's script layout is exactly its C++ size. C++-only members appear in script as `native` placeholders, so script fixes the whole layout. 377 of the 494 native classes match their xbox size this way. The 10 XInterface menu classes do not, because their UI structs are a different size in C++. The other 107 have no script and are written by hand.
 - Members are declared in script order. A byte-aligned member that starts a class or follows a bool group is pinned to 4 bytes, and each bool group starts a new word. This matches the xbox compiler, which never packs into a parent's tail padding or a bitfield word.
 - Script structs that have a C++ type use its size, so arrays of them step the same way in script and C++.
@@ -205,9 +214,12 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine
 - `Disable` warns with "Enable: '%s' is not a probe function".
 - `UObjectProperty::ImportText` skips one character after a plain object name, whatever it is, because it steps past the character it checks for a quote.
 - `appExit` does not end the program. `UClass::Link` calls it on a size mismatch and keeps going.
+- `UTexture::Serialize` reads and drops an old compressed mip array when the package is older than version 84 and bit 10 of the texture's bool word is set. No script bool is bit 10 (`bHasComp` is bit 8) and nothing sets it, so this never happens. The port leaves the branch out.
+- `GUglyHackFlags` flag 8 changes how lazy arrays, materials and mips load, but nothing on the xbox sets it.
 
 ## Other port deviations
 
 - `FName::StaticExit` logs memory use from sizes it adds up itself. The Xbox gets them from `FArchiveCountMem`, which asks the Xbox allocator.
 - `UDelegateProperty::ImportText` stops its name buffers at `NAME_SIZE`. The Xbox does not bound them.
 - `appExit` skips freeing a lock pool and a network lock, because the port's `appInit` does not create them yet.
+- `GameEngine.GetLocalizedKeyName` has a stub native entry. The Xbox has none, so binding it would be fatal there.

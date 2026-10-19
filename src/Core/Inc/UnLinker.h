@@ -3,14 +3,106 @@
 #include "UnObjBas.h"
 #include "UnArc.h"
 
+// lazy loaders read their data right away while this is 0. it is 0 unless code sets it around a load.
+extern UBOOL GLazyLoad;
+// flag 8 makes lazy arrays load at once and skips some serialization. the xbox never sets it.
+extern DWORD GUglyHackFlags;
+
 // data loaded from a package file only when first used
 class FLazyLoader
 {
 public:
     virtual void Load() {}
+    virtual void Unload() {}
 
     FArchive* SavedAr;
-    INT       SavedPos;
+    INT       SavedPos; // file offset of the data, negated once it is loaded
+};
+
+// an array whose contents stay in the package file until Load is called
+template<typename T>
+class TLazyArray : public FLazyLoader, public TArray<T>
+{
+public:
+    TLazyArray()
+    {
+        SavedAr = nullptr;
+        SavedPos = 0;
+    }
+    TLazyArray(const TLazyArray&) = delete;
+    TLazyArray& operator=(const TLazyArray&) = delete;
+
+    // 0x0005dee9 for bytes
+    ~TLazyArray()
+    {
+        if (SavedAr)
+            SavedAr->DetachLazyLoader(this);
+    }
+
+    // 0x0005f297 for bytes
+    void Load() override
+    {
+        if (SavedPos > 0)
+        {
+            const INT PushedPos = SavedAr->Tell();
+            SavedAr->Seek(SavedPos);
+            *SavedAr << static_cast<TArray<T>&>(*this);
+            SavedPos = -SavedPos;
+            SavedAr->Seek(PushedPos);
+        }
+    }
+
+    // 0x0005f2d0 for bytes
+    void Unload() override
+    {
+        if (SavedPos < 0)
+        {
+            TArray<T>::Empty();
+            SavedPos = -SavedPos;
+        }
+    }
+
+    // 0x0005f1a5 for bytes. the data is stored after the file offset just past it, so loading can skip it.
+    void Serialize(FArchive& Ar)
+    {
+        if (Ar.IsLoading() && !Ar.ArUnknown16)
+        {
+            INT SeekPos = 0;
+            if (Ar.Ver() <= 61)
+            {
+                // older packages store the element count instead of the data's end
+                Ar.AttachLazyLoader(this);
+                INT Count;
+                Ar << AR_INDEX(Count);
+                SeekPos = Ar.Tell() + Count * static_cast<INT>(sizeof(T));
+            }
+            else
+            {
+                Ar << SeekPos;
+                if (GUglyHackFlags & 8)
+                    Ar << static_cast<TArray<T>&>(*this);
+                else
+                    Ar.AttachLazyLoader(this);
+            }
+            if (!GLazyLoad)
+                Load();
+            Ar.Seek(SeekPos);
+        }
+        else if (Ar.IsSaving() && !Ar.ArUnknown16)
+        {
+            INT CountPos = Ar.Tell();
+            Ar << CountPos;
+            Ar << static_cast<TArray<T>&>(*this);
+            INT EndPos = Ar.Tell();
+            Ar.Seek(CountPos);
+            Ar << EndPos;
+            Ar.Seek(EndPos);
+        }
+        else
+        {
+            Ar << static_cast<TArray<T>&>(*this);
+        }
+    }
 };
 
 // first four bytes of every package file

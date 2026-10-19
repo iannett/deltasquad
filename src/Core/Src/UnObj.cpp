@@ -541,7 +541,7 @@ UObject* UObject::StaticAllocateObject(UClass* InClass, UObject* InOuter, FName 
     }
 
     // an object of the same name and outer gets replaced in place
-    UObject* Obj = InName == NAME_InGameTempName ? nullptr : StaticFindObjectFast(nullptr, InOuter, InName);
+    UObject* Obj = InName == NAME_InGameTempName ? nullptr : StaticFindObjectFast(InClass, InOuter, InName);
     UClass* Cls = Obj && Obj->IsA(UClass::StaticClass()) ? static_cast<UClass*>(Obj) : nullptr;
 
     INT Index = INDEX_NONE;

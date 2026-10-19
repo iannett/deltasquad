@@ -71,6 +71,16 @@ namespace
     };
     const FNativeLayout FCoordsLayout(TEXT("Object"), TEXT("Coords"), sizeof(FCoords), alignof(FCoords), FCoordsOffsets, ARRAY_COUNT(FCoordsOffsets));
 
+    // Object.FloatBox
+    const FNativePropertyOffset FFloatBoxOffsets[] =
+    {
+        { TEXT("X1"), static_cast<INT>(offsetof(FFloatBox, X1)) },
+        { TEXT("Y1"), static_cast<INT>(offsetof(FFloatBox, Y1)) },
+        { TEXT("X2"), static_cast<INT>(offsetof(FFloatBox, X2)) },
+        { TEXT("Y2"), static_cast<INT>(offsetof(FFloatBox, Y2)) },
+    };
+    const FNativeLayout FFloatBoxLayout(TEXT("Object"), TEXT("FloatBox"), sizeof(FFloatBox), alignof(FFloatBox), FFloatBoxOffsets, ARRAY_COUNT(FFloatBoxOffsets));
+
     // Object.Guid
     const FNativePropertyOffset FGuidOffsets[] =
     {
@@ -80,6 +90,16 @@ namespace
         { TEXT("D"), static_cast<INT>(offsetof(FGuid, D)) },
     };
     const FNativeLayout FGuidLayout(TEXT("Object"), TEXT("Guid"), sizeof(FGuid), alignof(FGuid), FGuidOffsets, ARRAY_COUNT(FGuidOffsets));
+
+    // Object.IntBox
+    const FNativePropertyOffset FIntBoxOffsets[] =
+    {
+        { TEXT("X1"), static_cast<INT>(offsetof(FIntBox, X1)) },
+        { TEXT("Y1"), static_cast<INT>(offsetof(FIntBox, Y1)) },
+        { TEXT("X2"), static_cast<INT>(offsetof(FIntBox, X2)) },
+        { TEXT("Y2"), static_cast<INT>(offsetof(FIntBox, Y2)) },
+    };
+    const FNativeLayout FIntBoxLayout(TEXT("Object"), TEXT("IntBox"), sizeof(FIntBox), alignof(FIntBox), FIntBoxOffsets, ARRAY_COUNT(FIntBoxOffsets));
 
     // Object.InterpCurvePoint
     const FNativePropertyOffset FInterpCurvePointOffsets[] =

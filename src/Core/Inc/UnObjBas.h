@@ -581,6 +581,13 @@ protected:
 // a pointer to a native or bytecode handler
 typedef void (UObject::*Native)(FFrame& Stack, RESULT_DECL);
 
+// a reference to an object of any class, through the archive's object serializer
+template<typename T, typename = std::enable_if_t<std::is_base_of_v<UObject, T>>>
+FArchive& operator<<(FArchive& Ar, T*& Object)
+{
+    return Ar << reinterpret_cast<UObject*&>(Object);
+}
+
 // globals of the object system
 extern TArray<UObject*>     GObjObjects;
 extern TArray<ULinkerLoad*> GObjLoaders;

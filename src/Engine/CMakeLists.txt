@@ -1,5 +1,9 @@
 add_library(Engine STATIC
     Src/EngineClasses.cpp
+    Src/EngineNativeStubs.cpp
+    Src/UnAudio.cpp
+    Src/UnFont.cpp
+    Src/UnTex.cpp
 )
 target_include_directories(Engine PUBLIC Inc)
 target_link_libraries(Engine PUBLIC Core)

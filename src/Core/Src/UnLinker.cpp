@@ -1,6 +1,8 @@
 #include "Core.h"
 
 INT GPackageFileMinVersion = 60;
+UBOOL GLazyLoad;
+DWORD GUglyHackFlags;
 UBOOL GIsClient;
 UBOOL GIsServer;
 
@@ -645,36 +647,37 @@ void ULinkerLoad::VerifyImport(INT Index)
         }
     }
 
-    UBOOL Warned = 0;
-    if (Import.SourceIndex == INDEX_NONE && TopPackage)
-    {
-        // not in the package file: accept an object that already exists in memory
-        UPackage* ClassPackage = static_cast<UPackage*>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, Import.ClassPackage, 0));
-        UClass* FindClass = ClassPackage ? static_cast<UClass*>(StaticFindObjectFast(UClass::StaticClass(), ClassPackage, Import.ClassName, 0)) : nullptr;
-        if (FindClass)
-        {
-            UObject* Found = StaticFindObjectFast(FindClass, TopPackage, Import.ObjectName, 0);
-            UBOOL Accept;
-            if (!Found)
-            {
-                Found = StaticFindObjectFast(FindClass, ANY_PACKAGE, Import.ObjectName, 0);
-                Accept = Found != nullptr;
-            }
-            else
-            {
-                Accept = TopPackage->bDirty || (Found->GetFlags() & RF_Transient);
-            }
+    // found in the package file: created later, when something asks for it
+    if (Import.SourceIndex != INDEX_NONE || !TopPackage)
+        return;
 
-            if (Accept)
-            {
-                Import.XObject = Found;
-                GImportCount++;
-            }
-            else
-            {
-                GWarn->Logf(NAME_Warning, TEXT("Missing %s"), *GetImportFullName(Index));
-                Warned = 1;
-            }
+    // not in the package file: accept an object that already exists in memory
+    UBOOL Warned = 0;
+    UPackage* ClassPackage = static_cast<UPackage*>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, Import.ClassPackage, 0));
+    UClass* FindClass = ClassPackage ? static_cast<UClass*>(StaticFindObjectFast(UClass::StaticClass(), ClassPackage, Import.ClassName, 0)) : nullptr;
+    if (FindClass)
+    {
+        UObject* Found = StaticFindObjectFast(FindClass, TopPackage, Import.ObjectName, 0);
+        UBOOL Accept;
+        if (!Found)
+        {
+            Found = StaticFindObjectFast(FindClass, ANY_PACKAGE, Import.ObjectName, 0);
+            Accept = Found != nullptr;
+        }
+        else
+        {
+            Accept = TopPackage->bDirty || (Found->GetFlags() & RF_Transient);
+        }
+
+        if (Accept)
+        {
+            Import.XObject = Found;
+            GImportCount++;
+        }
+        else
+        {
+            GWarn->Logf(NAME_Warning, TEXT("Missing %s"), *GetImportFullName(Index));
+            Warned = 1;
         }
     }
 

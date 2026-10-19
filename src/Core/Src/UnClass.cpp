@@ -273,7 +273,7 @@ INT FNativeLayout::FindOffset(const TCHAR* PropertyName) const
 {
     for (INT i = 0; i < Count; i++)
     {
-        if (!appStrcmp(Properties[i].Name, PropertyName))
+        if (!appStricmp(Properties[i].Name, PropertyName))
             return Properties[i].Offset;
     }
     return INDEX_NONE;

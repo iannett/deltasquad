@@ -280,6 +280,17 @@ public:
         }
     }
 
+    // the pairs as an array; the hash is rebuilt on load
+    template<typename TArchive>
+    friend TArchive& operator<<(TArchive& Ar, TMapBase& Map)
+    {
+        Ar << Map.Pairs;
+        if (Ar.IsLoading())
+            Map.Rehash();
+        Ar.CountBytes(Map.Hash, Map.HashCount * sizeof(INT));
+        return Ar;
+    }
+
     INT Num() const { return Pairs.Num(); }
     const TK& KeyAt(INT i) const { return Pairs[i].Key; }
     TV& ValueAt(INT i) { return Pairs[i].Value; }
@@ -290,6 +301,12 @@ protected:
         INT HashNext;
         TK  Key;
         TV  Value;
+
+        template<typename TArchive>
+        friend TArchive& operator<<(TArchive& Ar, TPair& Pair)
+        {
+            return Ar << Pair.Key << Pair.Value;
+        }
     };
 
     TV& Add(const TK& Key, const TV& Value)

@@ -12,6 +12,13 @@ endif()
 
 add_subdirectory(src/Core)
 add_subdirectory(src/Engine)
+add_subdirectory(src/Gameplay)
+add_subdirectory(src/CTGame)
+add_subdirectory(src/CTMarkers)
+add_subdirectory(src/IpDrv)
+add_subdirectory(src/XGame)
+add_subdirectory(src/XInterface)
+add_subdirectory(src/XInterfaceLive)
 add_subdirectory(src/Launch)
 
 enable_testing()

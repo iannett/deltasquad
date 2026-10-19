@@ -89,6 +89,7 @@ def main():
             text,
             flags=re.S,
         )
+        new = re.sub(r"(img\.shields\.io/badge/decompiled-)[\d.]+(%25)", lambda m: f"{m.group(1)}{percent:.2f}{m.group(2)}", new)
         if new == text and summary not in text:
             sys.exit("error: progress markers not found in README.md")
         README.write_text(new)

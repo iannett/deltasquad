@@ -710,3 +710,23 @@
 0009a660  UState::Destroy
 0009a3f6  UStruct::Destroy
 0009b29f  UClass::Destroy
+0005dee9  TLazyArray<BYTE>::~TLazyArray
+0005f297  TLazyArray<BYTE>::Load
+0005f2d0  TLazyArray<BYTE>::Unload
+0005f1a5  TLazyArray<BYTE>::Serialize
+0005f646  TLazyArray<BYTE>::TLazyArray
+0009dcc0  UMaterial::Serialize
+0005f439  operator<<(FArchive&, FMipmap&)
+0005f7d1  SerializeMips
+0005f8d1  UTexture::Serialize
+0005c92b  UTexture::DefaultLOD
+0005f317  UPalette::Serialize
+0003f9e8  operator<<(FArchive&, FColor&)
+000b28b1  operator<<(FArchive&, FFontCharacter&)
+000b2d88  operator<<(FArchive&, FFontPage&)
+000b2ea7  UFont::Serialize
+000b288a  operator<<(FArchive&, TMap<_WORD,_WORD>::TPair&)
+000b2da2  operator<<(FArchive&, TMap<_WORD,_WORD>&)
+00074d57  USound::Serialize
+00072ed1  USoundMultiple::Serialize
+00071039  USoundStreamed::Serialize

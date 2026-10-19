@@ -1,4 +1,5 @@
 address,class,name,native_index,table_entry
+00024d14,UCommandlet,execMain,0,00431a58
 0002b77e,AActor,execAddToSquadInterest,0,0042f6ec
 0002b7ab,AActor,execRemoveFromSquadInterest,0,0042f6f8
 0002b7d8,AActor,execAddToTargetList,0,0042f704
@@ -7,6 +8,7 @@ address,class,name,native_index,table_entry
 0002b85f,AActor,execMove,0,0042f788
 0002b8b6,AActor,execSetRotation,0,0042f7a0
 0002b90d,AActor,execCalcTrajectoryVelocity,0,0042fc80
+0002b9c8,AActivateItem,execDurationMultiplier,0,0042fdc4
 0002b9fb,AController,execGetFocusRotation,0,0042fe1c
 0002ba3c,AController,execGetFocusLocation,0,0042fe28
 0002ba7d,APlayerController,execGetNumFriendRequests,0,0042fee0
@@ -36,11 +38,13 @@ address,class,name,native_index,table_entry
 0002c19b,APawn,execSetAnchor,0,00430888
 0002c1e9,APawn,execStopTalking,0,004308d0
 0002c216,APawn,execSetTeamIndex,0,004308f4
+0002c264,AShadowProjector,execUpdateShadow,0,004309cc
 0002d923,APlayerController,execSetLevelProgress,0,00430318
 0002d984,APlayerController,execHasReachedLevel,0,00430324
 0002d9ea,APlayerController,execGetLevelIndex,0,00430330
 0002da50,APlayerController,execX_ClientValidate,0,00430444
 0002dab1,APlayerController,execX_ServerValidationResponse,0,00430450
+0007195d,UPawnAudioTable,execGetSound,0,00430ca4
 00076705,AProjector,execGetProjTexture,0,004309b4
 0007673b,AProjector,execAttachProjector,0,00430960
 0007676b,AProjector,execAbandonProjector,0,00430978
@@ -89,6 +93,7 @@ address,class,name,native_index,table_entry
 0008ffe7,AActor,execKAddBoneLifter,0,0042fae8
 000901b9,AActor,execKRemoveLifterFromBone,0,0042faf4
 000902cd,AActor,execKRemoveAllBoneLifters,0,0042fb00
+000a2839,AFluidSurfaceInfo,execPling,0,004305d0
 000b7747,UObject,execNot_PreBool,129,004311d0
 000b7799,UObject,execEqualEqual_BoolBool,242,004311dc
 000b7818,UObject,execNotEqual_BoolBool,243,004311e8
@@ -270,6 +275,7 @@ address,class,name,native_index,table_entry
 000c1257,UObject,execCaps,235,00431878
 000c1979,UObject,execConcat_StringString,112,004317d0
 000c1a3c,UObject,execAt_StringString,168,004317dc
+000c5027,UStimulus,execGroup,0,00430cbc
 000c5658,UParticleEmitter,execSpawnParticle,0,00430c74
 000c56aa,UParticleEmitter,execTrigger,0,00430c80
 000c56ff,UParticleEmitter,execSetStartLocationRange,0,00430c8c
@@ -280,12 +286,14 @@ address,class,name,native_index,table_entry
 000c82f0,UMovie,execIsPlaying,0,00430c44
 000c832a,UMovie,execGetWidth,0,00430c50
 000c8364,UMovie,execGetHeight,0,00430c5c
+000c8419,UMovieTexture,execInitializeMovie,0,00430bf0
 000c84de,UMovie,execPlay,0,00430c08
 000c8f40,UScriptedTexture,execSetSize,0,00430ba8
 000c8fce,UScriptedTexture,execDrawTile,0,00430bcc
 000c9453,UScriptedTexture,execDrawText,0,00430bb4
 000c95a4,UScriptedTexture,execTextSize,0,00430bc0
 000c974b,UScriptedTexture,execDrawPortal,0,00430bd8
+000c9de2,UInteractionMaster,execTravel,0,00430b8c
 000ca45e,UConsole,execIsMenuBackgroundMusicPlaying,0,00430b38
 000ca4b9,UConsole,execStartMenuBackgroundMusic,0,00430b44
 000ca512,UConsole,execStopMenuBackgroundMusic,0,00430b50
@@ -380,12 +388,15 @@ address,class,name,native_index,table_entry
 000e3df6,AActor,execVisibleActors,311,0042fd64
 000e40bb,AActor,execVisibleCollidingActors,312,0042fd70
 000e434b,AActor,execCollidingActors,321,0042fd7c
+000e450a,AZoneInfo,execZoneActors,308,004306dc
 000e4758,AGameInfo,execPreServerTravel,0,004305f4
 000e47a3,AActor,execMultiply_ColorFloat,552,0042fdac
 000e484d,AActor,execMultiply_FloatColor,550,0042fd94
 000e48f7,AActor,execAdd_ColorColor,551,0042fda0
 000e4968,AActor,execSubtract_ColorColor,549,0042fd88
+000e49d9,AVolume,execEncompasses,0,0042fddc
 000e4a37,AHUD,execDraw3DLine,0,00430570
+000e4b7d,AProjectile,execGetTossVelocity,0,00430948
 000e4c83,AActor,execGetRenderBoundingSphere,0,0042f8fc
 000e4ebc,AActor,execGetCollisionCenter,0,0042f914
 000e50bb,ASquadMarker,execInitiate,0,004307f4
@@ -402,6 +413,7 @@ address,class,name,native_index,table_entry
 000e595d,AActor,execKBreakRagdollJoint,0,0042fb24
 000e5a39,AActor,execGetAnimParams,0,0042f8b4
 000e5b62,AActor,execAnimIsInGroup,0,0042f8c0
+000e5c47,AWeapon,execPlayOwnedSoundOnQueue,0,004307a0
 000e5db4,APlayerController,execGetAllButtonMappings,0,00430390
 000e5eb8,APlayerController,execGetPadInput,0,004303fc
 000e601b,AActor,execSetRelativeLocation,0,0042f7b8
@@ -457,6 +469,7 @@ address,class,name,native_index,table_entry
 000f0364,APawn,execGetConfigValue,0,004308dc
 000f061d,APawn,execForceCrouch,0,004308a0
 000f064c,APawn,execReachedDestination,0,00430894
+000f3932,ACoverPoint,execIsValidForTarget,0,0043086c
 000f679f,ANavigationPoint,execReserveNode,0,00430848
 000f6801,ANavigationPoint,execReleaseNode,0,00430854
 000f83cb,ASquad,execRemoveFromSquad,0,0043064c
@@ -468,11 +481,14 @@ address,class,name,native_index,table_entry
 000f9f4e,ASquadMarker,execGetMarkerUsability,0,004307e8
 000fa803,ASquad,execAddVoiceLine,0,00430664
 000fab15,ASquad,execPlayerShootingGhosts,0,0043067c
+000fac28,ASecurity,execNativePerform,0,004306c4
+000fb1b6,ASceneManager,execGetTotalSceneTime,0,004306ac
 000fc82a,AGameStats,execGetStatsIdentifier,0,00430618
 000fc8e4,AGameStats,execGetMapFileName,0,00430624
 000fc91d,AFileLog,execCloseLog,0,004305ac
 000fc958,AFileLog,execOpenLog,0,004305a0
 000fca69,AFileLog,execLogf,0,004305b8
+000fcc33,AEmitter,execKill,0,00430558
 000fd82c,APlayerController,execCheckSpeedHack,0,0043045c
 000fdb3f,AController,execSetEnemy,0,0042fdf8
 000fdb3f,AProjector,execDetachProjector,0,0043096c
@@ -646,6 +662,8 @@ address,class,name,native_index,table_entry
 0020f8b9,ACTBot,execForceState,0,00432ad0
 0020f960,ACTBot,execGetState,0,00432ab8
 0020f9db,ACTBot,execGetWrapperState,0,00432ac4
+00223d17,UACTION_EnableAIVoice,execInitActionFor,0,00432c68
+0022d7b9,AMasterServerLink,execPoll,0,00433010
 0022d834,AMasterServerClient,execStop,0,004330a0
 0022d870,AMasterServerClient,execLaunchAutoUpdate,0,004330ac
 0022fb77,AServerQueryClient,execPingServer,0,00433070
@@ -716,3 +734,5 @@ address,class,name,native_index,table_entry
 00242c76,AMenuBase,execFocusOnNothing,0,004331cc
 00242ca9,AMenuBase,execSelectWidget,0,004331e4
 00242d3d,AMenuBase,execSetDefaultFocusWidget,0,004331fc
+00242de5,AMenuVirtualKeyboard,execUpdateEditBox,0,004332a4
+00242fc1,APreCacheGame,execCachePackageList,0,004330e8

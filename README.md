@@ -1,4 +1,11 @@
-# deltasquad
+# Deltasquad
+
+![decompiled](https://img.shields.io/badge/decompiled-4.52%25-blue)
+![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus)
+![CMake](https://img.shields.io/badge/build-CMake-064F8C?logo=cmake)
+![Clang](https://img.shields.io/badge/compiler-Clang-262D3A?logo=llvm)
+![Target](https://img.shields.io/badge/target-Xbox-107C10)
+![Host](https://img.shields.io/badge/builds%20on-macOS-000000?logo=apple)
 
 Deltasquad is a work-in-progress decompilation of *Star Wars: Republic Commando* for the original Xbox (USA release). The project reconstructs the game's C++ source from `Default.xbe`.
 
@@ -10,7 +17,7 @@ This decompilation is non-matching.
 ## Status
 
 <!-- progress -->
-**4.43%** decompiled (119,485 / 2,694,583 bytes, 710 / 12,356 functions)
+**4.52%** decompiled (121,884 / 2,694,583 bytes, 730 / 12,356 functions)
 <!-- /progress -->
 
 Progress is measured against the game's own code in `Default.xbe` and weighted by function size. The C runtime, the Xbox system libraries and Xbox-specific engine code (Direct3D renderer, audio, Xbox Live, memory allocator and similar) are excluded. The excluded code is listed in `progress/platform-roots.txt` and expanded by `tools/platform.sh`.

@@ -244,6 +244,733 @@ IMPLEMENT_CLASS(AWarpZoneInfo, Engine)
 IMPLEMENT_CLASS(AWarpZoneMarker, Engine)
 IMPLEMENT_CLASS(AWeapon, Engine)
 IMPLEMENT_CLASS(AWeaponAttachment, Engine)
+IMPLEMENT_CLASS(UChannel, Engine)
+IMPLEMENT_CLASS(UActorChannel, Engine)
+IMPLEMENT_CLASS(UAnimation, Engine)
+IMPLEMENT_CLASS(UAudioSubsystem, Engine)
+IMPLEMENT_CLASS(UDownload, Engine)
+IMPLEMENT_CLASS(UChannelDownload, Engine)
+IMPLEMENT_CLASS(UClient, Engine)
+IMPLEMENT_CLASS(UControlChannel, Engine)
+IMPLEMENT_CLASS(UPrimitive, Engine)
+IMPLEMENT_CLASS(UConvexVolume, Engine)
+IMPLEMENT_CLASS(UCubemapManager, Engine)
+IMPLEMENT_CLASS(UPendingLevel, Engine)
+IMPLEMENT_CLASS(UDemoPlayPendingLevel, Engine)
+IMPLEMENT_CLASS(UNetConnection, Engine)
+IMPLEMENT_CLASS(UDemoRecConnection, Engine)
+IMPLEMENT_CLASS(UNetDriver, Engine)
+IMPLEMENT_CLASS(UDemoRecDriver, Engine)
+IMPLEMENT_CLASS(UFileChannel, Engine)
+IMPLEMENT_CLASS(UFluidSurfacePrimitive, Engine)
+IMPLEMENT_CLASS(UFont, Engine)
+IMPLEMENT_CLASS(UGlobalTempObjects, Engine)
+IMPLEMENT_CLASS(URenderResource, Engine)
+IMPLEMENT_CLASS(UIndexBuffer, Engine)
+IMPLEMENT_CLASS(UInput, Engine)
+IMPLEMENT_CLASS(UKMeshProps, Engine)
+IMPLEMENT_CLASS(ULevelBase, Engine)
+IMPLEMENT_CLASS(ULevel, Engine)
+IMPLEMENT_CLASS(UMesh, Engine)
+IMPLEMENT_CLASS(ULodMesh, Engine)
+IMPLEMENT_CLASS(UMeshInstance, Engine)
+IMPLEMENT_CLASS(ULodMeshInstance, Engine)
+IMPLEMENT_CLASS(UMeshAnimation, Engine)
+IMPLEMENT_CLASS(UModel, Engine)
+IMPLEMENT_CLASS(UNetPendingLevel, Engine)
+IMPLEMENT_CLASS(URenderDevice, Engine)
+IMPLEMENT_CLASS(UNullRenderDevice, Engine)
+IMPLEMENT_CLASS(UPackageCheckInfo, Engine)
+IMPLEMENT_CLASS(UPackageMapLevel, Engine)
+IMPLEMENT_CLASS(UPolys, Engine)
+IMPLEMENT_CLASS(UProjectorPrimitive, Engine)
+IMPLEMENT_CLASS(UProxyBitmapMaterial, Engine)
+IMPLEMENT_CLASS(UServerCommandlet, Engine)
+IMPLEMENT_CLASS(USkeletalMesh, Engine)
+IMPLEMENT_CLASS(USkeletalMeshInstance, Engine)
+IMPLEMENT_CLASS(USkinVertexBuffer, Engine)
+IMPLEMENT_CLASS(UStaticMesh, Engine)
+IMPLEMENT_CLASS(UStaticMeshInstance, Engine)
+IMPLEMENT_CLASS(UTerrainPrimitive, Engine)
+IMPLEMENT_CLASS(UTerrainSector, Engine)
+IMPLEMENT_CLASS(UTexCoordMaterial, Engine)
+IMPLEMENT_CLASS(UVertMesh, Engine)
+IMPLEMENT_CLASS(UVertMeshInstance, Engine)
+IMPLEMENT_CLASS(UVertexStreamBase, Engine)
+IMPLEMENT_CLASS(UVertexBuffer, Engine)
+IMPLEMENT_CLASS(UVertexStreamCOLOR, Engine)
+IMPLEMENT_CLASS(UVertexStreamPosNormTex, Engine)
+IMPLEMENT_CLASS(UVertexStreamUV, Engine)
+IMPLEMENT_CLASS(UVertexStreamVECTOR, Engine)
+IMPLEMENT_CLASS(UViewport, Engine)
+
+// native functions by name, with their fixed native index or 0
+static FNativeEntry AActorNatives[] =
+{
+    { TEXT("ConsoleCommand"), { static_cast<Native>(&AActor::execConsoleCommand) }, 0 },
+    { TEXT("CopyMaterialsToSkins"), { static_cast<Native>(&AActor::execCopyMaterialsToSkins) }, 0 },
+    { TEXT("CopyMaterialsToPrecacheMaterials"), { static_cast<Native>(&AActor::execCopyMaterialsToPrecacheMaterials) }, 0 },
+    { TEXT("ClearRenderData"), { static_cast<Native>(&AActor::execClearRenderData) }, 0 },
+    { TEXT("GetAnchor"), { static_cast<Native>(&AActor::execGetAnchor) }, 0 },
+    { TEXT("AddToSquadInterest"), { static_cast<Native>(&AActor::execAddToSquadInterest) }, 0 },
+    { TEXT("RemoveFromSquadInterest"), { static_cast<Native>(&AActor::execRemoveFromSquadInterest) }, 0 },
+    { TEXT("AddToTargetList"), { static_cast<Native>(&AActor::execAddToTargetList) }, 0 },
+    { TEXT("RemoveFromTargetList"), { static_cast<Native>(&AActor::execRemoveFromTargetList) }, 0 },
+    { TEXT("Error"), { static_cast<Native>(&AActor::execError) }, 233 },
+    { TEXT("Sleep"), { static_cast<Native>(&AActor::execSleep) }, 256 },
+    { TEXT("SetCollision"), { static_cast<Native>(&AActor::execSetCollision) }, 262 },
+    { TEXT("SetCollisionSize"), { static_cast<Native>(&AActor::execSetCollisionSize) }, 283 },
+    { TEXT("ResetCollisionSize"), { static_cast<Native>(&AActor::execResetCollisionSize) }, 0 },
+    { TEXT("SetDrawScale"), { static_cast<Native>(&AActor::execSetDrawScale) }, 0 },
+    { TEXT("SetDrawScale3D"), { static_cast<Native>(&AActor::execSetDrawScale3D) }, 0 },
+    { TEXT("SetStaticMesh"), { static_cast<Native>(&AActor::execSetStaticMesh) }, 0 },
+    { TEXT("SetDrawType"), { static_cast<Native>(&AActor::execSetDrawType) }, 0 },
+    { TEXT("Move"), { static_cast<Native>(&AActor::execMove) }, 0 },
+    { TEXT("SetLocation"), { static_cast<Native>(&AActor::execSetLocation) }, 0 },
+    { TEXT("SetRotation"), { static_cast<Native>(&AActor::execSetRotation) }, 0 },
+    { TEXT("SetRelativeRotation"), { static_cast<Native>(&AActor::execSetRelativeRotation) }, 0 },
+    { TEXT("SetRelativeLocation"), { static_cast<Native>(&AActor::execSetRelativeLocation) }, 0 },
+    { TEXT("MoveSmooth"), { static_cast<Native>(&AActor::execMoveSmooth) }, 3969 },
+    { TEXT("AutonomousPhysics"), { static_cast<Native>(&AActor::execAutonomousPhysics) }, 3971 },
+    { TEXT("SetBase"), { static_cast<Native>(&AActor::execSetBase) }, 298 },
+    { TEXT("SetOwner"), { static_cast<Native>(&AActor::execSetOwner) }, 272 },
+    { TEXT("GetMeshName"), { static_cast<Native>(&AActor::execGetMeshName) }, 0 },
+    { TEXT("PlayAnim"), { static_cast<Native>(&AActor::execPlayAnim) }, 259 },
+    { TEXT("LoopAnim"), { static_cast<Native>(&AActor::execLoopAnim) }, 260 },
+    { TEXT("IsAnimating"), { static_cast<Native>(&AActor::execIsAnimating) }, 282 },
+    { TEXT("FinishAnim"), { static_cast<Native>(&AActor::execFinishAnim) }, 261 },
+    { TEXT("HasAnim"), { static_cast<Native>(&AActor::execHasAnim) }, 263 },
+    { TEXT("StopAnimating"), { static_cast<Native>(&AActor::execStopAnimating) }, 0 },
+    { TEXT("IsPlayingAnim"), { static_cast<Native>(&AActor::execIsPlayingAnim) }, 0 },
+    { TEXT("LinkMesh"), { static_cast<Native>(&AActor::execLinkMesh) }, 0 },
+    { TEXT("LinkAnimToMesh"), { static_cast<Native>(&AActor::execLinkAnimToMesh) }, 0 },
+    { TEXT("BoneRefresh"), { static_cast<Native>(&AActor::execBoneRefresh) }, 0 },
+    { TEXT("GetBoneLocation"), { static_cast<Native>(&AActor::execGetBoneLocation) }, 0 },
+    { TEXT("GetBoneRotation"), { static_cast<Native>(&AActor::execGetBoneRotation) }, 0 },
+    { TEXT("SetBoneLocation"), { static_cast<Native>(&AActor::execSetBoneLocation) }, 0 },
+    { TEXT("SetBoneRotation"), { static_cast<Native>(&AActor::execSetBoneRotation) }, 0 },
+    { TEXT("SetBoneScale"), { static_cast<Native>(&AActor::execSetBoneScale) }, 0 },
+    { TEXT("GetAnimParams"), { static_cast<Native>(&AActor::execGetAnimParams) }, 0 },
+    { TEXT("AnimIsInGroup"), { static_cast<Native>(&AActor::execAnimIsInGroup) }, 0 },
+    { TEXT("AttachToBone"), { static_cast<Native>(&AActor::execAttachToBone) }, 0 },
+    { TEXT("DetachFromBone"), { static_cast<Native>(&AActor::execDetachFromBone) }, 0 },
+    { TEXT("GetSocketBoneName"), { static_cast<Native>(&AActor::execGetSocketBoneName) }, 0 },
+    { TEXT("FindNearestBone"), { static_cast<Native>(&AActor::execFindNearestBone) }, 0 },
+    { TEXT("GetRenderBoundingSphere"), { static_cast<Native>(&AActor::execGetRenderBoundingSphere) }, 0 },
+    { TEXT("DrawDebugLine"), { static_cast<Native>(&AActor::execDrawDebugLine) }, 0 },
+    { TEXT("GetCollisionCenter"), { static_cast<Native>(&AActor::execGetCollisionCenter) }, 0 },
+    { TEXT("DebugClock"), { static_cast<Native>(&AActor::execDebugClock) }, 0 },
+    { TEXT("DebugUnclock"), { static_cast<Native>(&AActor::execDebugUnclock) }, 0 },
+    { TEXT("FinishInterpolation"), { static_cast<Native>(&AActor::execFinishInterpolation) }, 301 },
+    { TEXT("SetPhysics"), { static_cast<Native>(&AActor::execSetPhysics) }, 3970 },
+    { TEXT("OnlyAffectPawns"), { static_cast<Native>(&AActor::execOnlyAffectPawns) }, 0 },
+    { TEXT("KGetRBQuaternion"), { static_cast<Native>(&AActor::execKGetRBQuaternion) }, 0 },
+    { TEXT("KGetRigidBodyState"), { static_cast<Native>(&AActor::execKGetRigidBodyState) }, 0 },
+    { TEXT("KDrawRigidBodyState"), { static_cast<Native>(&AActor::execKDrawRigidBodyState) }, 0 },
+    { TEXT("KRBVecToVector"), { static_cast<Native>(&AActor::execKRBVecToVector) }, 0 },
+    { TEXT("KRBVecFromVector"), { static_cast<Native>(&AActor::execKRBVecFromVector) }, 0 },
+    { TEXT("KSetMass"), { static_cast<Native>(&AActor::execKSetMass) }, 0 },
+    { TEXT("KGetMass"), { static_cast<Native>(&AActor::execKGetMass) }, 0 },
+    { TEXT("KSetInertiaTensor"), { static_cast<Native>(&AActor::execKSetInertiaTensor) }, 0 },
+    { TEXT("KGetInertiaTensor"), { static_cast<Native>(&AActor::execKGetInertiaTensor) }, 0 },
+    { TEXT("KSetDampingProps"), { static_cast<Native>(&AActor::execKSetDampingProps) }, 0 },
+    { TEXT("KGetDampingProps"), { static_cast<Native>(&AActor::execKGetDampingProps) }, 0 },
+    { TEXT("KSetFriction"), { static_cast<Native>(&AActor::execKSetFriction) }, 0 },
+    { TEXT("KGetFriction"), { static_cast<Native>(&AActor::execKGetFriction) }, 0 },
+    { TEXT("KSetRestitution"), { static_cast<Native>(&AActor::execKSetRestitution) }, 0 },
+    { TEXT("KGetRestitution"), { static_cast<Native>(&AActor::execKGetRestitution) }, 0 },
+    { TEXT("KSetCOMOffset"), { static_cast<Native>(&AActor::execKSetCOMOffset) }, 0 },
+    { TEXT("KGetCOMOffset"), { static_cast<Native>(&AActor::execKGetCOMOffset) }, 0 },
+    { TEXT("KGetCOMPosition"), { static_cast<Native>(&AActor::execKGetCOMPosition) }, 0 },
+    { TEXT("KSetImpactThreshold"), { static_cast<Native>(&AActor::execKSetImpactThreshold) }, 0 },
+    { TEXT("KGetImpactThreshold"), { static_cast<Native>(&AActor::execKGetImpactThreshold) }, 0 },
+    { TEXT("KWake"), { static_cast<Native>(&AActor::execKWake) }, 0 },
+    { TEXT("KIsAwake"), { static_cast<Native>(&AActor::execKIsAwake) }, 0 },
+    { TEXT("KAddImpulse"), { static_cast<Native>(&AActor::execKAddImpulse) }, 0 },
+    { TEXT("KSetStayUpright"), { static_cast<Native>(&AActor::execKSetStayUpright) }, 0 },
+    { TEXT("KSetStayUprightParams"), { static_cast<Native>(&AActor::execKSetStayUprightParams) }, 0 },
+    { TEXT("KSetBlockKarma"), { static_cast<Native>(&AActor::execKSetBlockKarma) }, 0 },
+    { TEXT("KSetActorGravScale"), { static_cast<Native>(&AActor::execKSetActorGravScale) }, 0 },
+    { TEXT("KGetActorGravScale"), { static_cast<Native>(&AActor::execKGetActorGravScale) }, 0 },
+    { TEXT("KDisableCollision"), { static_cast<Native>(&AActor::execKDisableCollision) }, 0 },
+    { TEXT("KEnableCollision"), { static_cast<Native>(&AActor::execKEnableCollision) }, 0 },
+    { TEXT("KSetSkelVel"), { static_cast<Native>(&AActor::execKSetSkelVel) }, 0 },
+    { TEXT("KGetSkelMass"), { static_cast<Native>(&AActor::execKGetSkelMass) }, 0 },
+    { TEXT("KFreezeRagdoll"), { static_cast<Native>(&AActor::execKFreezeRagdoll) }, 0 },
+    { TEXT("KAddBoneLifter"), { static_cast<Native>(&AActor::execKAddBoneLifter) }, 0 },
+    { TEXT("KRemoveLifterFromBone"), { static_cast<Native>(&AActor::execKRemoveLifterFromBone) }, 0 },
+    { TEXT("KRemoveAllBoneLifters"), { static_cast<Native>(&AActor::execKRemoveAllBoneLifters) }, 0 },
+    { TEXT("KMakeRagdollAvailable"), { static_cast<Native>(&AActor::execKMakeRagdollAvailable) }, 0 },
+    { TEXT("KIsRagdollAvailable"), { static_cast<Native>(&AActor::execKIsRagdollAvailable) }, 0 },
+    { TEXT("KBreakRagdollJoint"), { static_cast<Native>(&AActor::execKBreakRagdollJoint) }, 0 },
+    { TEXT("CalculateDamageFrom"), { static_cast<Native>(&AActor::execCalculateDamageFrom) }, 0 },
+    { TEXT("PlayMusic"), { static_cast<Native>(&AActor::execPlayMusic) }, 0 },
+    { TEXT("SetImuseState"), { static_cast<Native>(&AActor::execSetImuseState) }, 0 },
+    { TEXT("StopAllMusic"), { static_cast<Native>(&AActor::execStopAllMusic) }, 0 },
+    { TEXT("StopSound"), { static_cast<Native>(&AActor::execStopSound) }, 0 },
+    { TEXT("EnableBattleEngine"), { static_cast<Native>(&AActor::execEnableBattleEngine) }, 0 },
+    { TEXT("SetBattleEngineParams"), { static_cast<Native>(&AActor::execSetBattleEngineParams) }, 0 },
+    { TEXT("SetBattleMusicMulti"), { static_cast<Native>(&AActor::execSetBattleMusicMulti) }, 0 },
+    { TEXT("ForceBattleMusic"), { static_cast<Native>(&AActor::execForceBattleMusic) }, 0 },
+    { TEXT("ForceBattleFlourish"), { static_cast<Native>(&AActor::execForceBattleFlourish) }, 0 },
+    { TEXT("Trace"), { static_cast<Native>(&AActor::execTrace) }, 277 },
+    { TEXT("TraceColliding"), { static_cast<Native>(&AActor::execTraceColliding) }, 0 },
+    { TEXT("FastTrace"), { static_cast<Native>(&AActor::execFastTrace) }, 548 },
+    { TEXT("Spawn"), { static_cast<Native>(&AActor::execSpawn) }, 278 },
+    { TEXT("Destroy"), { static_cast<Native>(&AActor::execDestroy) }, 279 },
+    { TEXT("SetTimer"), { static_cast<Native>(&AActor::execSetTimer) }, 280 },
+    { TEXT("PlaySound"), { static_cast<Native>(&AActor::execPlaySound) }, 264 },
+    { TEXT("PauseSound"), { static_cast<Native>(&AActor::execPauseSound) }, 0 },
+    { TEXT("IsSoundPaused"), { static_cast<Native>(&AActor::execIsSoundPaused) }, 0 },
+    { TEXT("IsSoundActive"), { static_cast<Native>(&AActor::execIsSoundActive) }, 0 },
+    { TEXT("PlayOwnedSound"), { static_cast<Native>(&AActor::execPlayOwnedSound) }, 0 },
+    { TEXT("GetSoundDuration"), { static_cast<Native>(&AActor::execGetSoundDuration) }, 0 },
+    { TEXT("PlayFeedbackEffect"), { static_cast<Native>(&AActor::execPlayFeedbackEffect) }, 566 },
+    { TEXT("StopFeedbackEffect"), { static_cast<Native>(&AActor::execStopFeedbackEffect) }, 567 },
+    { TEXT("ForceFeedbackSupported"), { static_cast<Native>(&AActor::execForceFeedbackSupported) }, 568 },
+    { TEXT("PostStimulusToWorld"), { static_cast<Native>(&AActor::execPostStimulusToWorld) }, 0 },
+    { TEXT("PostStimulusAtLocation"), { static_cast<Native>(&AActor::execPostStimulusAtLocation) }, 0 },
+    { TEXT("PostStimulusToIndividual"), { static_cast<Native>(&AActor::execPostStimulusToIndividual) }, 0 },
+    { TEXT("CalcTrajectoryVelocity"), { static_cast<Native>(&AActor::execCalcTrajectoryVelocity) }, 0 },
+    { TEXT("PlayerCanSeeMe"), { static_cast<Native>(&AActor::execPlayerCanSeeMe) }, 532 },
+    { TEXT("SuggestFallVelocity"), { static_cast<Native>(&AActor::execSuggestFallVelocity) }, 0 },
+    { TEXT("GetMapName"), { static_cast<Native>(&AActor::execGetMapName) }, 539 },
+    { TEXT("GetNextSkin"), { static_cast<Native>(&AActor::execGetNextSkin) }, 545 },
+    { TEXT("GetURLMap"), { static_cast<Native>(&AActor::execGetURLMap) }, 547 },
+    { TEXT("ExpandRelativeURL"), { static_cast<Native>(&AActor::execExpandRelativeURL) }, 0 },
+    { TEXT("RemoveURLOption"), { static_cast<Native>(&AActor::execRemoveURLOption) }, 0 },
+    { TEXT("GetNextInt"), { static_cast<Native>(&AActor::execGetNextInt) }, 0 },
+    { TEXT("GetNextIntDesc"), { static_cast<Native>(&AActor::execGetNextIntDesc) }, 0 },
+    { TEXT("GetCacheEntry"), { static_cast<Native>(&AActor::execGetCacheEntry) }, 0 },
+    { TEXT("MoveCacheEntry"), { static_cast<Native>(&AActor::execMoveCacheEntry) }, 0 },
+    { TEXT("AllActors"), { static_cast<Native>(&AActor::execAllActors) }, 304 },
+    { TEXT("DynamicActors"), { static_cast<Native>(&AActor::execDynamicActors) }, 313 },
+    { TEXT("ChildActors"), { static_cast<Native>(&AActor::execChildActors) }, 305 },
+    { TEXT("BasedActors"), { static_cast<Native>(&AActor::execBasedActors) }, 306 },
+    { TEXT("TouchingActors"), { static_cast<Native>(&AActor::execTouchingActors) }, 307 },
+    { TEXT("TraceActors"), { static_cast<Native>(&AActor::execTraceActors) }, 309 },
+    { TEXT("RadiusActors"), { static_cast<Native>(&AActor::execRadiusActors) }, 310 },
+    { TEXT("VisibleActors"), { static_cast<Native>(&AActor::execVisibleActors) }, 311 },
+    { TEXT("VisibleCollidingActors"), { static_cast<Native>(&AActor::execVisibleCollidingActors) }, 312 },
+    { TEXT("CollidingActors"), { static_cast<Native>(&AActor::execCollidingActors) }, 321 },
+    { TEXT("Subtract_ColorColor"), { static_cast<Native>(&AActor::execSubtract_ColorColor) }, 549 },
+    { TEXT("Multiply_FloatColor"), { static_cast<Native>(&AActor::execMultiply_FloatColor) }, 550 },
+    { TEXT("Add_ColorColor"), { static_cast<Native>(&AActor::execAdd_ColorColor) }, 551 },
+    { TEXT("Multiply_ColorFloat"), { static_cast<Native>(&AActor::execMultiply_ColorFloat) }, 552 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AActor, AActorNatives)
+
+static FNativeEntry AControllerNatives[] =
+{
+    { TEXT("SetEnemy"), { static_cast<Native>(&AController::execSetEnemy) }, 0 },
+    { TEXT("MoveToward"), { static_cast<Native>(&AController::execMoveToward) }, 502 },
+    { TEXT("FinishRotation"), { static_cast<Native>(&AController::execFinishRotation) }, 508 },
+    { TEXT("GetFocusRotation"), { static_cast<Native>(&AController::execGetFocusRotation) }, 0 },
+    { TEXT("GetFocusLocation"), { static_cast<Native>(&AController::execGetFocusLocation) }, 0 },
+    { TEXT("LineOfSightTo"), { static_cast<Native>(&AController::execLineOfSightTo) }, 514 },
+    { TEXT("PickWallAdjust"), { static_cast<Native>(&AController::execPickWallAdjust) }, 526 },
+    { TEXT("WaitForLanding"), { static_cast<Native>(&AController::execWaitForLanding) }, 527 },
+    { TEXT("AddController"), { static_cast<Native>(&AController::execAddController) }, 529 },
+    { TEXT("RemoveController"), { static_cast<Native>(&AController::execRemoveController) }, 530 },
+    { TEXT("PickTarget"), { static_cast<Native>(&AController::execPickTarget) }, 531 },
+    { TEXT("PickAnyTarget"), { static_cast<Native>(&AController::execPickAnyTarget) }, 534 },
+    { TEXT("InLatentExecution"), { static_cast<Native>(&AController::execInLatentExecution) }, 0 },
+    { TEXT("StopWaiting"), { static_cast<Native>(&AController::execStopWaiting) }, 0 },
+    { TEXT("WeaponFired"), { static_cast<Native>(&AController::execWeaponFired) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AController, AControllerNatives)
+
+static FNativeEntry AAIControllerNatives[] =
+{
+    { TEXT("AddReflexAnimGoal"), { static_cast<Native>(&AAIController::execAddReflexAnimGoal) }, 0 },
+    { TEXT("AddReflexSleepGoal"), { static_cast<Native>(&AAIController::execAddReflexSleepGoal) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AAIController, AAIControllerNatives)
+
+static FNativeEntry UInteractionNatives[] =
+{
+    { TEXT("Initialize"), { static_cast<Native>(&UInteraction::execInitialize) }, 0 },
+    { TEXT("ConsoleCommand"), { static_cast<Native>(&UInteraction::execConsoleCommand) }, 0 },
+    { TEXT("WorldToScreen"), { static_cast<Native>(&UInteraction::execWorldToScreen) }, 0 },
+    { TEXT("ScreenToWorld"), { static_cast<Native>(&UInteraction::execScreenToWorld) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UInteraction, UInteractionNatives)
+
+static FNativeEntry AActivateItemNatives[] =
+{
+    { TEXT("DurationMultiplier"), { static_cast<Native>(&AActivateItem::execDurationMultiplier) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AActivateItem, AActivateItemNatives)
+
+static FNativeEntry ANavigationPointNatives[] =
+{
+    { TEXT("SetBlocked"), { static_cast<Native>(&ANavigationPoint::execSetBlocked) }, 0 },
+    { TEXT("ReserveNode"), { static_cast<Native>(&ANavigationPoint::execReserveNode) }, 0 },
+    { TEXT("ReleaseNode"), { static_cast<Native>(&ANavigationPoint::execReleaseNode) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(ANavigationPoint, ANavigationPointNatives)
+
+static FNativeEntry UParticleEmitterNatives[] =
+{
+    { TEXT("SpawnParticle"), { static_cast<Native>(&UParticleEmitter::execSpawnParticle) }, 0 },
+    { TEXT("Trigger"), { static_cast<Native>(&UParticleEmitter::execTrigger) }, 0 },
+    { TEXT("SetStartLocationRange"), { static_cast<Native>(&UParticleEmitter::execSetStartLocationRange) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UParticleEmitter, UParticleEmitterNatives)
+
+static FNativeEntry AVolumeNatives[] =
+{
+    { TEXT("Encompasses"), { static_cast<Native>(&AVolume::execEncompasses) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AVolume, AVolumeNatives)
+
+static FNativeEntry APlayerControllerNatives[] =
+{
+    { TEXT("GetNumFriendRequests"), { static_cast<Native>(&APlayerController::execGetNumFriendRequests) }, 0 },
+    { TEXT("SetNumFriendRequests"), { static_cast<Native>(&APlayerController::execSetNumFriendRequests) }, 0 },
+    { TEXT("GetNumGameInvites"), { static_cast<Native>(&APlayerController::execGetNumGameInvites) }, 0 },
+    { TEXT("SetNumGameInvites"), { static_cast<Native>(&APlayerController::execSetNumGameInvites) }, 0 },
+    { TEXT("GetLastNumFriendRequests"), { static_cast<Native>(&APlayerController::execGetLastNumFriendRequests) }, 0 },
+    { TEXT("SetLastNumFriendRequests"), { static_cast<Native>(&APlayerController::execSetLastNumFriendRequests) }, 0 },
+    { TEXT("GetLastNumGameInvites"), { static_cast<Native>(&APlayerController::execGetLastNumGameInvites) }, 0 },
+    { TEXT("SetLastNumGameInvites"), { static_cast<Native>(&APlayerController::execSetLastNumGameInvites) }, 0 },
+    { TEXT("GetFriendRequestTimeout"), { static_cast<Native>(&APlayerController::execGetFriendRequestTimeout) }, 0 },
+    { TEXT("SetFriendRequestTimeout"), { static_cast<Native>(&APlayerController::execSetFriendRequestTimeout) }, 0 },
+    { TEXT("GetGameInviteTimeout"), { static_cast<Native>(&APlayerController::execGetGameInviteTimeout) }, 0 },
+    { TEXT("SetGameInviteTimeout"), { static_cast<Native>(&APlayerController::execSetGameInviteTimeout) }, 0 },
+    { TEXT("GetNextMatchmakingQueryTime"), { static_cast<Native>(&APlayerController::execGetNextMatchmakingQueryTime) }, 0 },
+    { TEXT("SetNextMatchmakingQueryTime"), { static_cast<Native>(&APlayerController::execSetNextMatchmakingQueryTime) }, 0 },
+    { TEXT("SetNetSpeed"), { static_cast<Native>(&APlayerController::execSetNetSpeed) }, 0 },
+    { TEXT("GetPlayerNetworkAddress"), { static_cast<Native>(&APlayerController::execGetPlayerNetworkAddress) }, 0 },
+    { TEXT("GetServerNetworkAddress"), { static_cast<Native>(&APlayerController::execGetServerNetworkAddress) }, 0 },
+    { TEXT("ConsoleCommand"), { static_cast<Native>(&APlayerController::execConsoleCommand) }, 0 },
+    { TEXT("GetEntryLevel"), { static_cast<Native>(&APlayerController::execGetEntryLevel) }, 0 },
+    { TEXT("ResetKeyboard"), { static_cast<Native>(&APlayerController::execResetKeyboard) }, 544 },
+    { TEXT("SetViewTarget"), { static_cast<Native>(&APlayerController::execSetViewTarget) }, 0 },
+    { TEXT("ClientTravel"), { static_cast<Native>(&APlayerController::execClientTravel) }, 0 },
+    { TEXT("UpdateURL"), { static_cast<Native>(&APlayerController::execUpdateURL) }, 546 },
+    { TEXT("GetUrlOption"), { static_cast<Native>(&APlayerController::execGetUrlOption) }, 0 },
+    { TEXT("GetDefaultURL"), { static_cast<Native>(&APlayerController::execGetDefaultURL) }, 0 },
+    { TEXT("CopyToClipboard"), { static_cast<Native>(&APlayerController::execCopyToClipboard) }, 0 },
+    { TEXT("PasteFromClipboard"), { static_cast<Native>(&APlayerController::execPasteFromClipboard) }, 0 },
+    { TEXT("GetInitialMenuClass"), { static_cast<Native>(&APlayerController::execGetInitialMenuClass) }, 0 },
+    { TEXT("GetPauseMenuClass"), { static_cast<Native>(&APlayerController::execGetPauseMenuClass) }, 0 },
+    { TEXT("GetMultiplayerPauseMenuClass"), { static_cast<Native>(&APlayerController::execGetMultiplayerPauseMenuClass) }, 0 },
+    { TEXT("GetControllerLayoutMenuClass"), { static_cast<Native>(&APlayerController::execGetControllerLayoutMenuClass) }, 0 },
+    { TEXT("GetLoadingMenuClass"), { static_cast<Native>(&APlayerController::execGetLoadingMenuClass) }, 0 },
+    { TEXT("GetTeamMenuClass"), { static_cast<Native>(&APlayerController::execGetTeamMenuClass) }, 0 },
+    { TEXT("GetProfileMenuClass"), { static_cast<Native>(&APlayerController::execGetProfileMenuClass) }, 0 },
+    { TEXT("GetNewLoadingHint"), { static_cast<Native>(&APlayerController::execGetNewLoadingHint) }, 0 },
+    { TEXT("UseControllerConfig"), { static_cast<Native>(&APlayerController::execUseControllerConfig) }, 0 },
+    { TEXT("GetCurrentDateTimeString"), { static_cast<Native>(&APlayerController::execGetCurrentDateTimeString) }, 0 },
+    { TEXT("GetCurrentMapName"), { static_cast<Native>(&APlayerController::execGetCurrentMapName) }, 0 },
+    { TEXT("GetLanguage"), { static_cast<Native>(&APlayerController::execGetLanguage) }, 0 },
+    { TEXT("HaveAdequateDiscSpace"), { static_cast<Native>(&APlayerController::execHaveAdequateDiscSpace) }, 0 },
+    { TEXT("GetFreeDiscBlocks"), { static_cast<Native>(&APlayerController::execGetFreeDiscBlocks) }, 0 },
+    { TEXT("GetSaveGameDiscBlocksRequired"), { static_cast<Native>(&APlayerController::execGetSaveGameDiscBlocksRequired) }, 0 },
+    { TEXT("GetProfileDiscBlocksRequired"), { static_cast<Native>(&APlayerController::execGetProfileDiscBlocksRequired) }, 0 },
+    { TEXT("GetXboxLiveDiscBlocksRequired"), { static_cast<Native>(&APlayerController::execGetXboxLiveDiscBlocksRequired) }, 0 },
+    { TEXT("GetNormalizedGamma"), { static_cast<Native>(&APlayerController::execGetNormalizedGamma) }, 0 },
+    { TEXT("SetNormalizedGamma"), { static_cast<Native>(&APlayerController::execSetNormalizedGamma) }, 0 },
+    { TEXT("IsFullscreen"), { static_cast<Native>(&APlayerController::execIsFullscreen) }, 0 },
+    { TEXT("GetVoiceVolume"), { static_cast<Native>(&APlayerController::execGetVoiceVolume) }, 0 },
+    { TEXT("SetVoiceVolume"), { static_cast<Native>(&APlayerController::execSetVoiceVolume) }, 0 },
+    { TEXT("GetSoundVolume"), { static_cast<Native>(&APlayerController::execGetSoundVolume) }, 0 },
+    { TEXT("SetSoundVolume"), { static_cast<Native>(&APlayerController::execSetSoundVolume) }, 0 },
+    { TEXT("GetMusicVolume"), { static_cast<Native>(&APlayerController::execGetMusicVolume) }, 0 },
+    { TEXT("SetMusicVolume"), { static_cast<Native>(&APlayerController::execSetMusicVolume) }, 0 },
+    { TEXT("GetUseLowQualitySound"), { static_cast<Native>(&APlayerController::execGetUseLowQualitySound) }, 0 },
+    { TEXT("SetUseLowQualitySound"), { static_cast<Native>(&APlayerController::execSetUseLowQualitySound) }, 0 },
+    { TEXT("Get3DSoundSupported"), { static_cast<Native>(&APlayerController::execGet3DSoundSupported) }, 0 },
+    { TEXT("GetUse3DSound"), { static_cast<Native>(&APlayerController::execGetUse3DSound) }, 0 },
+    { TEXT("SetUse3DSound"), { static_cast<Native>(&APlayerController::execSetUse3DSound) }, 0 },
+    { TEXT("GetUseEAX"), { static_cast<Native>(&APlayerController::execGetUseEAX) }, 0 },
+    { TEXT("SetUseEAX"), { static_cast<Native>(&APlayerController::execSetUseEAX) }, 0 },
+    { TEXT("GetMaxSupportedEAXVersion"), { static_cast<Native>(&APlayerController::execGetMaxSupportedEAXVersion) }, 0 },
+    { TEXT("GetMaxCapsSupportedEAXVersion"), { static_cast<Native>(&APlayerController::execGetMaxCapsSupportedEAXVersion) }, 0 },
+    { TEXT("SetUseEAXVersion"), { static_cast<Native>(&APlayerController::execSetUseEAXVersion) }, 0 },
+    { TEXT("GetUseEAXVersion"), { static_cast<Native>(&APlayerController::execGetUseEAXVersion) }, 0 },
+    { TEXT("GetNumAudioChannels"), { static_cast<Native>(&APlayerController::execGetNumAudioChannels) }, 0 },
+    { TEXT("SetNumAudioChannels"), { static_cast<Native>(&APlayerController::execSetNumAudioChannels) }, 0 },
+    { TEXT("GetWindowedViewport"), { static_cast<Native>(&APlayerController::execGetWindowedViewport) }, 0 },
+    { TEXT("SetWindowedViewport"), { static_cast<Native>(&APlayerController::execSetWindowedViewport) }, 0 },
+    { TEXT("GetFullscreenViewport"), { static_cast<Native>(&APlayerController::execGetFullscreenViewport) }, 0 },
+    { TEXT("SetFullscreenViewport"), { static_cast<Native>(&APlayerController::execSetFullscreenViewport) }, 0 },
+    { TEXT("GetTextureDetail"), { static_cast<Native>(&APlayerController::execGetTextureDetail) }, 0 },
+    { TEXT("SetTextureDetail"), { static_cast<Native>(&APlayerController::execSetTextureDetail) }, 0 },
+    { TEXT("GetCharacterLODLevel"), { static_cast<Native>(&APlayerController::execGetCharacterLODLevel) }, 0 },
+    { TEXT("SetCharacterLODLevel"), { static_cast<Native>(&APlayerController::execSetCharacterLODLevel) }, 0 },
+    { TEXT("GetShadowsEnabled"), { static_cast<Native>(&APlayerController::execGetShadowsEnabled) }, 0 },
+    { TEXT("EnableShadows"), { static_cast<Native>(&APlayerController::execEnableShadows) }, 0 },
+    { TEXT("GetBumpmappingQuality"), { static_cast<Native>(&APlayerController::execGetBumpmappingQuality) }, 0 },
+    { TEXT("SetBumpmappingQuality"), { static_cast<Native>(&APlayerController::execSetBumpmappingQuality) }, 0 },
+    { TEXT("GetBlurEnabled"), { static_cast<Native>(&APlayerController::execGetBlurEnabled) }, 0 },
+    { TEXT("EnableBlur"), { static_cast<Native>(&APlayerController::execEnableBlur) }, 0 },
+    { TEXT("GetBloomQuality"), { static_cast<Native>(&APlayerController::execGetBloomQuality) }, 0 },
+    { TEXT("SetBloomQuality"), { static_cast<Native>(&APlayerController::execSetBloomQuality) }, 0 },
+    { TEXT("GetProjectorsEnabled"), { static_cast<Native>(&APlayerController::execGetProjectorsEnabled) }, 0 },
+    { TEXT("EnableProjectors"), { static_cast<Native>(&APlayerController::execEnableProjectors) }, 0 },
+    { TEXT("GetVSyncEnabled"), { static_cast<Native>(&APlayerController::execGetVSyncEnabled) }, 0 },
+    { TEXT("EnableVSync"), { static_cast<Native>(&APlayerController::execEnableVSync) }, 0 },
+    { TEXT("SupportsFSAALevel"), { static_cast<Native>(&APlayerController::execSupportsFSAALevel) }, 0 },
+    { TEXT("GetFSAALevel"), { static_cast<Native>(&APlayerController::execGetFSAALevel) }, 0 },
+    { TEXT("SetFSAALevel"), { static_cast<Native>(&APlayerController::execSetFSAALevel) }, 0 },
+    { TEXT("GetConfigValue"), { static_cast<Native>(&APlayerController::execGetConfigValue) }, 0 },
+    { TEXT("SetLevelProgress"), { static_cast<Native>(&APlayerController::execSetLevelProgress) }, 0 },
+    { TEXT("HasReachedLevel"), { static_cast<Native>(&APlayerController::execHasReachedLevel) }, 0 },
+    { TEXT("GetLevelIndex"), { static_cast<Native>(&APlayerController::execGetLevelIndex) }, 0 },
+    { TEXT("GetNextLevel"), { static_cast<Native>(&APlayerController::execGetNextLevel) }, 0 },
+    { TEXT("PlayMovie"), { static_cast<Native>(&APlayerController::execPlayMovie) }, 0 },
+    { TEXT("IsMoviePlaying"), { static_cast<Native>(&APlayerController::execIsMoviePlaying) }, 0 },
+    { TEXT("StartScreenFade"), { static_cast<Native>(&APlayerController::execStartScreenFade) }, 0 },
+    { TEXT("NoHUDArms"), { static_cast<Native>(&APlayerController::execNoHUDArms) }, 0 },
+    { TEXT("PassOnTacticalIntensity"), { static_cast<Native>(&APlayerController::execPassOnTacticalIntensity) }, 0 },
+    { TEXT("IsLevelLoading"), { static_cast<Native>(&APlayerController::execIsLevelLoading) }, 0 },
+    { TEXT("GetAllButtonMappings"), { static_cast<Native>(&APlayerController::execGetAllButtonMappings) }, 0 },
+    { TEXT("ChangeKeyBinding"), { static_cast<Native>(&APlayerController::execChangeKeyBinding) }, 0 },
+    { TEXT("SaveInputConfig"), { static_cast<Native>(&APlayerController::execSaveInputConfig) }, 0 },
+    { TEXT("SavePlayerInputConfig"), { static_cast<Native>(&APlayerController::execSavePlayerInputConfig) }, 0 },
+    { TEXT("SaveClientConfig"), { static_cast<Native>(&APlayerController::execSaveClientConfig) }, 0 },
+    { TEXT("SaveRenderDeviceConfig"), { static_cast<Native>(&APlayerController::execSaveRenderDeviceConfig) }, 0 },
+    { TEXT("SaveAudioConfig"), { static_cast<Native>(&APlayerController::execSaveAudioConfig) }, 0 },
+    { TEXT("SetRumble"), { static_cast<Native>(&APlayerController::execSetRumble) }, 0 },
+    { TEXT("GetRumble"), { static_cast<Native>(&APlayerController::execGetRumble) }, 0 },
+    { TEXT("GetPadInput"), { static_cast<Native>(&APlayerController::execGetPadInput) }, 0 },
+    { TEXT("ControllerAttached"), { static_cast<Native>(&APlayerController::execControllerAttached) }, 0 },
+    { TEXT("DisassociateViewportPads"), { static_cast<Native>(&APlayerController::execDisassociateViewportPads) }, 0 },
+    { TEXT("IgnoreOtherViewportInput"), { static_cast<Native>(&APlayerController::execIgnoreOtherViewportInput) }, 0 },
+    { TEXT("IgnoringViewportInput"), { static_cast<Native>(&APlayerController::execIgnoringViewportInput) }, 0 },
+    { TEXT("IgnoreViewportInput"), { static_cast<Native>(&APlayerController::execIgnoreViewportInput) }, 0 },
+    { TEXT("X_ClientValidate"), { static_cast<Native>(&APlayerController::execX_ClientValidate) }, 0 },
+    { TEXT("X_ServerValidationResponse"), { static_cast<Native>(&APlayerController::execX_ServerValidationResponse) }, 0 },
+    { TEXT("CheckSpeedHack"), { static_cast<Native>(&APlayerController::execCheckSpeedHack) }, 0 },
+    { TEXT("FindStairRotation"), { static_cast<Native>(&APlayerController::execFindStairRotation) }, 524 },
+    { TEXT("X_ClientHearSound"), { static_cast<Native>(&APlayerController::execX_ClientHearSound) }, 0 },
+    { TEXT("PropagateSettings"), { static_cast<Native>(&APlayerController::execPropagateSettings) }, 0 },
+    { TEXT("PropagateBadCDKey"), { static_cast<Native>(&APlayerController::execPropagateBadCDKey) }, 0 },
+    { TEXT("PropagateMissingContent"), { static_cast<Native>(&APlayerController::execPropagateMissingContent) }, 0 },
+    { TEXT("GetSaveGames"), { static_cast<Native>(&APlayerController::execGetSaveGames) }, 0 },
+    { TEXT("DeleteSaveGame"), { static_cast<Native>(&APlayerController::execDeleteSaveGame) }, 0 },
+    { TEXT("SaveGameExists"), { static_cast<Native>(&APlayerController::execSaveGameExists) }, 0 },
+    { TEXT("CompareSaveGameTimes"), { static_cast<Native>(&APlayerController::execCompareSaveGameTimes) }, 0 },
+    { TEXT("GetMostRecentSaveGame"), { static_cast<Native>(&APlayerController::execGetMostRecentSaveGame) }, 0 },
+    { TEXT("VerifySaveGame"), { static_cast<Native>(&APlayerController::execVerifySaveGame) }, 0 },
+    { TEXT("GetCurrentProfileName"), { static_cast<Native>(&APlayerController::execGetCurrentProfileName) }, 0 },
+    { TEXT("GetGlobalSettingsSaveName"), { static_cast<Native>(&APlayerController::execGetGlobalSettingsSaveName) }, 0 },
+    { TEXT("ExitLevel"), { static_cast<Native>(&APlayerController::execExitLevel) }, 0 },
+    { TEXT("GetMissionStart"), { static_cast<Native>(&APlayerController::execGetMissionStart) }, 0 },
+    { TEXT("ReleaseAllButtons"), { static_cast<Native>(&APlayerController::execReleaseAllButtons) }, 0 },
+    { TEXT("UpdateRotation"), { static_cast<Native>(&APlayerController::execUpdateRotation) }, 0 },
+    { TEXT("LeaveVoiceChat"), { static_cast<Native>(&APlayerController::execLeaveVoiceChat) }, 0 },
+    { TEXT("ChangeVoiceChatter"), { static_cast<Native>(&APlayerController::execChangeVoiceChatter) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(APlayerController, APlayerControllerNatives)
+
+static FNativeEntry UCanvasNatives[] =
+{
+    { TEXT("StrLen"), { static_cast<Native>(&UCanvas::execStrLen) }, 464 },
+    { TEXT("DrawText"), { static_cast<Native>(&UCanvas::execDrawText) }, 465 },
+    { TEXT("DrawTile"), { static_cast<Native>(&UCanvas::execDrawTile) }, 466 },
+    { TEXT("DrawActor"), { static_cast<Native>(&UCanvas::execDrawActor) }, 467 },
+    { TEXT("DrawTileClipped"), { static_cast<Native>(&UCanvas::execDrawTileClipped) }, 468 },
+    { TEXT("DrawTextClipped"), { static_cast<Native>(&UCanvas::execDrawTextClipped) }, 469 },
+    { TEXT("TextSize"), { static_cast<Native>(&UCanvas::execTextSize) }, 470 },
+    { TEXT("DrawPortal"), { static_cast<Native>(&UCanvas::execDrawPortal) }, 480 },
+    { TEXT("DrawRotatedTile"), { static_cast<Native>(&UCanvas::execDrawRotatedTile) }, 481 },
+    { TEXT("WrapStringToArray"), { static_cast<Native>(&UCanvas::execWrapStringToArray) }, 0 },
+    { TEXT("DrawTileStretched"), { static_cast<Native>(&UCanvas::execDrawTileStretched) }, 0 },
+    { TEXT("DrawTileJustified"), { static_cast<Native>(&UCanvas::execDrawTileJustified) }, 0 },
+    { TEXT("DrawTileScaled"), { static_cast<Native>(&UCanvas::execDrawTileScaled) }, 0 },
+    { TEXT("DrawTextJustified"), { static_cast<Native>(&UCanvas::execDrawTextJustified) }, 0 },
+    { TEXT("Flush"), { static_cast<Native>(&UCanvas::execFlush) }, 0 },
+    { TEXT("SetCurvedSurface"), { static_cast<Native>(&UCanvas::execSetCurvedSurface) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UCanvas, UCanvasNatives)
+
+static FNativeEntry UConsoleNatives[] =
+{
+    { TEXT("CreateLoadingMenu"), { static_cast<Native>(&UConsole::execCreateLoadingMenu) }, 0 },
+    { TEXT("DestroyLoadingMenu"), { static_cast<Native>(&UConsole::execDestroyLoadingMenu) }, 0 },
+    { TEXT("IsMenuBackgroundMusicPlaying"), { static_cast<Native>(&UConsole::execIsMenuBackgroundMusicPlaying) }, 0 },
+    { TEXT("StartMenuBackgroundMusic"), { static_cast<Native>(&UConsole::execStartMenuBackgroundMusic) }, 0 },
+    { TEXT("StopMenuBackgroundMusic"), { static_cast<Native>(&UConsole::execStopMenuBackgroundMusic) }, 0 },
+    { TEXT("PauseLevelMusic"), { static_cast<Native>(&UConsole::execPauseLevelMusic) }, 0 },
+    { TEXT("ResumeLevelMusic"), { static_cast<Native>(&UConsole::execResumeLevelMusic) }, 0 },
+    { TEXT("CleanupMenus"), { static_cast<Native>(&UConsole::execCleanupMenus) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UConsole, UConsoleNatives)
+
+static FNativeEntry ACoverPointNatives[] =
+{
+    { TEXT("IsValidForTarget"), { static_cast<Native>(&ACoverPoint::execIsValidForTarget) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(ACoverPoint, ACoverPointNatives)
+
+static FNativeEntry AEmitterNatives[] =
+{
+    { TEXT("Kill"), { static_cast<Native>(&AEmitter::execKill) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AEmitter, AEmitterNatives)
+
+static FNativeEntry AFileLogNatives[] =
+{
+    { TEXT("OpenLog"), { static_cast<Native>(&AFileLog::execOpenLog) }, 0 },
+    { TEXT("CloseLog"), { static_cast<Native>(&AFileLog::execCloseLog) }, 0 },
+    { TEXT("Logf"), { static_cast<Native>(&AFileLog::execLogf) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AFileLog, AFileLogNatives)
+
+static FNativeEntry AFluidSurfaceInfoNatives[] =
+{
+    { TEXT("Pling"), { static_cast<Native>(&AFluidSurfaceInfo::execPling) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AFluidSurfaceInfo, AFluidSurfaceInfoNatives)
+
+static FNativeEntry UGameEngineNatives[] =
+{
+    { TEXT("GetLocalizedKeyName"), { static_cast<Native>(&UGameEngine::execGetLocalizedKeyName) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UGameEngine, UGameEngineNatives)
+
+static FNativeEntry AGameInfoNatives[] =
+{
+    { TEXT("GetNetworkNumber"), { static_cast<Native>(&AGameInfo::execGetNetworkNumber) }, 0 },
+    { TEXT("PreServerTravel"), { static_cast<Native>(&AGameInfo::execPreServerTravel) }, 0 },
+    { TEXT("ParseKillMessage"), { static_cast<Native>(&AGameInfo::execParseKillMessage) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AGameInfo, AGameInfoNatives)
+
+static FNativeEntry AGameStatsNatives[] =
+{
+    { TEXT("GetStatsIdentifier"), { static_cast<Native>(&AGameStats::execGetStatsIdentifier) }, 0 },
+    { TEXT("GetMapFileName"), { static_cast<Native>(&AGameStats::execGetMapFileName) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AGameStats, AGameStatsNatives)
+
+static FNativeEntry AHUDNatives[] =
+{
+    { TEXT("Draw3DLine"), { static_cast<Native>(&AHUD::execDraw3DLine) }, 0 },
+    { TEXT("GetConsoleFont"), { static_cast<Native>(&AHUD::execGetConsoleFont) }, 0 },
+    { TEXT("DrawLevelAction"), { static_cast<Native>(&AHUD::execDrawLevelAction) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AHUD, AHUDNatives)
+
+static FNativeEntry UHelmetNatives[] =
+{
+    { TEXT("LoadSubtitles"), { static_cast<Native>(&UHelmet::execLoadSubtitles) }, 0 },
+    { TEXT("PotentialSubtitledSoundPlayed"), { static_cast<Native>(&UHelmet::execPotentialSubtitledSoundPlayed) }, 0 },
+    { TEXT("ShowSquadCommandPrompt"), { static_cast<Native>(&UHelmet::execShowSquadCommandPrompt) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UHelmet, UHelmetNatives)
+
+static FNativeEntry UInteractionMasterNatives[] =
+{
+    { TEXT("Travel"), { static_cast<Native>(&UInteractionMaster::execTravel) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UInteractionMaster, UInteractionMasterNatives)
+
+static FNativeEntry AKConstraintNatives[] =
+{
+    { TEXT("KUpdateConstraintParams"), { static_cast<Native>(&AKConstraint::execKUpdateConstraintParams) }, 0 },
+    { TEXT("KGetConstraintForce"), { static_cast<Native>(&AKConstraint::execKGetConstraintForce) }, 0 },
+    { TEXT("KGetConstraintTorque"), { static_cast<Native>(&AKConstraint::execKGetConstraintTorque) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AKConstraint, AKConstraintNatives)
+
+static FNativeEntry AZoneInfoNatives[] =
+{
+    { TEXT("ZoneActors"), { static_cast<Native>(&AZoneInfo::execZoneActors) }, 308 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AZoneInfo, AZoneInfoNatives)
+
+static FNativeEntry ALevelInfoNatives[] =
+{
+    { TEXT("IsSplitScreen"), { static_cast<Native>(&ALevelInfo::execIsSplitScreen) }, 0 },
+    { TEXT("DetailChange"), { static_cast<Native>(&ALevelInfo::execDetailChange) }, 0 },
+    { TEXT("IsEntry"), { static_cast<Native>(&ALevelInfo::execIsEntry) }, 0 },
+    { TEXT("IsDedicatedServer"), { static_cast<Native>(&ALevelInfo::execIsDedicatedServer) }, 0 },
+    { TEXT("IsSystemLink"), { static_cast<Native>(&ALevelInfo::execIsSystemLink) }, 0 },
+    { TEXT("RegenerateBlockedRegions"), { static_cast<Native>(&ALevelInfo::execRegenerateBlockedRegions) }, 0 },
+    { TEXT("GetLocalURL"), { static_cast<Native>(&ALevelInfo::execGetLocalURL) }, 0 },
+    { TEXT("IsDemoBuild"), { static_cast<Native>(&ALevelInfo::execIsDemoBuild) }, 0 },
+    { TEXT("GetAddressURL"), { static_cast<Native>(&ALevelInfo::execGetAddressURL) }, 0 },
+    { TEXT("GetLevelURL"), { static_cast<Native>(&ALevelInfo::execGetLevelURL) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(ALevelInfo, ALevelInfoNatives)
+
+static FNativeEntry UMovieNatives[] =
+{
+    { TEXT("Play"), { static_cast<Native>(&UMovie::execPlay) }, 0 },
+    { TEXT("Pause"), { static_cast<Native>(&UMovie::execPause) }, 0 },
+    { TEXT("IsPaused"), { static_cast<Native>(&UMovie::execIsPaused) }, 0 },
+    { TEXT("StopNow"), { static_cast<Native>(&UMovie::execStopNow) }, 0 },
+    { TEXT("StopAtEnd"), { static_cast<Native>(&UMovie::execStopAtEnd) }, 0 },
+    { TEXT("IsPlaying"), { static_cast<Native>(&UMovie::execIsPlaying) }, 0 },
+    { TEXT("GetWidth"), { static_cast<Native>(&UMovie::execGetWidth) }, 0 },
+    { TEXT("GetHeight"), { static_cast<Native>(&UMovie::execGetHeight) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UMovie, UMovieNatives)
+
+static FNativeEntry UMovieTextureNatives[] =
+{
+    { TEXT("InitializeMovie"), { static_cast<Native>(&UMovieTexture::execInitializeMovie) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UMovieTexture, UMovieTextureNatives)
+
+static FNativeEntry APawnNatives[] =
+{
+    { TEXT("SetAnchor"), { static_cast<Native>(&APawn::execSetAnchor) }, 0 },
+    { TEXT("ReachedDestination"), { static_cast<Native>(&APawn::execReachedDestination) }, 0 },
+    { TEXT("ForceCrouch"), { static_cast<Native>(&APawn::execForceCrouch) }, 0 },
+    { TEXT("PlayOwnedCue"), { static_cast<Native>(&APawn::execPlayOwnedCue) }, 0 },
+    { TEXT("GetSoundFromCue"), { static_cast<Native>(&APawn::execGetSoundFromCue) }, 0 },
+    { TEXT("PlayJumpSoundOnCurrentMaterial"), { static_cast<Native>(&APawn::execPlayJumpSoundOnCurrentMaterial) }, 0 },
+    { TEXT("StopTalking"), { static_cast<Native>(&APawn::execStopTalking) }, 0 },
+    { TEXT("GetConfigValue"), { static_cast<Native>(&APawn::execGetConfigValue) }, 0 },
+    { TEXT("GetTeamIndex"), { static_cast<Native>(&APawn::execGetTeamIndex) }, 0 },
+    { TEXT("SetTeamIndex"), { static_cast<Native>(&APawn::execSetTeamIndex) }, 0 },
+    { TEXT("GetRelationTowards"), { static_cast<Native>(&APawn::execGetRelationTowards) }, 0 },
+    { TEXT("CalcHealthLevel"), { static_cast<Native>(&APawn::execCalcHealthLevel) }, 0 },
+    { TEXT("IsWounded"), { static_cast<Native>(&APawn::execIsWounded) }, 0 },
+    { TEXT("UseWoundedAnims"), { static_cast<Native>(&APawn::execUseWoundedAnims) }, 0 },
+    { TEXT("IsLocallyControlled"), { static_cast<Native>(&APawn::execIsLocallyControlled) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(APawn, APawnNatives)
+
+static FNativeEntry UPawnAudioTableNatives[] =
+{
+    { TEXT("GetSound"), { static_cast<Native>(&UPawnAudioTable::execGetSound) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UPawnAudioTable, UPawnAudioTableNatives)
+
+static FNativeEntry AProjectileNatives[] =
+{
+    { TEXT("GetTossVelocity"), { static_cast<Native>(&AProjectile::execGetTossVelocity) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AProjectile, AProjectileNatives)
+
+static FNativeEntry AProjectorNatives[] =
+{
+    { TEXT("AttachProjector"), { static_cast<Native>(&AProjector::execAttachProjector) }, 0 },
+    { TEXT("DetachProjector"), { static_cast<Native>(&AProjector::execDetachProjector) }, 0 },
+    { TEXT("AbandonProjector"), { static_cast<Native>(&AProjector::execAbandonProjector) }, 0 },
+    { TEXT("AttachActor"), { static_cast<Native>(&AProjector::execAttachActor) }, 0 },
+    { TEXT("DetachActor"), { static_cast<Native>(&AProjector::execDetachActor) }, 0 },
+    { TEXT("ExcludeActor"), { static_cast<Native>(&AProjector::execExcludeActor) }, 0 },
+    { TEXT("IsActorExcluded"), { static_cast<Native>(&AProjector::execIsActorExcluded) }, 0 },
+    { TEXT("GetProjTexture"), { static_cast<Native>(&AProjector::execGetProjTexture) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AProjector, AProjectorNatives)
+
+static FNativeEntry ASceneManagerNatives[] =
+{
+    { TEXT("GetTotalSceneTime"), { static_cast<Native>(&ASceneManager::execGetTotalSceneTime) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(ASceneManager, ASceneManagerNatives)
+
+static FNativeEntry UScriptedTextureNatives[] =
+{
+    { TEXT("SetSize"), { static_cast<Native>(&UScriptedTexture::execSetSize) }, 0 },
+    { TEXT("DrawText"), { static_cast<Native>(&UScriptedTexture::execDrawText) }, 0 },
+    { TEXT("TextSize"), { static_cast<Native>(&UScriptedTexture::execTextSize) }, 0 },
+    { TEXT("DrawTile"), { static_cast<Native>(&UScriptedTexture::execDrawTile) }, 0 },
+    { TEXT("DrawPortal"), { static_cast<Native>(&UScriptedTexture::execDrawPortal) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UScriptedTexture, UScriptedTextureNatives)
+
+static FNativeEntry ASecurityNatives[] =
+{
+    { TEXT("NativePerform"), { static_cast<Native>(&ASecurity::execNativePerform) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(ASecurity, ASecurityNatives)
+
+static FNativeEntry AShadowProjectorNatives[] =
+{
+    { TEXT("UpdateShadow"), { static_cast<Native>(&AShadowProjector::execUpdateShadow) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AShadowProjector, AShadowProjectorNatives)
+
+static FNativeEntry ASquadNatives[] =
+{
+    { TEXT("AddToSquad"), { static_cast<Native>(&ASquad::execAddToSquad) }, 0 },
+    { TEXT("RemoveFromSquad"), { static_cast<Native>(&ASquad::execRemoveFromSquad) }, 0 },
+    { TEXT("EnemyKilled"), { static_cast<Native>(&ASquad::execEnemyKilled) }, 0 },
+    { TEXT("AddVoiceLine"), { static_cast<Native>(&ASquad::execAddVoiceLine) }, 0 },
+    { TEXT("PlayerWentBerserk"), { static_cast<Native>(&ASquad::execPlayerWentBerserk) }, 0 },
+    { TEXT("PlayerShootingGhosts"), { static_cast<Native>(&ASquad::execPlayerShootingGhosts) }, 0 },
+    { TEXT("CountAliveMembers"), { static_cast<Native>(&ASquad::execCountAliveMembers) }, 0 },
+    { TEXT("GetClosestMemberWithViewOf"), { static_cast<Native>(&ASquad::execGetClosestMemberWithViewOf) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(ASquad, ASquadNatives)
+
+static FNativeEntry ASquadMarkerNatives[] =
+{
+    { TEXT("GetMarkerUsability"), { static_cast<Native>(&ASquadMarker::execGetMarkerUsability) }, 0 },
+    { TEXT("Initiate"), { static_cast<Native>(&ASquadMarker::execInitiate) }, 0 },
+    { TEXT("CancelMarker"), { static_cast<Native>(&ASquadMarker::execCancelMarker) }, 0 },
+    { TEXT("GetMarkerSpotLocation"), { static_cast<Native>(&ASquadMarker::execGetMarkerSpotLocation) }, 0 },
+    { TEXT("IsSetUpProperly"), { static_cast<Native>(&ASquadMarker::execIsSetUpProperly) }, 0 },
+    { TEXT("UnderwayCallback"), { static_cast<Native>(&ASquadMarker::execUnderwayCallback) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(ASquadMarker, ASquadMarkerNatives)
+
+static FNativeEntry UStimulusNatives[] =
+{
+    { TEXT("Group"), { static_cast<Native>(&UStimulus::execGroup) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(UStimulus, UStimulusNatives)
+
+static FNativeEntry AWarpZoneInfoNatives[] =
+{
+    { TEXT("Warp"), { static_cast<Native>(&AWarpZoneInfo::execWarp) }, 314 },
+    { TEXT("UnWarp"), { static_cast<Native>(&AWarpZoneInfo::execUnWarp) }, 315 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AWarpZoneInfo, AWarpZoneInfoNatives)
+
+static FNativeEntry AWeaponNatives[] =
+{
+    { TEXT("PlayOwnedSoundOnQueue"), { static_cast<Native>(&AWeapon::execPlayOwnedSoundOnQueue) }, 0 },
+    { nullptr, { nullptr }, 0 },
+};
+IMPLEMENT_NATIVE_TABLE(AWeapon, AWeaponNatives)
 
 // on 32-bit targets, classes without strings or arrays (which the port stores in 12 bytes, the xbox in 8)
 // come out exactly the xbox size
@@ -457,15 +1184,6 @@ namespace
     };
     const FNativeLayout FXboxAddrLayout(TEXT("Actor"), TEXT("XboxAddr"), sizeof(FXboxAddr), alignof(FXboxAddr), FXboxAddrOffsets, ARRAY_COUNT(FXboxAddrOffsets));
 
-    // ActorSpawner.SpawnInfo
-    const FNativePropertyOffset FSpawnInfoOffsets[] =
-    {
-        { TEXT("TypeOfSpawn"), static_cast<INT>(offsetof(FSpawnInfo, TypeOfSpawn)) },
-        { TEXT("ActorToSpawn"), static_cast<INT>(offsetof(FSpawnInfo, ActorToSpawn)) },
-        { TEXT("ProjectorToSpawn"), static_cast<INT>(offsetof(FSpawnInfo, ProjectorToSpawn)) },
-    };
-    const FNativeLayout FSpawnInfoLayout(TEXT("ActorSpawner"), TEXT("SpawnInfo"), sizeof(FSpawnInfo), alignof(FSpawnInfo), FSpawnInfoOffsets, ARRAY_COUNT(FSpawnInfoOffsets));
-
     // AnimProp.PropAnimInfo
     const FNativePropertyOffset FPropAnimInfoOffsets[] =
     {
@@ -506,41 +1224,6 @@ namespace
         { TEXT("Multiplier"), static_cast<INT>(offsetof(FDamageIncludedInfo, Multiplier)) },
     };
     const FNativeLayout FDamageIncludedInfoLayout(TEXT("DamageVariance"), TEXT("DamageIncludedInfo"), sizeof(FDamageIncludedInfo), alignof(FDamageIncludedInfo), FDamageIncludedInfoOffsets, ARRAY_COUNT(FDamageIncludedInfoOffsets));
-
-    // DeathEffect.DeathEffectInfo
-    const FNativePropertyOffset FDeathEffectInfoOffsets[] =
-    {
-        { TEXT("DamageType"), static_cast<INT>(offsetof(FDeathEffectInfo, DamageType)) },
-        { TEXT("DamageAmount"), static_cast<INT>(offsetof(FDeathEffectInfo, DamageAmount)) },
-        { TEXT("HitLocation"), static_cast<INT>(offsetof(FDeathEffectInfo, HitLocation)) },
-        { TEXT("Momentum"), static_cast<INT>(offsetof(FDeathEffectInfo, Momentum)) },
-        { TEXT("HitBone"), static_cast<INT>(offsetof(FDeathEffectInfo, HitBone)) },
-    };
-    const FNativeLayout FDeathEffectInfoLayout(TEXT("DeathEffect"), TEXT("DeathEffectInfo"), sizeof(FDeathEffectInfo), alignof(FDeathEffectInfo), FDeathEffectInfoOffsets, ARRAY_COUNT(FDeathEffectInfoOffsets));
-
-    // DeathEffectContainer.DeathEffectPair
-    const FNativePropertyOffset FDeathEffectPairOffsets[] =
-    {
-        { TEXT("DeathCondition"), static_cast<INT>(offsetof(FDeathEffectPair, DeathCondition)) },
-        { TEXT("DeathEffect"), static_cast<INT>(offsetof(FDeathEffectPair, DeathEffect)) },
-    };
-    const FNativeLayout FDeathEffectPairLayout(TEXT("DeathEffectContainer"), TEXT("DeathEffectPair"), sizeof(FDeathEffectPair), alignof(FDeathEffectPair), FDeathEffectPairOffsets, ARRAY_COUNT(FDeathEffectPairOffsets));
-
-    // ExtendedConsole.ChatStruct
-    const FNativePropertyOffset FChatStructOffsets[] =
-    {
-        { TEXT("Message"), static_cast<INT>(offsetof(FChatStruct, Message)) },
-        { TEXT("Team"), static_cast<INT>(offsetof(FChatStruct, Team)) },
-    };
-    const FNativeLayout FChatStructLayout(TEXT("ExtendedConsole"), TEXT("ChatStruct"), sizeof(FChatStruct), alignof(FChatStruct), FChatStructOffsets, ARRAY_COUNT(FChatStructOffsets));
-
-    // ExtendedConsole.StoredPassword
-    const FNativePropertyOffset FStoredPasswordOffsets[] =
-    {
-        { TEXT("Server"), static_cast<INT>(offsetof(FStoredPassword, Server)) },
-        { TEXT("Password"), static_cast<INT>(offsetof(FStoredPassword, Password)) },
-    };
-    const FNativeLayout FStoredPasswordLayout(TEXT("ExtendedConsole"), TEXT("StoredPassword"), sizeof(FStoredPassword), alignof(FStoredPassword), FStoredPasswordOffsets, ARRAY_COUNT(FStoredPasswordOffsets));
 
     // GameEngine.LevelLoadingInfoEntry
     const FNativePropertyOffset FLevelLoadingInfoEntryOffsets[] =
@@ -733,16 +1416,6 @@ namespace
         { TEXT("Action"), static_cast<INT>(offsetof(FMaterialSequenceItem, Action)) },
     };
     const FNativeLayout FMaterialSequenceItemLayout(TEXT("MaterialSequence"), TEXT("MaterialSequenceItem"), sizeof(FMaterialSequenceItem), alignof(FMaterialSequenceItem), FMaterialSequenceItemOffsets, ARRAY_COUNT(FMaterialSequenceItemOffsets));
-
-    // MaterialTypeInfo.MaterialMapInfo
-    const FNativePropertyOffset FMaterialMapInfoOffsets[] =
-    {
-        { TEXT("TypeOfMaterial"), static_cast<INT>(offsetof(FMaterialMapInfo, TypeOfMaterial)) },
-        { TEXT("Emitter"), static_cast<INT>(offsetof(FMaterialMapInfo, Emitter)) },
-        { TEXT("HitDecal"), static_cast<INT>(offsetof(FMaterialMapInfo, HitDecal)) },
-        { TEXT("ActorSpawner"), static_cast<INT>(offsetof(FMaterialMapInfo, ActorSpawner)) },
-    };
-    const FNativeLayout FMaterialMapInfoLayout(TEXT("MaterialTypeInfo"), TEXT("MaterialMapInfo"), sizeof(FMaterialMapInfo), alignof(FMaterialMapInfo), FMaterialMapInfoOffsets, ARRAY_COUNT(FMaterialMapInfoOffsets));
 
     // MissionObjectives.SingleObjective
     const FNativePropertyOffset FSingleObjectiveOffsets[] =
@@ -1164,17 +1837,6 @@ namespace
         { TEXT("bRandomRoll"), static_cast<INT>(offsetof(FDecorationType, bRandomRoll)) },
     };
     const FNativeLayout FDecorationTypeLayout(TEXT("Volume"), TEXT("DecorationType"), sizeof(FDecorationType), alignof(FDecorationType), FDecorationTypeOffsets, ARRAY_COUNT(FDecorationTypeOffsets));
-
-    // XBoxPlayerInput.LookPreset
-    const FNativePropertyOffset FLookPresetOffsets[] =
-    {
-        { TEXT("PresetName"), static_cast<INT>(offsetof(FLookPreset, PresetName)) },
-        { TEXT("HScale"), static_cast<INT>(offsetof(FLookPreset, HScale)) },
-        { TEXT("HExponent"), static_cast<INT>(offsetof(FLookPreset, HExponent)) },
-        { TEXT("VScale"), static_cast<INT>(offsetof(FLookPreset, VScale)) },
-        { TEXT("VExponent"), static_cast<INT>(offsetof(FLookPreset, VExponent)) },
-    };
-    const FNativeLayout FLookPresetLayout(TEXT("XBoxPlayerInput"), TEXT("LookPreset"), sizeof(FLookPreset), alignof(FLookPreset), FLookPresetOffsets, ARRAY_COUNT(FLookPresetOffsets));
 
     // Actor: 644 bytes on the xbox
     const FNativePropertyOffset AActorOffsets[] =

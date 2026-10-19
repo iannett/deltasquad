@@ -4,6 +4,8 @@
 
 #include "Core.h"
 #include "UnMath.h"
+#include "UnTex.h"
+#include "UnFont.h"
 
 // the classes members point at, declared ahead
 class USound;
@@ -268,6 +270,44 @@ class UVisionModeNormal;
 class UVisionModeScavDrill;
 class UVisionModeSniper;
 class AWeaponAttachment;
+class UChannel;
+class UActorChannel;
+class UAnimation;
+class UDownload;
+class UChannelDownload;
+class UControlChannel;
+class UCubemapManager;
+class UDemoPlayPendingLevel;
+class UNetConnection;
+class UDemoRecConnection;
+class UNetDriver;
+class UDemoRecDriver;
+class UFileChannel;
+class UGlobalTempObjects;
+class URenderResource;
+class UInput;
+class UKMeshProps;
+class ULevelBase;
+class ULodMesh;
+class ULodMeshInstance;
+class UNetPendingLevel;
+class UNullRenderDevice;
+class UPackageMapLevel;
+class UPolys;
+class UProjectorPrimitive;
+class UProxyBitmapMaterial;
+class UServerCommandlet;
+class USkeletalMesh;
+class USkeletalMeshInstance;
+class USkinVertexBuffer;
+class UTexCoordMaterial;
+class UVertMesh;
+class UVertMeshInstance;
+class UVertexStreamBase;
+class UVertexStreamCOLOR;
+class UVertexStreamPosNormTex;
+class UVertexStreamUV;
+class UVertexStreamVECTOR;
 
 struct FActivationInfo
 {
@@ -359,13 +399,6 @@ struct FXboxAddr
     FStringNoInit xuid;
 };
 
-struct FSpawnInfo
-{
-    alignas(4) BYTE TypeOfSpawn;
-    UClass* ActorToSpawn;
-    UClass* ProjectorToSpawn;
-};
-
 struct FPropAnimInfo
 {
     FName Anim;
@@ -395,33 +428,6 @@ struct FDamageIncludedInfo
 {
     UClass* DamageTypeClass;
     FLOAT Multiplier;
-};
-
-struct FDeathEffectInfo
-{
-    UClass* DamageType;
-    FLOAT DamageAmount;
-    FVector HitLocation;
-    FVector Momentum;
-    FName HitBone;
-};
-
-struct FDeathEffectPair
-{
-    UObject* DeathCondition;
-    UObject* DeathEffect;
-};
-
-struct FChatStruct
-{
-    FStringNoInit Message;
-    INT Team;
-};
-
-struct FStoredPassword
-{
-    FStringNoInit Server;
-    FStringNoInit Password;
 };
 
 struct FLevelLoadingInfoEntry
@@ -578,14 +584,6 @@ struct FMaterialSequenceItem
     UMaterial* Material;
     FLOAT Time;
     BYTE Action;
-};
-
-struct FMaterialMapInfo
-{
-    alignas(4) BYTE TypeOfMaterial;
-    UClass* Emitter;
-    UClass* HitDecal;
-    UClass* ActorSpawner;
 };
 
 struct FSingleObjective
@@ -938,15 +936,6 @@ struct FDecorationType
     INT bRandomRoll;
 };
 
-struct FLookPreset
-{
-    FStringNoInit PresetName;
-    FLOAT HScale;
-    FLOAT HExponent;
-    FLOAT VScale;
-    FLOAT VExponent;
-};
-
 class AActor : public UObject
 {
     DECLARE_CLASS(AActor, UObject, 0x800, UObject)
@@ -1180,6 +1169,157 @@ public:
     BYTE LastTouchedMaterialType;
     AActor* NextSquadInterestActor;
     AActor* NextTargetActor;
+
+    DECLARE_FUNCTION(execConsoleCommand)
+    DECLARE_FUNCTION(execCopyMaterialsToSkins)
+    DECLARE_FUNCTION(execCopyMaterialsToPrecacheMaterials)
+    DECLARE_FUNCTION(execClearRenderData)
+    DECLARE_FUNCTION(execGetAnchor)
+    DECLARE_FUNCTION(execAddToSquadInterest)
+    DECLARE_FUNCTION(execRemoveFromSquadInterest)
+    DECLARE_FUNCTION(execAddToTargetList)
+    DECLARE_FUNCTION(execRemoveFromTargetList)
+    DECLARE_FUNCTION(execError)
+    DECLARE_FUNCTION(execSleep)
+    DECLARE_FUNCTION(execSetCollision)
+    DECLARE_FUNCTION(execSetCollisionSize)
+    DECLARE_FUNCTION(execResetCollisionSize)
+    DECLARE_FUNCTION(execSetDrawScale)
+    DECLARE_FUNCTION(execSetDrawScale3D)
+    DECLARE_FUNCTION(execSetStaticMesh)
+    DECLARE_FUNCTION(execSetDrawType)
+    DECLARE_FUNCTION(execMove)
+    DECLARE_FUNCTION(execSetLocation)
+    DECLARE_FUNCTION(execSetRotation)
+    DECLARE_FUNCTION(execSetRelativeRotation)
+    DECLARE_FUNCTION(execSetRelativeLocation)
+    DECLARE_FUNCTION(execMoveSmooth)
+    DECLARE_FUNCTION(execAutonomousPhysics)
+    DECLARE_FUNCTION(execSetBase)
+    DECLARE_FUNCTION(execSetOwner)
+    DECLARE_FUNCTION(execGetMeshName)
+    DECLARE_FUNCTION(execPlayAnim)
+    DECLARE_FUNCTION(execLoopAnim)
+    DECLARE_FUNCTION(execIsAnimating)
+    DECLARE_FUNCTION(execFinishAnim)
+    DECLARE_FUNCTION(execHasAnim)
+    DECLARE_FUNCTION(execStopAnimating)
+    DECLARE_FUNCTION(execIsPlayingAnim)
+    DECLARE_FUNCTION(execLinkMesh)
+    DECLARE_FUNCTION(execLinkAnimToMesh)
+    DECLARE_FUNCTION(execBoneRefresh)
+    DECLARE_FUNCTION(execGetBoneLocation)
+    DECLARE_FUNCTION(execGetBoneRotation)
+    DECLARE_FUNCTION(execSetBoneLocation)
+    DECLARE_FUNCTION(execSetBoneRotation)
+    DECLARE_FUNCTION(execSetBoneScale)
+    DECLARE_FUNCTION(execGetAnimParams)
+    DECLARE_FUNCTION(execAnimIsInGroup)
+    DECLARE_FUNCTION(execAttachToBone)
+    DECLARE_FUNCTION(execDetachFromBone)
+    DECLARE_FUNCTION(execGetSocketBoneName)
+    DECLARE_FUNCTION(execFindNearestBone)
+    DECLARE_FUNCTION(execGetRenderBoundingSphere)
+    DECLARE_FUNCTION(execDrawDebugLine)
+    DECLARE_FUNCTION(execGetCollisionCenter)
+    DECLARE_FUNCTION(execDebugClock)
+    DECLARE_FUNCTION(execDebugUnclock)
+    DECLARE_FUNCTION(execFinishInterpolation)
+    DECLARE_FUNCTION(execSetPhysics)
+    DECLARE_FUNCTION(execOnlyAffectPawns)
+    DECLARE_FUNCTION(execKGetRBQuaternion)
+    DECLARE_FUNCTION(execKGetRigidBodyState)
+    DECLARE_FUNCTION(execKDrawRigidBodyState)
+    DECLARE_FUNCTION(execKRBVecToVector)
+    DECLARE_FUNCTION(execKRBVecFromVector)
+    DECLARE_FUNCTION(execKSetMass)
+    DECLARE_FUNCTION(execKGetMass)
+    DECLARE_FUNCTION(execKSetInertiaTensor)
+    DECLARE_FUNCTION(execKGetInertiaTensor)
+    DECLARE_FUNCTION(execKSetDampingProps)
+    DECLARE_FUNCTION(execKGetDampingProps)
+    DECLARE_FUNCTION(execKSetFriction)
+    DECLARE_FUNCTION(execKGetFriction)
+    DECLARE_FUNCTION(execKSetRestitution)
+    DECLARE_FUNCTION(execKGetRestitution)
+    DECLARE_FUNCTION(execKSetCOMOffset)
+    DECLARE_FUNCTION(execKGetCOMOffset)
+    DECLARE_FUNCTION(execKGetCOMPosition)
+    DECLARE_FUNCTION(execKSetImpactThreshold)
+    DECLARE_FUNCTION(execKGetImpactThreshold)
+    DECLARE_FUNCTION(execKWake)
+    DECLARE_FUNCTION(execKIsAwake)
+    DECLARE_FUNCTION(execKAddImpulse)
+    DECLARE_FUNCTION(execKSetStayUpright)
+    DECLARE_FUNCTION(execKSetStayUprightParams)
+    DECLARE_FUNCTION(execKSetBlockKarma)
+    DECLARE_FUNCTION(execKSetActorGravScale)
+    DECLARE_FUNCTION(execKGetActorGravScale)
+    DECLARE_FUNCTION(execKDisableCollision)
+    DECLARE_FUNCTION(execKEnableCollision)
+    DECLARE_FUNCTION(execKSetSkelVel)
+    DECLARE_FUNCTION(execKGetSkelMass)
+    DECLARE_FUNCTION(execKFreezeRagdoll)
+    DECLARE_FUNCTION(execKAddBoneLifter)
+    DECLARE_FUNCTION(execKRemoveLifterFromBone)
+    DECLARE_FUNCTION(execKRemoveAllBoneLifters)
+    DECLARE_FUNCTION(execKMakeRagdollAvailable)
+    DECLARE_FUNCTION(execKIsRagdollAvailable)
+    DECLARE_FUNCTION(execKBreakRagdollJoint)
+    DECLARE_FUNCTION(execCalculateDamageFrom)
+    DECLARE_FUNCTION(execPlayMusic)
+    DECLARE_FUNCTION(execSetImuseState)
+    DECLARE_FUNCTION(execStopAllMusic)
+    DECLARE_FUNCTION(execStopSound)
+    DECLARE_FUNCTION(execEnableBattleEngine)
+    DECLARE_FUNCTION(execSetBattleEngineParams)
+    DECLARE_FUNCTION(execSetBattleMusicMulti)
+    DECLARE_FUNCTION(execForceBattleMusic)
+    DECLARE_FUNCTION(execForceBattleFlourish)
+    DECLARE_FUNCTION(execTrace)
+    DECLARE_FUNCTION(execTraceColliding)
+    DECLARE_FUNCTION(execFastTrace)
+    DECLARE_FUNCTION(execSpawn)
+    DECLARE_FUNCTION(execDestroy)
+    DECLARE_FUNCTION(execSetTimer)
+    DECLARE_FUNCTION(execPlaySound)
+    DECLARE_FUNCTION(execPauseSound)
+    DECLARE_FUNCTION(execIsSoundPaused)
+    DECLARE_FUNCTION(execIsSoundActive)
+    DECLARE_FUNCTION(execPlayOwnedSound)
+    DECLARE_FUNCTION(execGetSoundDuration)
+    DECLARE_FUNCTION(execPlayFeedbackEffect)
+    DECLARE_FUNCTION(execStopFeedbackEffect)
+    DECLARE_FUNCTION(execForceFeedbackSupported)
+    DECLARE_FUNCTION(execPostStimulusToWorld)
+    DECLARE_FUNCTION(execPostStimulusAtLocation)
+    DECLARE_FUNCTION(execPostStimulusToIndividual)
+    DECLARE_FUNCTION(execCalcTrajectoryVelocity)
+    DECLARE_FUNCTION(execPlayerCanSeeMe)
+    DECLARE_FUNCTION(execSuggestFallVelocity)
+    DECLARE_FUNCTION(execGetMapName)
+    DECLARE_FUNCTION(execGetNextSkin)
+    DECLARE_FUNCTION(execGetURLMap)
+    DECLARE_FUNCTION(execExpandRelativeURL)
+    DECLARE_FUNCTION(execRemoveURLOption)
+    DECLARE_FUNCTION(execGetNextInt)
+    DECLARE_FUNCTION(execGetNextIntDesc)
+    DECLARE_FUNCTION(execGetCacheEntry)
+    DECLARE_FUNCTION(execMoveCacheEntry)
+    DECLARE_FUNCTION(execAllActors)
+    DECLARE_FUNCTION(execDynamicActors)
+    DECLARE_FUNCTION(execChildActors)
+    DECLARE_FUNCTION(execBasedActors)
+    DECLARE_FUNCTION(execTouchingActors)
+    DECLARE_FUNCTION(execTraceActors)
+    DECLARE_FUNCTION(execRadiusActors)
+    DECLARE_FUNCTION(execVisibleActors)
+    DECLARE_FUNCTION(execVisibleCollidingActors)
+    DECLARE_FUNCTION(execCollidingActors)
+    DECLARE_FUNCTION(execSubtract_ColorColor)
+    DECLARE_FUNCTION(execMultiply_FloatColor)
+    DECLARE_FUNCTION(execAdd_ColorColor)
+    DECLARE_FUNCTION(execMultiply_ColorFloat)
 };
 
 class AController : public AActor
@@ -1243,6 +1383,22 @@ public:
     APawn* MonitoredPawn;
     FLOAT MonitorMaxDistSq;
     UClass* LastPawnWeapon;
+
+    DECLARE_FUNCTION(execSetEnemy)
+    DECLARE_FUNCTION(execMoveToward)
+    DECLARE_FUNCTION(execFinishRotation)
+    DECLARE_FUNCTION(execGetFocusRotation)
+    DECLARE_FUNCTION(execGetFocusLocation)
+    DECLARE_FUNCTION(execLineOfSightTo)
+    DECLARE_FUNCTION(execPickWallAdjust)
+    DECLARE_FUNCTION(execWaitForLanding)
+    DECLARE_FUNCTION(execAddController)
+    DECLARE_FUNCTION(execRemoveController)
+    DECLARE_FUNCTION(execPickTarget)
+    DECLARE_FUNCTION(execPickAnyTarget)
+    DECLARE_FUNCTION(execInLatentExecution)
+    DECLARE_FUNCTION(execStopWaiting)
+    DECLARE_FUNCTION(execWeaponFired)
 };
 
 class AAIController : public AController
@@ -1252,6 +1408,9 @@ public:
     AAIScript* MyScript;
     FLOAT Skill;
     FVector FinalDestination;
+
+    DECLARE_FUNCTION(execAddReflexAnimGoal)
+    DECLARE_FUNCTION(execAddReflexSleepGoal)
 };
 
 class AAIScript : public AActor
@@ -1279,6 +1438,11 @@ public:
     BITFIELD bNativeEvents : 1;
     UPlayer* ViewportOwner;
     UInteractionMaster* Master;
+
+    DECLARE_FUNCTION(execInitialize)
+    DECLARE_FUNCTION(execConsoleCommand)
+    DECLARE_FUNCTION(execWorldToScreen)
+    DECLARE_FUNCTION(execScreenToWorld)
 };
 
 class UAbstractUIXInteraction : public UInteraction
@@ -1379,6 +1543,8 @@ public:
     UClass* AttachItemClass;
     FStringNoInit ActivatePromptText;
     TArrayNoInit<FString> ActivatePromptButtonFuncs;
+
+    DECLARE_FUNCTION(execDurationMultiplier)
 };
 
 class APickup : public AActor
@@ -1786,6 +1952,10 @@ public:
     alignas(4) BYTE TrapCount;
     BYTE referenceCount;
     BYTE CCRegions[7];
+
+    DECLARE_FUNCTION(execSetBlocked)
+    DECLARE_FUNCTION(execReserveNode)
+    DECLARE_FUNCTION(execReleaseNode)
 };
 
 class ADoor : public ANavigationPoint
@@ -1942,6 +2112,10 @@ public:
     BITFIELD RealDisableFogging : 1;
     BITFIELD AllParticlesDead : 1;
     BITFIELD WarmedUp : 1;
+
+    DECLARE_FUNCTION(execSpawnParticle)
+    DECLARE_FUNCTION(execTrigger)
+    DECLARE_FUNCTION(execSetStartLocationRange)
 };
 
 class UBeamEmitter : public UParticleEmitter
@@ -2000,6 +2174,8 @@ public:
     BITFIELD : 0;
     BITFIELD UseFallback : 1;
     BITFIELD Validated : 1;
+
+#include "CppText/UMaterial.h"
 };
 
 class URenderedMaterial : public UMaterial
@@ -2022,6 +2198,8 @@ public:
     INT UClamp;
     INT VClamp;
     BITFIELD DontCache : 1;
+
+#include "CppText/UBitmapMaterial.h"
 };
 
 class ABlockedPath : public ANavigationPoint
@@ -2055,6 +2233,8 @@ public:
     INT LocationPriority;
     FStringNoInit LocationName;
     TArrayNoInit<FDecorationType> DecoList;
+
+    DECLARE_FUNCTION(execEncompasses)
 };
 
 class ABlockingVolume : public AVolume
@@ -2307,6 +2487,144 @@ public:
     BITFIELD bBadCDKey : 1;
     BITFIELD bMissingContent : 1;
     FStringNoInit MissingContentName;
+
+    DECLARE_FUNCTION(execGetNumFriendRequests)
+    DECLARE_FUNCTION(execSetNumFriendRequests)
+    DECLARE_FUNCTION(execGetNumGameInvites)
+    DECLARE_FUNCTION(execSetNumGameInvites)
+    DECLARE_FUNCTION(execGetLastNumFriendRequests)
+    DECLARE_FUNCTION(execSetLastNumFriendRequests)
+    DECLARE_FUNCTION(execGetLastNumGameInvites)
+    DECLARE_FUNCTION(execSetLastNumGameInvites)
+    DECLARE_FUNCTION(execGetFriendRequestTimeout)
+    DECLARE_FUNCTION(execSetFriendRequestTimeout)
+    DECLARE_FUNCTION(execGetGameInviteTimeout)
+    DECLARE_FUNCTION(execSetGameInviteTimeout)
+    DECLARE_FUNCTION(execGetNextMatchmakingQueryTime)
+    DECLARE_FUNCTION(execSetNextMatchmakingQueryTime)
+    DECLARE_FUNCTION(execSetNetSpeed)
+    DECLARE_FUNCTION(execGetPlayerNetworkAddress)
+    DECLARE_FUNCTION(execGetServerNetworkAddress)
+    DECLARE_FUNCTION(execConsoleCommand)
+    DECLARE_FUNCTION(execGetEntryLevel)
+    DECLARE_FUNCTION(execResetKeyboard)
+    DECLARE_FUNCTION(execSetViewTarget)
+    DECLARE_FUNCTION(execClientTravel)
+    DECLARE_FUNCTION(execUpdateURL)
+    DECLARE_FUNCTION(execGetUrlOption)
+    DECLARE_FUNCTION(execGetDefaultURL)
+    DECLARE_FUNCTION(execCopyToClipboard)
+    DECLARE_FUNCTION(execPasteFromClipboard)
+    DECLARE_FUNCTION(execGetInitialMenuClass)
+    DECLARE_FUNCTION(execGetPauseMenuClass)
+    DECLARE_FUNCTION(execGetMultiplayerPauseMenuClass)
+    DECLARE_FUNCTION(execGetControllerLayoutMenuClass)
+    DECLARE_FUNCTION(execGetLoadingMenuClass)
+    DECLARE_FUNCTION(execGetTeamMenuClass)
+    DECLARE_FUNCTION(execGetProfileMenuClass)
+    DECLARE_FUNCTION(execGetNewLoadingHint)
+    DECLARE_FUNCTION(execUseControllerConfig)
+    DECLARE_FUNCTION(execGetCurrentDateTimeString)
+    DECLARE_FUNCTION(execGetCurrentMapName)
+    DECLARE_FUNCTION(execGetLanguage)
+    DECLARE_FUNCTION(execHaveAdequateDiscSpace)
+    DECLARE_FUNCTION(execGetFreeDiscBlocks)
+    DECLARE_FUNCTION(execGetSaveGameDiscBlocksRequired)
+    DECLARE_FUNCTION(execGetProfileDiscBlocksRequired)
+    DECLARE_FUNCTION(execGetXboxLiveDiscBlocksRequired)
+    DECLARE_FUNCTION(execGetNormalizedGamma)
+    DECLARE_FUNCTION(execSetNormalizedGamma)
+    DECLARE_FUNCTION(execIsFullscreen)
+    DECLARE_FUNCTION(execGetVoiceVolume)
+    DECLARE_FUNCTION(execSetVoiceVolume)
+    DECLARE_FUNCTION(execGetSoundVolume)
+    DECLARE_FUNCTION(execSetSoundVolume)
+    DECLARE_FUNCTION(execGetMusicVolume)
+    DECLARE_FUNCTION(execSetMusicVolume)
+    DECLARE_FUNCTION(execGetUseLowQualitySound)
+    DECLARE_FUNCTION(execSetUseLowQualitySound)
+    DECLARE_FUNCTION(execGet3DSoundSupported)
+    DECLARE_FUNCTION(execGetUse3DSound)
+    DECLARE_FUNCTION(execSetUse3DSound)
+    DECLARE_FUNCTION(execGetUseEAX)
+    DECLARE_FUNCTION(execSetUseEAX)
+    DECLARE_FUNCTION(execGetMaxSupportedEAXVersion)
+    DECLARE_FUNCTION(execGetMaxCapsSupportedEAXVersion)
+    DECLARE_FUNCTION(execSetUseEAXVersion)
+    DECLARE_FUNCTION(execGetUseEAXVersion)
+    DECLARE_FUNCTION(execGetNumAudioChannels)
+    DECLARE_FUNCTION(execSetNumAudioChannels)
+    DECLARE_FUNCTION(execGetWindowedViewport)
+    DECLARE_FUNCTION(execSetWindowedViewport)
+    DECLARE_FUNCTION(execGetFullscreenViewport)
+    DECLARE_FUNCTION(execSetFullscreenViewport)
+    DECLARE_FUNCTION(execGetTextureDetail)
+    DECLARE_FUNCTION(execSetTextureDetail)
+    DECLARE_FUNCTION(execGetCharacterLODLevel)
+    DECLARE_FUNCTION(execSetCharacterLODLevel)
+    DECLARE_FUNCTION(execGetShadowsEnabled)
+    DECLARE_FUNCTION(execEnableShadows)
+    DECLARE_FUNCTION(execGetBumpmappingQuality)
+    DECLARE_FUNCTION(execSetBumpmappingQuality)
+    DECLARE_FUNCTION(execGetBlurEnabled)
+    DECLARE_FUNCTION(execEnableBlur)
+    DECLARE_FUNCTION(execGetBloomQuality)
+    DECLARE_FUNCTION(execSetBloomQuality)
+    DECLARE_FUNCTION(execGetProjectorsEnabled)
+    DECLARE_FUNCTION(execEnableProjectors)
+    DECLARE_FUNCTION(execGetVSyncEnabled)
+    DECLARE_FUNCTION(execEnableVSync)
+    DECLARE_FUNCTION(execSupportsFSAALevel)
+    DECLARE_FUNCTION(execGetFSAALevel)
+    DECLARE_FUNCTION(execSetFSAALevel)
+    DECLARE_FUNCTION(execGetConfigValue)
+    DECLARE_FUNCTION(execSetLevelProgress)
+    DECLARE_FUNCTION(execHasReachedLevel)
+    DECLARE_FUNCTION(execGetLevelIndex)
+    DECLARE_FUNCTION(execGetNextLevel)
+    DECLARE_FUNCTION(execPlayMovie)
+    DECLARE_FUNCTION(execIsMoviePlaying)
+    DECLARE_FUNCTION(execStartScreenFade)
+    DECLARE_FUNCTION(execNoHUDArms)
+    DECLARE_FUNCTION(execPassOnTacticalIntensity)
+    DECLARE_FUNCTION(execIsLevelLoading)
+    DECLARE_FUNCTION(execGetAllButtonMappings)
+    DECLARE_FUNCTION(execChangeKeyBinding)
+    DECLARE_FUNCTION(execSaveInputConfig)
+    DECLARE_FUNCTION(execSavePlayerInputConfig)
+    DECLARE_FUNCTION(execSaveClientConfig)
+    DECLARE_FUNCTION(execSaveRenderDeviceConfig)
+    DECLARE_FUNCTION(execSaveAudioConfig)
+    DECLARE_FUNCTION(execSetRumble)
+    DECLARE_FUNCTION(execGetRumble)
+    DECLARE_FUNCTION(execGetPadInput)
+    DECLARE_FUNCTION(execControllerAttached)
+    DECLARE_FUNCTION(execDisassociateViewportPads)
+    DECLARE_FUNCTION(execIgnoreOtherViewportInput)
+    DECLARE_FUNCTION(execIgnoringViewportInput)
+    DECLARE_FUNCTION(execIgnoreViewportInput)
+    DECLARE_FUNCTION(execX_ClientValidate)
+    DECLARE_FUNCTION(execX_ServerValidationResponse)
+    DECLARE_FUNCTION(execCheckSpeedHack)
+    DECLARE_FUNCTION(execFindStairRotation)
+    DECLARE_FUNCTION(execX_ClientHearSound)
+    DECLARE_FUNCTION(execPropagateSettings)
+    DECLARE_FUNCTION(execPropagateBadCDKey)
+    DECLARE_FUNCTION(execPropagateMissingContent)
+    DECLARE_FUNCTION(execGetSaveGames)
+    DECLARE_FUNCTION(execDeleteSaveGame)
+    DECLARE_FUNCTION(execSaveGameExists)
+    DECLARE_FUNCTION(execCompareSaveGameTimes)
+    DECLARE_FUNCTION(execGetMostRecentSaveGame)
+    DECLARE_FUNCTION(execVerifySaveGame)
+    DECLARE_FUNCTION(execGetCurrentProfileName)
+    DECLARE_FUNCTION(execGetGlobalSettingsSaveName)
+    DECLARE_FUNCTION(execExitLevel)
+    DECLARE_FUNCTION(execGetMissionStart)
+    DECLARE_FUNCTION(execReleaseAllButtons)
+    DECLARE_FUNCTION(execUpdateRotation)
+    DECLARE_FUNCTION(execLeaveVoiceChat)
+    DECLARE_FUNCTION(execChangeVoiceChatter)
 };
 
 class ACamera : public APlayerController
@@ -2359,6 +2677,23 @@ public:
     UFont* MedFont;
     UViewport* Viewport;
     INT pCanvasUtil;
+
+    DECLARE_FUNCTION(execStrLen)
+    DECLARE_FUNCTION(execDrawText)
+    DECLARE_FUNCTION(execDrawTile)
+    DECLARE_FUNCTION(execDrawActor)
+    DECLARE_FUNCTION(execDrawTileClipped)
+    DECLARE_FUNCTION(execDrawTextClipped)
+    DECLARE_FUNCTION(execTextSize)
+    DECLARE_FUNCTION(execDrawPortal)
+    DECLARE_FUNCTION(execDrawRotatedTile)
+    DECLARE_FUNCTION(execWrapStringToArray)
+    DECLARE_FUNCTION(execDrawTileStretched)
+    DECLARE_FUNCTION(execDrawTileJustified)
+    DECLARE_FUNCTION(execDrawTileScaled)
+    DECLARE_FUNCTION(execDrawTextJustified)
+    DECLARE_FUNCTION(execFlush)
+    DECLARE_FUNCTION(execSetCurvedSurface)
 };
 
 class UCheatManager : public UObject
@@ -2454,6 +2789,15 @@ public:
     TArrayNoInit<FString> BufferedConsoleCommands;
     BITFIELD bCleanupMenus : 1;
     FLOAT LastElapsedFrameTime;
+
+    DECLARE_FUNCTION(execCreateLoadingMenu)
+    DECLARE_FUNCTION(execDestroyLoadingMenu)
+    DECLARE_FUNCTION(execIsMenuBackgroundMusicPlaying)
+    DECLARE_FUNCTION(execStartMenuBackgroundMusic)
+    DECLARE_FUNCTION(execStopMenuBackgroundMusic)
+    DECLARE_FUNCTION(execPauseLevelMusic)
+    DECLARE_FUNCTION(execResumeLevelMusic)
+    DECLARE_FUNCTION(execCleanupMenus)
 };
 
 class UConstantMaterial : public URenderedMaterial
@@ -2491,6 +2835,8 @@ public:
     AActor* CoverProvider;
     FVector LookDir;
     FLOAT minDotProduct;
+
+    DECLARE_FUNCTION(execIsValidForTarget)
 };
 
 class UTexture : public UBitmapMaterial
@@ -2528,10 +2874,12 @@ public:
     FLOAT MinFrameRate;
     FLOAT MaxFrameRate;
     FLOAT Accumulator;
-    TArrayNoInit<INT> Mips;  // C++ only
+    TArrayNoInit<FMipmap> Mips;  // C++ only
     BYTE CompFormat;
     INT RenderInterface;
     INT __LastUpdateTime[2];
+
+#include "CppText/UTexture.h"
 };
 
 class UCubemap : public UTexture
@@ -2716,6 +3064,8 @@ public:
     BITFIELD UseParticleProjectors : 1;
     UParticleMaterial* ParticleMaterial;
     BITFIELD DeleteParticleEmitters : 1;
+
+    DECLARE_FUNCTION(execKill)
 };
 
 class UEngine : public USubsystem
@@ -2810,6 +3160,10 @@ class AFileLog : public AInfo
 public:
     INT LogAr;
     FStringNoInit LogFileName;
+
+    DECLARE_FUNCTION(execOpenLog)
+    DECLARE_FUNCTION(execCloseLog)
+    DECLARE_FUNCTION(execLogf)
 };
 
 class UFinalBlend : public UModifier
@@ -2893,6 +3247,8 @@ public:
     UFluidSurfacePrimitive* Primitive;
     TArrayNoInit<AFluidSurfaceOscillator*> Oscillators;
     BITFIELD bHasWarmedUp : 1;
+
+    DECLARE_FUNCTION(execPling)
 };
 
 class AFluidSurfaceOscillator : public AActor
@@ -3008,6 +3364,8 @@ public:
     FLOAT FriendRequestTimeout;
     FLOAT GameInviteTimeout;
     FLOAT NextMatchmakingQueryTime;
+
+    DECLARE_FUNCTION(execGetLocalizedKeyName)
 };
 
 class AGameInfo : public AInfo
@@ -3101,6 +3459,10 @@ public:
     FStringNoInit GIPropsExtras[2];
     FLOAT MaxIdleTime;
     TArrayNoInit<FMeshSetLinkup> CustomMeshSets;
+
+    DECLARE_FUNCTION(execGetNetworkNumber)
+    DECLARE_FUNCTION(execPreServerTravel)
+    DECLARE_FUNCTION(execParseKillMessage)
 };
 
 class AReplicationInfo : public AInfo
@@ -3152,6 +3514,9 @@ public:
     AFileLog* TempLog;
     AGameReplicationInfo* GRI;
     BITFIELD bShowBots : 1;
+
+    DECLARE_FUNCTION(execGetStatsIdentifier)
+    DECLARE_FUNCTION(execGetMapFileName)
 };
 
 class AHUD : public AActor
@@ -3256,6 +3621,10 @@ public:
     USound* SwitchToFlashBang;
     USound* SniperZoomCharging;
     USound* SniperZoomCharged;
+
+    DECLARE_FUNCTION(execDraw3DLine)
+    DECLARE_FUNCTION(execGetConsoleFont)
+    DECLARE_FUNCTION(execDrawLevelAction)
 };
 
 class UHardwareShader : public URenderedMaterial
@@ -3513,6 +3882,10 @@ public:
     UHardwareShader* HSWiper;
     UFont* Orbit8Font;
     UFont* Orbit15Font;
+
+    DECLARE_FUNCTION(execLoadSubtitles)
+    DECLARE_FUNCTION(execPotentialSubtitledSoundPlayed)
+    DECLARE_FUNCTION(execShowSquadCommandPrompt)
 };
 
 class UHsBumpDiffBlend : public UHardwareShaderWrapper
@@ -3687,6 +4060,8 @@ public:
     UInteraction* Console;
     TArrayNoInit<UInteraction*> GlobalInteractions;
     BITFIELD bRequireRawJoystick : 1;
+
+    DECLARE_FUNCTION(execTravel)
 };
 
 class AInternetInfo : public AInfo
@@ -3752,6 +4127,10 @@ public:
     FVector KSecAxis2;
     BITFIELD bKForceFrameUpdate : 1;
     FLOAT KForceThreshold;
+
+    DECLARE_FUNCTION(execKUpdateConstraintParams)
+    DECLARE_FUNCTION(execKGetConstraintForce)
+    DECLARE_FUNCTION(execKGetConstraintTorque)
 };
 
 class AKAngularJoint : public AKConstraint
@@ -3931,6 +4310,8 @@ public:
     UClass* ZoneAudioClass;
     BITFIELD bLonelyZone : 1;
     TArrayNoInit<AZoneInfo*> ManualExcludes;
+
+    DECLARE_FUNCTION(execZoneActors)
 };
 
 class ALevelInfo : public AZoneInfo
@@ -4041,6 +4422,17 @@ public:
     APlayerController* ReplicationViewer;
     AActor* ReplicationViewTarget;
     UIMuseStateInfo* MusicState;
+
+    DECLARE_FUNCTION(execIsSplitScreen)
+    DECLARE_FUNCTION(execDetailChange)
+    DECLARE_FUNCTION(execIsEntry)
+    DECLARE_FUNCTION(execIsDedicatedServer)
+    DECLARE_FUNCTION(execIsSystemLink)
+    DECLARE_FUNCTION(execRegenerateBlockedRegions)
+    DECLARE_FUNCTION(execGetLocalURL)
+    DECLARE_FUNCTION(execIsDemoBuild)
+    DECLARE_FUNCTION(execGetAddressURL)
+    DECLARE_FUNCTION(execGetLevelURL)
 };
 
 class ALevelLoadingView : public ANavigationPoint
@@ -4292,6 +4684,15 @@ class UMovie : public UObject
     DECLARE_CLASS(UMovie, UObject, 0x0, UObject)
 public:
     INT FMovie;
+
+    DECLARE_FUNCTION(execPlay)
+    DECLARE_FUNCTION(execPause)
+    DECLARE_FUNCTION(execIsPaused)
+    DECLARE_FUNCTION(execStopNow)
+    DECLARE_FUNCTION(execStopAtEnd)
+    DECLARE_FUNCTION(execIsPlaying)
+    DECLARE_FUNCTION(execGetWidth)
+    DECLARE_FUNCTION(execGetHeight)
 };
 
 class UMovieTexture : public UTexture
@@ -4301,6 +4702,8 @@ public:
     UMovie* Movie;
     FStringNoInit MovieFilename;
     INT FrameRate;
+
+    DECLARE_FUNCTION(execInitializeMovie)
 };
 
 class AMutator : public AInfo
@@ -4336,6 +4739,8 @@ class UPalette : public UObject
     DECLARE_CLASS(UPalette, UObject, 0x40, UObject)
 public:
     TArrayNoInit<FColor> Colors;  // C++ only
+
+#include "CppText/UPalette.h"
 };
 
 class UParticleMaterial : public URenderedMaterial
@@ -4651,6 +5056,22 @@ public:
     APhysicsVolume* HeadVolume;
     FLOAT SpawnTime;
     FLOAT DamageScaling;
+
+    DECLARE_FUNCTION(execSetAnchor)
+    DECLARE_FUNCTION(execReachedDestination)
+    DECLARE_FUNCTION(execForceCrouch)
+    DECLARE_FUNCTION(execPlayOwnedCue)
+    DECLARE_FUNCTION(execGetSoundFromCue)
+    DECLARE_FUNCTION(execPlayJumpSoundOnCurrentMaterial)
+    DECLARE_FUNCTION(execStopTalking)
+    DECLARE_FUNCTION(execGetConfigValue)
+    DECLARE_FUNCTION(execGetTeamIndex)
+    DECLARE_FUNCTION(execSetTeamIndex)
+    DECLARE_FUNCTION(execGetRelationTowards)
+    DECLARE_FUNCTION(execCalcHealthLevel)
+    DECLARE_FUNCTION(execIsWounded)
+    DECLARE_FUNCTION(execUseWoundedAnims)
+    DECLARE_FUNCTION(execIsLocallyControlled)
 };
 
 class UPawnAudioTable : public UObject
@@ -4658,6 +5079,8 @@ class UPawnAudioTable : public UObject
     DECLARE_CLASS(UPawnAudioTable, UObject, 0x0, UObject)
 public:
     TArrayNoInit<USound*> Table;
+
+    DECLARE_FUNCTION(execGetSound)
 };
 
 class APerch : public ANavigationPoint
@@ -4850,6 +5273,8 @@ public:
     AActor* Target;
     UClass* HitEffectsByMaterial;
     FLOAT HitEffectsProbability;
+
+    DECLARE_FUNCTION(execGetTossVelocity)
 };
 
 class AProjector : public AActor
@@ -4886,6 +5311,15 @@ public:
     FMatrix GradientMatrix;
     FMatrix Matrix;
     FVector OldLocation;
+
+    DECLARE_FUNCTION(execAttachProjector)
+    DECLARE_FUNCTION(execDetachProjector)
+    DECLARE_FUNCTION(execAbandonProjector)
+    DECLARE_FUNCTION(execAttachActor)
+    DECLARE_FUNCTION(execDetachActor)
+    DECLARE_FUNCTION(execExcludeActor)
+    DECLARE_FUNCTION(execIsActorExcluded)
+    DECLARE_FUNCTION(execGetProjTexture)
 };
 
 class UProjectorMaterial : public URenderedMaterial
@@ -5052,6 +5486,8 @@ public:
     FInterpolator RotInterpolator;
     FVector CameraShake;
     FVector DollyOffset;
+
+    DECLARE_FUNCTION(execGetTotalSceneTime)
 };
 
 class AScout : public APawn
@@ -5070,6 +5506,12 @@ public:
     AActor* Client;
     INT Revision;
     INT OldRevision;
+
+    DECLARE_FUNCTION(execSetSize)
+    DECLARE_FUNCTION(execDrawText)
+    DECLARE_FUNCTION(execTextSize)
+    DECLARE_FUNCTION(execDrawTile)
+    DECLARE_FUNCTION(execDrawPortal)
 };
 
 class ASecurity : public AInfo
@@ -5078,6 +5520,8 @@ class ASecurity : public AInfo
 public:
     INT LastType;
     FStringNoInit LastParams[2];
+
+    DECLARE_FUNCTION(execNativePerform)
 };
 
 class UShader : public URenderedMaterial
@@ -5154,6 +5598,8 @@ public:
     BITFIELD bShadowActive : 1;
     BITFIELD bUseLightAverage : 1;
     UShadowBitmapMaterial* ShadowTexture;
+
+    DECLARE_FUNCTION(execUpdateShadow)
 };
 
 class UShowMaterialAlpha : public UMaterial
@@ -5182,13 +5628,15 @@ public:
     BYTE MaxCampaign;
     FLOAT Likelihood;
     BITFIELD XBoxMemoryResident : 1;
-    alignas(4) BYTE Data[24];  // C++ only
+    TLazyArray<BYTE> Data;  // C++ only
     FName FileType;  // C++ only
     INT OriginalSize;  // C++ only
     FLOAT Duration;  // C++ only
     INT Handle;  // C++ only
     INT XBBankHandle;  // C++ only
     USound* Parent;  // C++ only
+
+#include "CppText/USound.h"
 };
 
 class USoundBanter : public USoundBase
@@ -5220,6 +5668,8 @@ public:
     USound* RenderedSound;
     FLOAT TotalLikelihood;  // C++ only
     INT WhichSound;  // C++ only
+
+#include "CppText/USoundMultiple.h"
 };
 
 class USoundStreamed : public USound
@@ -5237,6 +5687,8 @@ public:
     BYTE OverrideFadeOutType;
     BITFIELD : 0;
     BITFIELD DoOverrideFades : 1;
+
+#include "CppText/USoundStreamed.h"
 };
 
 class USparkEmitter : public UParticleEmitter
@@ -5307,6 +5759,15 @@ public:
     BITFIELD bEnemySeesSquad : 1;
     BITFIELD bEnemiesPresent : 1;
     BITFIELD bNonPlayersIncapacitated : 1;
+
+    DECLARE_FUNCTION(execAddToSquad)
+    DECLARE_FUNCTION(execRemoveFromSquad)
+    DECLARE_FUNCTION(execEnemyKilled)
+    DECLARE_FUNCTION(execAddVoiceLine)
+    DECLARE_FUNCTION(execPlayerWentBerserk)
+    DECLARE_FUNCTION(execPlayerShootingGhosts)
+    DECLARE_FUNCTION(execCountAliveMembers)
+    DECLARE_FUNCTION(execGetClosestMemberWithViewOf)
 };
 
 class ASquadMarker : public AMarkerIconActor
@@ -5360,6 +5821,13 @@ public:
     FColor OmitColor;
     FColor OccupiedColor;
     FColor SetupColor;
+
+    DECLARE_FUNCTION(execGetMarkerUsability)
+    DECLARE_FUNCTION(execInitiate)
+    DECLARE_FUNCTION(execCancelMarker)
+    DECLARE_FUNCTION(execGetMarkerSpotLocation)
+    DECLARE_FUNCTION(execIsSetUpProperly)
+    DECLARE_FUNCTION(execUnderwayCallback)
 };
 
 class ASquadMarkerSpot : public ANavigationPoint
@@ -5440,6 +5908,8 @@ public:
     INT RefCount;
     INT Responses;
     FLOAT Time;
+
+    DECLARE_FUNCTION(execGroup)
 };
 
 class AStimulusVis : public AActor
@@ -5927,6 +6397,9 @@ public:
     FStringNoInit Destinations[8];
     INT numDestinations;
     AWarpZoneMarker* MyMarker;
+
+    DECLARE_FUNCTION(execWarp)
+    DECLARE_FUNCTION(execUnWarp)
 };
 
 class AWarpZoneMarker : public ANavigationPoint
@@ -6050,6 +6523,8 @@ public:
     BYTE WeaponIndex;
     FLOAT PlayerSpeedModifier;
     INT HudArmsShaderIndex[2];
+
+    DECLARE_FUNCTION(execPlayOwnedSoundOnQueue)
 };
 
 class AWeaponAttachment : public AInventoryAttachment
@@ -6091,4 +6566,364 @@ public:
     FName MPPawnMeleeAnim;
     FName MPPawnThrowAnim;
     UClass* ProjectileClass;
+};
+
+// native classes without script. their members are added when their code is decompiled.
+
+// 100 bytes on the xbox
+class UChannel : public UObject
+{
+    DECLARE_CLASS(UChannel, UObject, 0x9, UObject)
+};
+
+// 184 bytes on the xbox
+class UActorChannel : public UChannel
+{
+    DECLARE_CLASS(UActorChannel, UChannel, 0x8, UObject)
+};
+
+// 40 bytes on the xbox
+class UAnimation : public UObject
+{
+    DECLARE_CLASS(UAnimation, UObject, 0x40, UObject)
+};
+
+// 632 bytes on the xbox
+class UAudioSubsystem : public USubsystem
+{
+    DECLARE_CLASS(UAudioSubsystem, USubsystem, 0x5, UObject)
+};
+
+// 592 bytes on the xbox
+class UDownload : public UObject
+{
+    DECLARE_CLASS(UDownload, UObject, 0xd, UObject)
+};
+
+// 596 bytes on the xbox
+class UChannelDownload : public UDownload
+{
+    DECLARE_CLASS(UChannelDownload, UDownload, 0xc, UObject)
+};
+
+// 244 bytes on the xbox
+class UClient : public UObject
+{
+    DECLARE_CLASS(UClient, UObject, 0x5, UObject)
+public:
+#include "CppText/UClient.h"
+};
+
+// 104 bytes on the xbox
+class UControlChannel : public UChannel
+{
+    DECLARE_CLASS(UControlChannel, UChannel, 0x8, UObject)
+};
+
+// 84 bytes on the xbox
+class UPrimitive : public UObject
+{
+    DECLARE_CLASS(UPrimitive, UObject, 0x0, UObject)
+};
+
+// 128 bytes on the xbox
+class UConvexVolume : public UPrimitive
+{
+    DECLARE_CLASS(UConvexVolume, UPrimitive, 0x0, UObject)
+};
+
+// 96 bytes on the xbox
+class UCubemapManager : public UObject
+{
+    DECLARE_CLASS(UCubemapManager, UObject, 0x40, UObject)
+};
+
+// 156 bytes on the xbox
+class UPendingLevel : public UObject
+{
+    DECLARE_CLASS(UPendingLevel, UObject, 0x1, UObject)
+};
+
+// 156 bytes on the xbox
+class UDemoPlayPendingLevel : public UPendingLevel
+{
+    DECLARE_CLASS(UDemoPlayPendingLevel, UPendingLevel, 0x8, UObject)
+};
+
+// 16044 bytes on the xbox
+class UNetConnection : public UPlayer
+{
+    DECLARE_CLASS(UNetConnection, UPlayer, 0xd, UObject)
+};
+
+// 16044 bytes on the xbox
+class UDemoRecConnection : public UNetConnection
+{
+    DECLARE_CLASS(UDemoRecConnection, UNetConnection, 0xc, UObject)
+};
+
+// 148 bytes on the xbox
+class UNetDriver : public USubsystem
+{
+    DECLARE_CLASS(UNetDriver, USubsystem, 0xd, UObject)
+};
+
+// 268 bytes on the xbox
+class UDemoRecDriver : public UNetDriver
+{
+    DECLARE_CLASS(UDemoRecDriver, UNetDriver, 0xc, UObject)
+};
+
+// 372 bytes on the xbox
+class UFileChannel : public UChannel
+{
+    DECLARE_CLASS(UFileChannel, UChannel, 0x8, UObject)
+};
+
+// 88 bytes on the xbox
+class UFluidSurfacePrimitive : public UPrimitive
+{
+    DECLARE_CLASS(UFluidSurfacePrimitive, UPrimitive, 0x0, UObject)
+};
+
+// 80 bytes on the xbox
+class UFont : public UObject
+{
+    DECLARE_CLASS(UFont, UObject, 0x0, UObject)
+public:
+#include "CppText/UFont.h"
+};
+
+// 48 bytes on the xbox
+class UGlobalTempObjects : public UObject
+{
+    DECLARE_CLASS(UGlobalTempObjects, UObject, 0x8, UObject)
+};
+
+// 44 bytes on the xbox
+class URenderResource : public UObject
+{
+    DECLARE_CLASS(URenderResource, UObject, 0x1, UObject)
+};
+
+// 52 bytes on the xbox
+class UIndexBuffer : public URenderResource
+{
+    DECLARE_CLASS(UIndexBuffer, URenderResource, 0x0, UObject)
+};
+
+// 4664 bytes on the xbox
+class UInput : public USubsystem
+{
+    DECLARE_CLASS(UInput, USubsystem, 0xc, UObject)
+};
+
+// 116 bytes on the xbox
+class UKMeshProps : public UObject
+{
+    DECLARE_CLASS(UKMeshProps, UObject, 0x0, UObject)
+};
+
+// 120 bytes on the xbox
+class ULevelBase : public UObject
+{
+    DECLARE_CLASS(ULevelBase, UObject, 0x1, UObject)
+};
+
+// 4464 bytes on the xbox
+class ULevel : public ULevelBase
+{
+    DECLARE_CLASS(ULevel, ULevelBase, 0x0, UObject)
+};
+
+// 88 bytes on the xbox
+class UMesh : public UPrimitive
+{
+    DECLARE_CLASS(UMesh, UPrimitive, 0x0, UObject)
+};
+
+// 296 bytes on the xbox
+class ULodMesh : public UMesh
+{
+    DECLARE_CLASS(ULodMesh, UMesh, 0x40, UObject)
+};
+
+// 88 bytes on the xbox
+class UMeshInstance : public UPrimitive
+{
+    DECLARE_CLASS(UMeshInstance, UPrimitive, 0x0, UObject)
+};
+
+// 124 bytes on the xbox
+class ULodMeshInstance : public UMeshInstance
+{
+    DECLARE_CLASS(ULodMeshInstance, UMeshInstance, 0x8, UObject)
+};
+
+// 68 bytes on the xbox
+class UMeshAnimation : public UObject
+{
+    DECLARE_CLASS(UMeshAnimation, UObject, 0x40, UObject)
+};
+
+// 1768 bytes on the xbox
+class UModel : public UPrimitive
+{
+    DECLARE_CLASS(UModel, UPrimitive, 0x80, UObject)
+};
+
+// 164 bytes on the xbox
+class UNetPendingLevel : public UPendingLevel
+{
+    DECLARE_CLASS(UNetPendingLevel, UPendingLevel, 0x8, UObject)
+};
+
+// 176 bytes on the xbox
+class URenderDevice : public USubsystem
+{
+    DECLARE_CLASS(URenderDevice, USubsystem, 0x5, UObject)
+};
+
+// 208 bytes on the xbox
+class UNullRenderDevice : public URenderDevice
+{
+    DECLARE_CLASS(UNullRenderDevice, URenderDevice, 0x4, UObject)
+};
+
+// 64 bytes on the xbox
+class UPackageCheckInfo : public UObject
+{
+    DECLARE_CLASS(UPackageCheckInfo, UObject, 0x0, UObject)
+};
+
+// 112 bytes on the xbox
+class UPackageMapLevel : public UPackageMap
+{
+    DECLARE_CLASS(UPackageMapLevel, UPackageMap, 0x8, UObject)
+};
+
+// 52 bytes on the xbox
+class UPolys : public UObject
+{
+    DECLARE_CLASS(UPolys, UObject, 0x80, UObject)
+};
+
+// 84 bytes on the xbox
+class UProjectorPrimitive : public UPrimitive
+{
+    DECLARE_CLASS(UProjectorPrimitive, UPrimitive, 0x0, UObject)
+};
+
+// 132 bytes on the xbox
+class UProxyBitmapMaterial : public UBitmapMaterial
+{
+    DECLARE_CLASS(UProxyBitmapMaterial, UBitmapMaterial, 0x0, UObject)
+};
+
+// 332 bytes on the xbox
+class UServerCommandlet : public UCommandlet
+{
+    DECLARE_CLASS(UServerCommandlet, UCommandlet, 0x8, UObject)
+};
+
+// 692 bytes on the xbox
+class USkeletalMesh : public ULodMesh
+{
+    DECLARE_CLASS(USkeletalMesh, ULodMesh, 0x40, UObject)
+};
+
+// 460 bytes on the xbox
+class USkeletalMeshInstance : public ULodMeshInstance
+{
+    DECLARE_CLASS(USkeletalMeshInstance, ULodMeshInstance, 0x8, UObject)
+};
+
+// 52 bytes on the xbox
+class USkinVertexBuffer : public URenderResource
+{
+    DECLARE_CLASS(USkinVertexBuffer, URenderResource, 0x0, UObject)
+};
+
+// 428 bytes on the xbox
+class UStaticMesh : public UPrimitive
+{
+    DECLARE_CLASS(UStaticMesh, UPrimitive, 0x20c0, UObject)
+};
+
+// 96 bytes on the xbox
+class UStaticMeshInstance : public UObject
+{
+    DECLARE_CLASS(UStaticMeshInstance, UObject, 0x80, UObject)
+};
+
+// 88 bytes on the xbox
+class UTerrainPrimitive : public UPrimitive
+{
+    DECLARE_CLASS(UTerrainPrimitive, UPrimitive, 0x0, UObject)
+};
+
+// 176 bytes on the xbox
+class UTerrainSector : public UObject
+{
+    DECLARE_CLASS(UTerrainSector, UObject, 0x0, UObject)
+};
+
+// 108 bytes on the xbox
+class UTexCoordMaterial : public URenderedMaterial
+{
+    DECLARE_CLASS(UTexCoordMaterial, URenderedMaterial, 0x0, UObject)
+};
+
+// 532 bytes on the xbox
+class UVertMesh : public ULodMesh
+{
+    DECLARE_CLASS(UVertMesh, ULodMesh, 0x0, UObject)
+};
+
+// 164 bytes on the xbox
+class UVertMeshInstance : public ULodMeshInstance
+{
+    DECLARE_CLASS(UVertMeshInstance, ULodMeshInstance, 0x0, UObject)
+};
+
+// 56 bytes on the xbox
+class UVertexStreamBase : public URenderResource
+{
+    DECLARE_CLASS(UVertexStreamBase, URenderResource, 0x1, UObject)
+};
+
+// 64 bytes on the xbox
+class UVertexBuffer : public UVertexStreamBase
+{
+    DECLARE_CLASS(UVertexBuffer, UVertexStreamBase, 0x0, UObject)
+};
+
+// 64 bytes on the xbox
+class UVertexStreamCOLOR : public UVertexStreamBase
+{
+    DECLARE_CLASS(UVertexStreamCOLOR, UVertexStreamBase, 0x0, UObject)
+};
+
+// 64 bytes on the xbox
+class UVertexStreamPosNormTex : public UVertexStreamBase
+{
+    DECLARE_CLASS(UVertexStreamPosNormTex, UVertexStreamBase, 0x0, UObject)
+};
+
+// 64 bytes on the xbox
+class UVertexStreamUV : public UVertexStreamBase
+{
+    DECLARE_CLASS(UVertexStreamUV, UVertexStreamBase, 0x0, UObject)
+};
+
+// 64 bytes on the xbox
+class UVertexStreamVECTOR : public UVertexStreamBase
+{
+    DECLARE_CLASS(UVertexStreamVECTOR, UVertexStreamBase, 0x0, UObject)
+};
+
+// 452 bytes on the xbox
+class UViewport : public UPlayer
+{
+    DECLARE_CLASS(UViewport, UPlayer, 0x9, UClient)
 };
