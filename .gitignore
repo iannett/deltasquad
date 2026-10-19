@@ -1,0 +1,41 @@
+# game files (never commit)
+game
+*.xbe
+*.iso
+*.u
+*.utx
+*.usx
+*.ukx
+*.uax
+*.ctm
+*.xwb
+*.xsb
+*.xmv
+
+# decompiled gameplay scripts are the game's code
+scripts/*
+!scripts/.gitkeep
+
+# ghidra databases
+*.gpr
+*.rep/
+*.lock
+*.lock~
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# macos
+.DS_Store
+
+# dotnet build output
+bin/
+obj/
+
+# build output
+build/
+
+# third-party naming reference, fetched by tools/fetch_pc_exports.sh
+symbols/pc-exports/

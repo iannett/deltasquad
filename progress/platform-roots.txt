@@ -1,0 +1,28 @@
+# xbox-only engine code the port replaces instead of decompiling. tools/platform.sh expands these
+# into progress/platform.csv: the roots plus every function only they use. progress leaves them out.
+vtable 004018d8 UD3DRenderDevice (direct3d renderer)
+vtable 003fd9a8 UXBoxAudioSubsystem (xbox audio)
+vtable 003fb370 UXboxClient (xbox platform client)
+vtable 003fba58 UXboxViewport (xbox viewport)
+vtable 003cac88 xbox memory allocator
+function 0003bb55 xbox memory allocator
+vtable 00429148 xbox file writer archive
+function 0024c320 xbox live (xbOnlineTask.cpp)
+function 0024c361 xbox live (FriendsManager.cpp)
+function 0024c3c6 xbox live (FriendsManager.cpp)
+function 0024c4b9 xbox live (FriendsManager.cpp)
+function 0024c892 xbox live (FriendsManager.cpp)
+function 0024c903 xbox live (FriendsManager.cpp)
+function 0024c940 xbox live (FriendsManager.cpp)
+function 0024c97b xbox live (FriendsManager.cpp)
+function 0024c9ac xbox live (FriendsManager.cpp)
+function 0024cab4 xbox live (FriendsManager.cpp)
+function 0024cb4e xbox live (FriendsManager.cpp)
+function 0024cc54 xbox live (FriendsManager.cpp)
+function 0024cf14 xbox live (FriendsManager.cpp)
+function 0024cfb2 xbox live (FriendsManager.cpp)
+function 0024d022 xbox live (FriendsManager.cpp)
+function 0024d09e xbox live (FriendsManager.cpp)
+function 0024d1b8 xbox live (FriendsManager.cpp)
+function 0024d325 xbox live (FriendsManager.cpp)
+function 0024d4de xbox live (FriendsManager.cpp)
