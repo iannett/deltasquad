@@ -79,6 +79,9 @@ class UByteProperty : public UProperty
 {
     DECLARE_CLASS(UByteProperty, UProperty, CLASS_IsAUProperty, UField)
 public:
+    UByteProperty() = default;
+    UByteProperty(INT InOffset, const TCHAR* InCategory, DWORD InFlags, UEnum* InEnum = nullptr)
+        : UProperty(InOffset, InCategory, InFlags), Enum(InEnum) {}
     void Serialize(FArchive& Ar) override;
     void Link(FArchive& Ar, UProperty* Prev) override;
     INT GetElementSize() const override { return sizeof(BYTE); }
@@ -115,6 +118,9 @@ class UBoolProperty : public UProperty
 {
     DECLARE_CLASS(UBoolProperty, UProperty, CLASS_IsAUProperty | CLASS_IsAUBoolProperty, UField)
 public:
+    UBoolProperty() = default;
+    UBoolProperty(INT InOffset, const TCHAR* InCategory, DWORD InFlags)
+        : UProperty(InOffset, InCategory, InFlags), BitIndex(0) {}
     void Serialize(FArchive& Ar) override;
     void Link(FArchive& Ar, UProperty* Prev) override;
     INT GetElementSize() const override { return sizeof(DWORD); }
@@ -150,6 +156,9 @@ class UObjectProperty : public UProperty
 {
     DECLARE_CLASS(UObjectProperty, UProperty, CLASS_IsAUProperty | CLASS_IsAUObjectProperty, UField)
 public:
+    UObjectProperty() = default;
+    UObjectProperty(INT InOffset, const TCHAR* InCategory, DWORD InFlags, UClass* InClass)
+        : UProperty(InOffset, InCategory, InFlags), PropertyClass(InClass) {}
     INT GetLinkAlign() const override { return alignof(UObject*) > 4 ? alignof(UObject*) : 4; }
     void Serialize(FArchive& Ar) override;
     INT GetElementSize() const override { return sizeof(UObject*); }
@@ -262,6 +271,9 @@ class UStructProperty : public UProperty
 {
     DECLARE_CLASS(UStructProperty, UProperty, CLASS_IsAUProperty, UField)
 public:
+    UStructProperty() = default;
+    UStructProperty(INT InOffset, const TCHAR* InCategory, DWORD InFlags, UStruct* InStruct)
+        : UProperty(InOffset, InCategory, InFlags), Struct(InStruct) {}
     INT GetLinkAlign() const override { return Struct->MinAlignment; }
     void Serialize(FArchive& Ar) override;
     INT GetElementSize() const override { return Struct->PropertiesSize; }

@@ -132,6 +132,13 @@ Ghidra's first pass missed about 15% of the code (functions reached only through
 - Bytecode differences from stock UE2: `EX_BoolVariable` (`0x2D`) has no operand, `EX_DelegateFunction` (`0x43`) is an object and a name with no parameter list, and `EX_DebugInfo` is three ints and a string.
 - `StaticLoadObject` returns an existing object at once if it is loaded or waiting to load (`RF_NeedLoad` or `RF_WasLoaded`). Load flag `0x40` skips package files entirely and `0x2000` returns null for a missing object instead of throwing. Inside a nested load, the newest linker with archive byte `0x16` set gets the first try.
 - Each class's destructor calls `ConditionalDestroy` while its own vtable is still in place. `StaticAllocateObject` relies on this when it replaces a native class in place with the copy from a package.
+- `UStaticMesh::Serialize` reads vertex colours into a temporary stream and drops them unless `LoadVertexColorInGame` is set. It empties the wireframe index buffer after reading it and sets `UseCollisionForBakedShadowsOnly` to 1 whatever was stored.
+- Static mesh collision data before version 133 is in an older format that is read and dropped. From version 148 the collision triangles, nodes and the 12 bytes after them are read with `ArSkipObjectRefs` set, so they are skipped too.
+- Static mesh raw triangles always stay in the file until asked for: `GLazyLoad` is forced to 1 around them.
+- Normals in static mesh vertices are stored as full vectors and packed into 11, 11 and 10 bits when loaded.
+- `USkeletalMesh::Serialize` forces `GLazyLoad` to 1 around the lod models and raw mesh arrays. Each lod model then detaches its four lazy arrays right away, so their data is never loaded in game.
+- After loading a lod model, its skin data is rewritten into groups by influence count (`0x50be9`) and its points are reordered to match. The packed data ends with `0x12345678`.
+- Skeletal meshes before version 142 store every bone rotation but the root's inverted. Before version 140 the attach aliases are three separate arrays.
 
 ## Startup and config notes
 
@@ -216,6 +223,8 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 - `appExit` does not end the program. `UClass::Link` calls it on a size mismatch and keeps going.
 - `UTexture::Serialize` reads and drops an old compressed mip array when the package is older than version 84 and bit 10 of the texture's bool word is set. No script bool is bit 10 (`bHasComp` is bit 8) and nothing sets it, so this never happens. The port leaves the branch out.
 - `GUglyHackFlags` flag 8 changes how lazy arrays, materials and mips load, but nothing on the xbox sets it.
+- The mesh bone serializer reads `XSize` twice and never reads `YSize`.
+- The skin data packer counts an entry's influence dwords capped at 3 in its first two passes but skips the uncapped count in the last one. Entries with 4 or more influences would be misread.
 
 ## Other port deviations
 
@@ -223,3 +232,4 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 - `UDelegateProperty::ImportText` stops its name buffers at `NAME_SIZE`. The Xbox does not bound them.
 - `appExit` skips freeing a lock pool and a network lock, because the port's `appInit` does not create them yet.
 - `GameEngine.GetLocalizedKeyName` has a stub native entry. The Xbox has none, so binding it would be fatal there.
+- Static mesh vertex, colour and UV streams are plain arrays. The Xbox allocates them from a second allocator (`0x430d5c`, likely memory the GPU reads) and locks them while loading.

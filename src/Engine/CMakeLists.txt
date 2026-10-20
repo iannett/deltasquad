@@ -3,6 +3,9 @@ add_library(Engine STATIC
     Src/EngineNativeStubs.cpp
     Src/UnAudio.cpp
     Src/UnFont.cpp
+    Src/UnRenderResource.cpp
+    Src/UnSkeletalMesh.cpp
+    Src/UnStaticMesh.cpp
     Src/UnTex.cpp
 )
 target_include_directories(Engine PUBLIC Inc)

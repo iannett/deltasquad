@@ -93,6 +93,12 @@ struct FPlane : public FVector
     constexpr FPlane(FLOAT InX, FLOAT InY, FLOAT InZ, FLOAT InW) : FVector(InX, InY, InZ), W(InW) {}
 };
 
+// a centre and a radius
+struct FSphere : public FPlane
+{
+    FSphere() = default;
+};
+
 // a bounding box; IsValid is 0 for an empty box
 struct FBox
 {
@@ -100,6 +106,23 @@ struct FBox
     FVector Max;
     BYTE    IsValid;
 };
+
+// the xbox copies vectors, planes and boxes as raw bytes
+inline FArchive& operator<<(FArchive& Ar, FVector& V)
+{
+    return Ar << V.X << V.Y << V.Z;
+}
+
+inline FArchive& operator<<(FArchive& Ar, FPlane& P)
+{
+    return Ar << static_cast<FVector&>(P) << P.W;
+}
+
+// 0x000386e7
+inline FArchive& operator<<(FArchive& Ar, FBox& B)
+{
+    return Ar << B.Min << B.Max << B.IsValid;
+}
 
 struct FRange
 {
@@ -178,6 +201,15 @@ struct FMatrix
     FRotator Rotator() const;
 };
 
+// copied as 64 raw bytes
+inline FArchive& operator<<(FArchive& Ar, FMatrix& M)
+{
+    for (INT i = 0; i < 4; i++)
+        for (INT j = 0; j < 4; j++)
+            Ar << M.M[i][j];
+    return Ar;
+}
+
 // 0x0013464b. a rotation by Rot followed by a move to Origin.
 FMatrix FRotationTranslationMatrix(const FRotator& Rot, const FVector& Origin);
 
@@ -193,6 +225,12 @@ struct FQuat
     // 0x001348e5
     FVector RotateVector(const FVector& V) const;
 };
+
+// copied as 16 raw bytes
+inline FArchive& operator<<(FArchive& Ar, FQuat& Q)
+{
+    return Ar << Q.X << Q.Y << Q.Z << Q.W;
+}
 
 // 0x001347ac. a rotation by Q followed by a move to Origin.
 FMatrix FQuatRotationTranslationMatrix(const FQuat& Q, const FVector& Origin);
