@@ -803,6 +803,15 @@ void UObject::ProcessRegistrants()
     GObjRegisterCount--;
 }
 
+// 0x0002b5af
+UClass* UObject::StaticLoadClass(UClass* BaseClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, DWORD LoadFlags, UPackageMap* Sandbox)
+{
+    UClass* Class = static_cast<UClass*>(StaticLoadObject(UClass::StaticClass(), InOuter, InName, Filename, LoadFlags | LOAD_Throw, Sandbox));
+    if (Class && !Class->IsChildOf(BaseClass))
+        appThrowf(LocalizeError(TEXT("LoadClassMismatch"), TEXT("Core")), Class->GetFullName(), BaseClass->GetFullName());
+    return Class;
+}
+
 // 0x0002b11b. the xbox caught load errors here; in the port appThrowf is fatal, so there is nothing to catch.
 UObject* UObject::StaticLoadObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, DWORD LoadFlags, UPackageMap* Sandbox)
 {

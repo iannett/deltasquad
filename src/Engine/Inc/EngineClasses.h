@@ -460,6 +460,8 @@ struct FURL
     TArrayNoInit<FString> Op;
     FStringNoInit Portal;
     BITFIELD Valid : 1;
+
+#include "CppText/FURL.h"
 };
 
 struct FVoiceChatterInfo
@@ -3133,6 +3135,8 @@ public:
     FColor C_AnimProp;
     FColor C_KarmaProp;
     FColor C_Pickup;
+
+#include "CppText/UEngine.h"
 };
 
 class AEngineBattleVolume : public AVolume
@@ -6704,6 +6708,8 @@ public:
 class UGlobalTempObjects : public UObject
 {
     DECLARE_CLASS(UGlobalTempObjects, UObject, 0x8, UObject)
+public:
+#include "CppText/UGlobalTempObjects.h"
 };
 
 // 44 bytes on the xbox

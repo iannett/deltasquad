@@ -237,6 +237,7 @@ public:
     static void operator delete(void* Ptr) { appFree(Ptr); }
     static UObject* GetTransientPackage();
     static UObject* StaticLoadObject(UClass* Class, UObject* InOuter, const TCHAR* Name, const TCHAR* Filename, DWORD LoadFlags, class UPackageMap* Sandbox);
+    static UClass* StaticLoadClass(UClass* BaseClass, UObject* InOuter, const TCHAR* Name, const TCHAR* Filename, DWORD LoadFlags, class UPackageMap* Sandbox);
     static UObject* StaticAllocateObject(UClass* Class, UObject* InOuter = reinterpret_cast<UObject*>(-1), FName InName = NAME_None,
         DWORD SetFlags = 0, UObject* Template = nullptr, FOutputDevice* Error = nullptr, UObject* Ptr = nullptr, UObject* SubobjectRoot = nullptr);
     static UObject* StaticConstructObject(UClass* Class, UObject* InOuter = reinterpret_cast<UObject*>(-1), FName InName = NAME_None,

@@ -122,6 +122,7 @@ enum EPackageFlags : DWORD
 // load flags for GetPackageLinker and StaticLoadObject
 enum ELoadFlagsLinker : DWORD
 {
+    LOAD_NoFail    = 0x00000001, // passed by the game's main when it loads the engine class
     LOAD_Unknown2  = 0x00000002, // passed by DynamicLoadObject
     LOAD_Throw     = 0x00000008, // throw on failure instead of returning null
     LOAD_Verify    = 0x00000010, // only check that things exist: skips import verification and object creation

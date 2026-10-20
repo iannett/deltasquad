@@ -2,6 +2,7 @@
 
 #include "CoreTypes.h"
 #include "UnMem.h"
+#include "UnCache.h"
 #include "UnTemplate.h"
 #include "UnString.h"
 #include "UnOutputDevice.h"

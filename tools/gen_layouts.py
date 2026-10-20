@@ -365,9 +365,13 @@ class Generator:
         for s in structs:
             sup = self.layouts.super_of(s)
             base = f' : public {self.struct_cpp(sup["outer"], sup["name"])}' if sup else ''
-            out.append(f'struct {self.struct_cpp(s["outer"], s["name"])}{base}')
+            cpp = self.struct_cpp(s["outer"], s["name"])
+            out.append(f'struct {cpp}{base}')
             out.append('{')
             out += self.members(s)
+            if os.path.exists(os.path.join(cpptext_dir, cpp + '.h')):
+                out.append('')
+                out.append(f'#include "CppText/{cpp}.h"')
             out.append('};')
             out.append('')
         for s in classes:

@@ -922,3 +922,12 @@
 00026ede  UBitArray2D::Serialize
 00026e25  UBitArray::UBitArray
 00026ec7  UBitArray2D::UBitArray2D
+000a97ad  FURL::StaticInit
+000a3fe2  UEngine::Init
+0018375c  FMemCache::Init
+001834d1  FMemCache::CreateNewFreeSpace
+00183463  FMemCache::CheckState
+00198f0a  FStatGraph::FStatGraph
+000a3f6b  FTempLineBatcher::FTempLineBatcher
+000a3f0b  UGlobalTempObjects::UGlobalTempObjects
+0002b5af  UObject::StaticLoadClass
