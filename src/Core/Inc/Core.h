@@ -15,6 +15,7 @@
 #include "UnStack.h"
 #include "UnFile.h"
 #include "UnLinker.h"
+#include "UnCoreNet.h"
 #include "UnSystem.h"
 #include "UnBits.h"
 #include "UnCommandlet.h"

@@ -13,6 +13,86 @@ void UPrimitive::Serialize(FArchive& Ar)
     Ar << static_cast<FPlane&>(BoundingSphere);
 }
 
+FBox UPrimitive::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    if (!Owner)
+        return BoundingBox;
+    const FLOAT Radius = Owner->CollisionRadius + 1.f;
+    const FLOAT Height = Owner->CollisionHeight + 1.f;
+    const FVector& Location = Owner->Location;
+    FBox Box;
+    Box.Min = FVector(Location.X - Radius, Location.Y - Radius, Location.Z - Height);
+    Box.Max = FVector(Location.X + Radius, Location.Y + Radius, Location.Z + Height);
+    Box.IsValid = 1;
+    return Box;
+}
+
+UBOOL UPrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    if (!Owner)
+        return 1;
+    const FLOAT DeltaZ = Owner->Location.Z - Location.Z;
+    const FLOAT Height = Owner->CollisionHeight + Extent.Z;
+    if (Height * Height <= DeltaZ * DeltaZ)
+        return 1;
+    const FLOAT DeltaY = Owner->Location.Y - Location.Y;
+    const FLOAT DeltaX = Owner->Location.X - Location.X;
+    const FLOAT Radius = Owner->CollisionRadius + Extent.X;
+    if (Radius * Radius <= DeltaY * DeltaY + DeltaX * DeltaX)
+        return 1;
+
+    Result.Actor = Owner;
+    Result.Normal = (Location - Owner->Location).SafeNormal();
+    // the xbox puts the hit at the bottom of the cylinder whether the point is above or below it
+    if (Result.Normal.Z < -0.5f || Result.Normal.Z > 0.5f)
+    {
+        Result.Location = FVector(Location.X, Location.Y, Owner->Location.Z - Extent.Z);
+    }
+    else
+    {
+        const FVector Side = FVector(Result.Normal.X, Result.Normal.Y, Result.Normal.Z * 0.f).SafeNormal();
+        Result.Location = FVector(Owner->Location.X - Side.X * Extent.X, Owner->Location.Y - Side.Y * Extent.X,
+            Owner->Location.Z - Side.Z * Extent.X + Location.Z);
+    }
+    return 0;
+}
+
+UBOOL UStaticMesh::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    NOT_DECOMPILED(0x001960bf);
+    return 1;
+}
+
+UBOOL UFluidSurfacePrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    NOT_DECOMPILED(0x000a220b);
+    return 1;
+}
+
+UBOOL UProjectorPrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    NOT_DECOMPILED(0x00076d18);
+    return 1;
+}
+
+UBOOL UTerrainPrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    NOT_DECOMPILED(0x00069648);
+    return 1;
+}
+
+FBox UFluidSurfacePrimitive::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    NOT_DECOMPILED(0x000a2329);
+    return FBox{};
+}
+
+FBox UProjectorPrimitive::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    NOT_DECOMPILED(0x000763dc);
+    return FBox{};
+}
+
 // ---------------------------------------------------------------------------------------------- old formats
 
 namespace
@@ -202,6 +282,12 @@ FArchive& operator<<(FArchive& Ar, FStaticMeshTriangle& T)
 }
 
 // ---------------------------------------------------------------------------------------------- static meshes
+
+FBox UStaticMesh::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    NOT_DECOMPILED(0x001937f7);
+    return FBox{};
+}
 
 // 0x00095a27
 void UStaticMesh::StaticConstructor()

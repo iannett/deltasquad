@@ -977,6 +977,17 @@ UBOOL UObject::ResolveName(UObject*& InPackage, const TCHAR*& InName, UBOOL Crea
 }
 
 // 0x000245c9
+UObject* UObject::StaticFindObjectChecked(UClass* ObjectClass, UObject* InOuter, const TCHAR* Name, UBOOL ExactClass)
+{
+    UObject* Result = StaticFindObject(ObjectClass, InOuter, Name, ExactClass);
+    if (!Result)
+    {
+        const TCHAR* OuterName = InOuter == ANY_PACKAGE ? TEXT("Any") : InOuter ? InOuter->GetName() : TEXT("None");
+        GError->Logf(LocalizeError(TEXT("ObjectNotFound"), TEXT("Core")), ObjectClass->GetName(), OuterName, Name);
+    }
+    return Result;
+}
+
 UObject* UObject::StaticFindObject(UClass* ObjectClass, UObject* InObjectPackage, const TCHAR* OrigInName, UBOOL ExactClass)
 {
     const UBOOL AnyPackage = InObjectPackage == ANY_PACKAGE;
@@ -1361,9 +1372,6 @@ void UClass::Destroy()
 // everything below is waiting to be decompiled
 
 UBOOL UObject::IsDefaultValue(const FPropertyInstance& Property) { NOT_DECOMPILED(0x00023172); return 0; }
-UBOOL UPackageMap::CanSerializeObject(UObject* Obj) { NOT_DECOMPILED(UPackageMap::CanSerializeObject); return 0; }
-UBOOL UPackageMap::SerializeObject(FArchive& Ar, UClass* Class, UObject*& Obj) { NOT_DECOMPILED(UPackageMap::SerializeObject); return 0; }
-UBOOL UPackageMap::SupportsPackage(UObject* InOuter) { NOT_DECOMPILED(0x000c1c06); return 0; }
 
 // inlined at every use in the xbox build
 UObject* UObject::GetTransientPackage()

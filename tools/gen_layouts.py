@@ -143,11 +143,13 @@ CPP_CLASS_NAMES = {'Object': 'UObject', 'Class': 'UClass', 'Field': 'UField', 'S
 
 # C++-only members whose real type script can't express, by (class, member). the type replaces the script
 # placeholder's array size too.
-CPP_MEMBER_TYPES = {('Texture', 'Mips'): 'TArrayNoInit<FMipmap>', ('Sound', 'Data'): 'TLazyArray<BYTE>'}
+CPP_MEMBER_TYPES = {('Texture', 'Mips'): 'TArrayNoInit<FMipmap>', ('Sound', 'Data'): 'TLazyArray<BYTE>',
+                    ('Actor', 'OctreeNodes'): 'TArrayNoInit<FOctreeNode*>'}
 
 # hand-written headers with the C++ types those members use, by package
 CPP_TYPE_HEADERS = {'Engine': ['UnTex.h', 'UnFont.h', 'UnStaticMesh.h', 'UnSkeletalMesh.h', 'UnModel.h', 'UnKarma.h', 'UnURL.h',
-                               'UnLevel.h']}
+                               'UnLevel.h'],
+                    'IpDrv': ['UnSocket.h']}
 
 # C++ interfaces a native class also derives from, by C++ class name
 CPP_EXTRA_BASES = {'ULevelBase': 'FNetworkNotify'}

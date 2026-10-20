@@ -32,3 +32,7 @@
 
     void StaticConstructor();
     void Serialize(FArchive& Ar) override;
+    // 0x001937f7
+    FBox GetCollisionBoundingBox(const AActor* Owner) const override;
+    // 0x001960bf
+    UBOOL PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags) override;

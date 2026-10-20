@@ -36,6 +36,79 @@ void UMaterial::Serialize(FArchive& Ar)
     }
 }
 
+UBOOL UMaterial::CheckCircularReferences(TArray<UMaterial*>& History)
+{
+    INT Index;
+    if (History.FindItem(this, Index))
+        return 0;
+    if (FallbackMaterial)
+    {
+        Index = History.AddItem(this);
+        if (!FallbackMaterial->CheckCircularReferences(History))
+            return 0;
+        History.Remove(Index);
+    }
+    return 1;
+}
+
+INT UCombiner::MaterialUSize()
+{
+    const INT Size2 = Material2 ? Material2->MaterialUSize() : 0;
+    const INT Size1 = Material1 ? Material1->MaterialUSize() : 0;
+    return Max(Size1, Size2);
+}
+
+INT UCombiner::MaterialVSize()
+{
+    const INT Size2 = Material2 ? Material2->MaterialVSize() : 0;
+    const INT Size1 = Material1 ? Material1->MaterialVSize() : 0;
+    return Max(Size1, Size2);
+}
+
+INT UShader::MaterialUSize()
+{
+    if (Diffuse)
+        return Diffuse->MaterialUSize();
+    if (SelfIllumination)
+        return SelfIllumination->MaterialUSize();
+    return 0;
+}
+
+INT UShader::MaterialVSize()
+{
+    if (Diffuse)
+        return Diffuse->MaterialVSize();
+    if (SelfIllumination)
+        return SelfIllumination->MaterialVSize();
+    return 0;
+}
+
+INT UHardwareShaderWrapper::MaterialUSize()
+{
+    if (ShaderImplementation && ShaderImplementation->Textures[0])
+        return ShaderImplementation->Textures[0]->MaterialUSize();
+    return 0;
+}
+
+INT UHardwareShaderWrapper::MaterialVSize()
+{
+    if (ShaderImplementation && ShaderImplementation->Textures[0])
+        return ShaderImplementation->Textures[0]->MaterialVSize();
+    return 0;
+}
+
+INT UVisionMode::MaterialUSize()
+{
+    if (VisionShader && VisionShader->Textures[0])
+        return VisionShader->Textures[0]->MaterialUSize();
+    return 0;
+}
+
+INT UVisionMode::MaterialVSize()
+{
+    return MaterialUSize();
+}
+
 // 0x0005c8ad
 void UBitmapMaterial::Serialize(FArchive& Ar)
 {

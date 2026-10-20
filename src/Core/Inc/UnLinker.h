@@ -114,6 +114,8 @@ extern INT GPackageFileMinVersion;
 // package flags (FPackageFileSummary::PackageFlags and UPackage::PackageFlags)
 enum EPackageFlags : DWORD
 {
+    PKG_AllowDownload  = 0x00000001, // clients may download the file
+    PKG_ServerSideOnly = 0x00000004, // never sent to clients
     PKG_BrokenLinks = 0x00000008, // some imports failed to resolve
     PKG_Unknown20   = 0x00000020, // copied into FArchive::ArUnknown16 by the linkers
     PKG_NeedsVerify = 0x00000040, // GetPackageLinker verifies the imports right away
@@ -128,6 +130,7 @@ enum ELoadFlagsLinker : DWORD
     LOAD_Verify    = 0x00000010, // only check that things exist: skips import verification and object creation
     LOAD_AllowDll  = 0x00000020, // a package with native code needs no file
     LOAD_NoFiles   = 0x00000040, // StaticLoadObject only looks for objects already in memory
+    LOAD_NoVerify  = 0x00000080, // leaves the imports unverified
     LOAD_Forgiving = 0x00001000, // a missing import marks the package broken instead of throwing
     LOAD_NoThrow   = 0x00002000, // StaticLoadObject returns null for a missing object instead of throwing
     LOAD_Quiet     = 0x00008000, // fail silently

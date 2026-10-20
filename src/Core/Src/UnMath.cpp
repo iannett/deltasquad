@@ -51,6 +51,20 @@ FMatrix::FMatrix(const FPlane& InX, const FPlane& InY, const FPlane& InZ, const 
     }
 }
 
+FMatrix FCoords::Matrix() const
+{
+    const FVector Neg(0.f - Origin.X, 0.f - Origin.Y, 0.f - Origin.Z);
+    FMatrix R;
+    R.M[0][0] = XAxis.X; R.M[0][1] = YAxis.X; R.M[0][2] = ZAxis.X; R.M[0][3] = 0.f;
+    R.M[1][0] = XAxis.Y; R.M[1][1] = YAxis.Y; R.M[1][2] = ZAxis.Y; R.M[1][3] = 0.f;
+    R.M[2][0] = XAxis.Z; R.M[2][1] = YAxis.Z; R.M[2][2] = ZAxis.Z; R.M[2][3] = 0.f;
+    R.M[3][0] = XAxis.Z * Neg.Z + XAxis.Y * Neg.Y + XAxis.X * Neg.X;
+    R.M[3][1] = YAxis.Z * Neg.Z + YAxis.Y * Neg.Y + YAxis.X * Neg.X;
+    R.M[3][2] = ZAxis.Z * Neg.Z + ZAxis.Y * Neg.Y + Neg.X * ZAxis.X;
+    R.M[3][3] = 1.f;
+    return R;
+}
+
 // 0x00133d79. the inverse by cofactors.
 FMatrix FMatrix::Inverse() const
 {

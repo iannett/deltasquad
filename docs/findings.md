@@ -156,6 +156,7 @@ Ghidra's first pass missed about 15% of the code (functions reached only through
 
 - Xbox drive paths `T:\`, `U:\` and `Z:\` (title data, saves, scratch such as `Z:\Out\`) map to `~/Library/Application Support/deltasquad/<letter>/` on macOS, never into the game files.
 - `D:\` (the disc) maps to the parent of the base directory, so it is an absolute path and does not depend on the working directory.
+- The network driver uses POSIX sockets in place of the Xbox's Winsock. The calls and messages keep their Winsock names.
 - Pending: the game reads `Z:\Movies\Menu_BG.xmv` after copying it there from the disc. The port has to do that copy once the movie code is decompiled.
 
 ## Generated native classes
@@ -211,6 +212,9 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 
 - `Sqrt` and `appSqrt` use an exact square root. The Xbox inlines an SSE reciprocal square root estimate with one Newton step. That estimate differs between CPU makers, so it cannot be copied exactly.
 - `appRand` scales the host's `rand()` into 0 to 32767, the Xbox range, so `Rand`, `FRand`, `VRand` and `RotRand` see the same ranges. The sequences still differ.
+- The machine's own address comes from its network interfaces. The Xbox asks `XNetGetTitleXnAddr` for it. Either way the driver binds to any address unless `PRIMARYNET` is given.
+- Socket setup always succeeds here. The Xbox reports whether its network stack started.
+- Socket error messages print the error number. The Xbox passes the error's name to `%i`, which prints the address of the name.
 - The `<<` and `>>` vector-by-rotator natives inline `FCoords` math on the Xbox. Here they use the rotation matrix, which gives the same result up to float rounding.
 
 ## Bugs kept from the original
@@ -230,6 +234,8 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 - Karma collision data before version 113 reads the sphere array twice. The second read replaces the first.
 - The game's aligned allocator for Karma rounds the size up to the alignment but returns an unaligned block.
 - The game's Karma message handler sends info, warning and debug messages to the info output, and checks them all against the info level.
+- `UdpLink.BindPort` sets the socket to 0 when binding fails. Later calls then see a socket and fail with "already bound".
+- `UVisionMode`'s V size returns the U size of its shader's first texture. Both vtable slots point at the same function.
 - `LoadMap`'s timer keeps a second double next to the time that is never set, so the second value of each lap is garbage. The logs only print the first, and the port leaves the second out.
 
 ## Other port deviations

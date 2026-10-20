@@ -23,3 +23,7 @@
 
     void Serialize(FArchive& Ar) override;
     void AddSkelAnim(UMeshAnimation* Anim, INT Flag);
+    // 0x0016834b
+    FBox GetCollisionBoundingBox(const AActor* Owner) const override;
+    // 0x00168308
+    UBOOL PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags) override;

@@ -10,5 +10,7 @@
     virtual void UnloadCurrentMap();
     // 0x00124114
     virtual ULevel* LoadMap(const FURL& URL, UPendingLevel* Pending, const TMap<FString, FString>* TravelInfo, FString& Error, UBOOL Unknown);
+    // 0x0011e5aa. the master map holds the level's package and the server packages.
+    virtual void BuildServerMasterMap(UNetDriver* NetDriver, ULevel* InLevel);
     // 0x0011e2f0. redraws the loading screen.
     virtual void UpdateProgress();

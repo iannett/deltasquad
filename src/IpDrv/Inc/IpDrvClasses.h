@@ -5,6 +5,7 @@
 #include "Core.h"
 #include "UnMath.h"
 #include "EngineClasses.h"
+#include "UnSocket.h"
 
 // the classes members point at, declared ahead
 class AMasterServerUplink;
@@ -53,6 +54,8 @@ public:
     DECLARE_FUNCTION(execIpAddrToString)
     DECLARE_FUNCTION(execStringToIpAddr)
     DECLARE_FUNCTION(execGetLocalIP)
+
+#include "CppText/AInternetLink.h"
 };
 
 class AMasterServerLink : public AInfo
@@ -181,6 +184,8 @@ class UHTTPDownload : public UDownload
 class UTcpNetDriver : public UNetDriver
 {
     DECLARE_CLASS(UTcpNetDriver, UNetDriver, 0xc, UObject)
+public:
+#include "CppText/UTcpNetDriver.h"
 };
 
 // 16080 bytes on the xbox

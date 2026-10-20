@@ -59,6 +59,7 @@ enum EClassFlags : DWORD
     CLASS_Localized     = 0x00000020, // has localized properties
     CLASS_RuntimeStatic = 0x00000080,
     CLASS_PerObjectConfig = 0x00000400, // config is kept per object instead of per class
+    CLASS_NativeReplication = 0x00000800, // replication is done in C++
     CLASS_IsAUProperty  = 0x00008000,
     CLASS_IsAUObjectProperty = 0x00010000,
     CLASS_IsAUBoolProperty = 0x00020000,

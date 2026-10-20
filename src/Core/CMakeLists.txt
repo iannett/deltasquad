@@ -3,6 +3,7 @@ add_library(Core STATIC
     Src/UnArc.cpp
     Src/UnBits.cpp
     Src/UnCache.cpp
+    Src/UnCoreNet.cpp
     Src/FConfigCacheIni.cpp
     Src/FileManagerPosix.cpp
     Src/UnClass.cpp

@@ -565,6 +565,30 @@ void USkeletalMesh::Serialize(FArchive& Ar)
     }
 }
 
+FBox USkeletalMesh::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    NOT_DECOMPILED(0x0016834b);
+    return FBox{};
+}
+
+UBOOL USkeletalMesh::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    NOT_DECOMPILED(0x00168308);
+    return 1;
+}
+
+UBOOL UMeshInstance::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    NOT_DECOMPILED(0x0003831d);
+    return 1;
+}
+
+FBox UMeshInstance::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    NOT_DECOMPILED(0x00038369);
+    return FBox{};
+}
+
 // ---------------------------------------------------------------------------------------------- mesh animations
 
 namespace

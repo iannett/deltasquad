@@ -120,9 +120,11 @@
     TMap<FString, FString>      TravelInfo;
     FCollisionHashBase*         Hash;
     UObject*                    UnknownD0;
-    INT                         UnknownD4;
-    INT                         UnknownD8;
-    INT                         UnknownDC;
+    // actors spawned while the level ticks
+    FActorLink*                 NewlySpawned;
+    UBOOL                       InTick;
+    // new actors start with bTicked set to the opposite of this
+    UBOOL                       Ticked;
     INT                         UnknownE0;
     INT                         iFirstDynamicActor;
     INT                         iFirstNetRelevantActor;
@@ -131,7 +133,8 @@
     BYTE                        ZoneDist[64][64];
     TArray<FLevelUnknown10F0>   Unknown10F0;
     TArray<TArray<INT>>         Unknown10F8;
-    TArray<TArray<INT>>         Unknown1100;
+    // the actors with an anti portal, by zone
+    TArray<TArray<AActor*>>     Unknown1100;
     // reference counted, with the count at +4
     TArray<void*>               Unknown1108;
     TArray<INT>                 Unknown1110;

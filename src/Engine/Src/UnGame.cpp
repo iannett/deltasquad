@@ -510,7 +510,7 @@ ULevel* UGameEngine::LoadMap(const FURL& URL, UPendingLevel* Pending, const TMap
         GStatGraph->Reset();
     GWarn->SetProgressRange(-1.f, 0.25f);
     GLevel->iFirstDynamicActor = 0;
-    GLevel->UnknownDC = 1;
+    GLevel->Ticked = 1;
 
     if (!Info->bBegunPlay)
     {
@@ -697,6 +697,21 @@ ULevel* UGameEngine::LoadMap(const FURL& URL, UPendingLevel* Pending, const TMap
         NOT_DECOMPILED(0x00126629);
     GLog->Logf(TEXT("Exiting LoadMap %s"), appTimestamp(1, 1));
     return GLevel;
+}
+
+void UGameEngine::BuildServerMasterMap(UNetDriver* NetDriver, ULevel* InLevel)
+{
+    BeginLoad();
+    NetDriver->MasterMap->AddLinker(GetPackageLinker(InLevel->GetOutermostPackage(), nullptr, LOAD_NoFail, nullptr, nullptr));
+    for (INT i = 0; i < ServerPackages.Num(); i++)
+    {
+        GLog->Logf(TEXT("Server Package: %s"), *ServerPackages[i]);
+        ULinkerLoad* Linker = GetPackageLinker(nullptr, *ServerPackages[i], LOAD_NoFail, nullptr, nullptr);
+        if (NetDriver->MasterMap->AddLinker(Linker) == INDEX_NONE)
+            GLog->Logf(TEXT("   (server-side only)"));
+    }
+    NetDriver->MasterMap->Compute();
+    EndLoad();
 }
 
 // 0x0011e2f0. everything in it draws through the client's viewport.

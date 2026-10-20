@@ -165,32 +165,26 @@ void ATcpLink::execReadBinary(FFrame& Stack, RESULT_DECL)
     NOT_DECOMPILED(0x00231a45);
 }
 
-// not in the xbox native table
-void AUdpLink::execBindPort(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(none);
-}
-
-// not in the xbox native table
+// 0x002310f5
 void AUdpLink::execSendText(FFrame& Stack, RESULT_DECL)
 {
-    NOT_DECOMPILED(none);
+    NOT_DECOMPILED(0x002310f5);
 }
 
-// not in the xbox native table
+// 0x00230a8c
 void AUdpLink::execSendBinary(FFrame& Stack, RESULT_DECL)
 {
-    NOT_DECOMPILED(none);
+    NOT_DECOMPILED(0x00230a8c);
 }
 
-// not in the xbox native table
+// 0x002312ac
 void AUdpLink::execReadText(FFrame& Stack, RESULT_DECL)
 {
-    NOT_DECOMPILED(none);
+    NOT_DECOMPILED(0x002312ac);
 }
 
-// not in the xbox native table
+// 0x00230b9e
 void AUdpLink::execReadBinary(FFrame& Stack, RESULT_DECL)
 {
-    NOT_DECOMPILED(none);
+    NOT_DECOMPILED(0x00230b9e);
 }

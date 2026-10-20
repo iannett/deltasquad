@@ -1,6 +1,8 @@
 #include "EngineClasses.h"
 #include "UnEngineGlobals.h"
 
+void KInitActorKarma(AActor* Actor);
+
 // 0x000a975c
 FArchive& operator<<(FArchive& Ar, FURL& U)
 {
@@ -133,7 +135,7 @@ void ULevel::PostLoad()
     }
     if (!GetLevelInfo()->bKNoInit)
         NOT_DECOMPILED(0x0008f45a);
-    NOT_DECOMPILED(0x000ae0bd);
+    Model->BuildRenderData();
 }
 
 void ULevel::Serialize(FArchive& Ar)
@@ -165,7 +167,7 @@ void ULevel::Serialize(FArchive& Ar)
     if (Ar.IsCountingMem())
     {
         if (Hash)
-            Hash->CountBytes(Ar);
+            Hash->Serialize(Ar);
         Unknown10F0.CountBytes(Ar);
         Unknown10F8.CountBytes(Ar);
         for (INT i = 0; i < Unknown10F8.Num(); i++)
@@ -190,7 +192,7 @@ void ULevel::SetActorCollision(UBOOL bCollision, UBOOL Unknown)
     {
         if (Hash)
             return;
-        NOT_DECOMPILED(0x0019a7be);
+        Hash = GNewCollisionHash();
         for (INT i = 0; i < Actors.Num(); i++)
             if (Actors[i] && Actors[i]->bCollideActors)
                 Hash->AddActor(Actors[i]);
@@ -217,7 +219,61 @@ void ULevel::RememberActors() { NOT_DECOMPILED(0x000a5f39); }
 UBOOL ULevel::Exec(const TCHAR* Cmd, FOutputDevice& Ar) { NOT_DECOMPILED(0x000a64c0); return 0; }
 void ULevel::ShrinkLevel() { NOT_DECOMPILED(0x000ab8a2); }
 void ULevel::CompactActors() { NOT_DECOMPILED(0x0012cec5); }
-UBOOL ULevel::Listen(FString& Error) { NOT_DECOMPILED(0x000a73fc); return 0; }
+UBOOL ULevel::Listen(FString& Error)
+{
+    if (NetDriver)
+    {
+        Error = LocalizeError(TEXT("NetAlready"), TEXT("Engine"));
+        return 0;
+    }
+
+    UClass* NetDriverClass = StaticLoadClass(UNetDriver::StaticClass(), nullptr, TEXT("ini:Engine.Engine.NetworkDevice"), nullptr, LOAD_NoFail, nullptr);
+    NetDriver = static_cast<UNetDriver*>(StaticConstructObject(NetDriverClass, GetTransientPackage(), NAME_None, 0, nullptr, GError));
+    if (!NetDriver->InitListen(this, URL, Error))
+    {
+        GLog->Logf(TEXT("Failed to listen: %s"), *Error);
+        delete NetDriver;
+        NetDriver = nullptr;
+        return 0;
+    }
+
+    // internet servers send at most the internet rate, unless it is unusably low
+    static UBOOL LanPlay = ParseParam(appCmdLine(), TEXT("lanplay"));
+    if (!LanPlay && NetDriver->MaxInternetClientRate < NetDriver->MaxClientRate && NetDriver->MaxInternetClientRate > 2500)
+        NetDriver->MaxClientRate = NetDriver->MaxInternetClientRate;
+
+    UGameEngine* GameEngine = CastChecked<UGameEngine>(Engine);
+    GameEngine->BuildServerMasterMap(NetDriver, this);
+
+    // the server actors, each optionally followed by Key=Value config properties
+    for (INT i = 0; i < GameEngine->ServerActors.Num(); i++)
+    {
+        TCHAR Str[240];
+        const TCHAR* Ptr = *GameEngine->ServerActors[i];
+        if (!ParseToken(Ptr, Str, ARRAY_COUNT(Str), 1))
+            continue;
+        GLog->Logf(TEXT("Spawning: %s"), Str);
+        UClass* HelperClass = StaticLoadClass(AActor::StaticClass(), nullptr, Str, nullptr, LOAD_NoFail, nullptr);
+        AActor* Actor = SpawnActor(HelperClass);
+        while (Actor && ParseToken(Ptr, Str, ARRAY_COUNT(Str), 1))
+        {
+            TCHAR* Value = appStrchr(Str, '=');
+            if (!Value)
+                continue;
+            *Value++ = 0;
+            for (TFieldIterator<UProperty> It(Actor->GetClass()); It; ++It)
+            {
+                if (appStricmp(It->GetName(), Str) == 0 && (It->PropertyFlags & CPF_Config))
+                    It->ImportText(Value, reinterpret_cast<BYTE*>(Actor) + It->Offset, 0);
+            }
+        }
+    }
+
+    // listen server with a client, else dedicated server
+    GetLevelInfo()->NetMode = Engine->Client ? 2 : 1;
+    GetLevelInfo()->NextSwitchCountdown = NetDriver->ServerTravelPause;
+    return 1;
+}
 
 UBOOL ULevel::IsServer()
 {
@@ -253,8 +309,120 @@ void ULevel::CleanupDestroyed(UBOOL bForce) { NOT_DECOMPILED(0x001284e7); }
 AActor* ULevel::SpawnActor(UClass* Class, FName InName, const FVector& Location, FRotator Rotation, AActor* Template,
     UBOOL bNoCollisionFail, UBOOL bRemoteOwned, AActor* Owner, APawn* Instigator)
 {
-    NOT_DECOMPILED(0x0012caed);
-    return nullptr;
+    FVector NewLocation = Location;
+    if (!Class)
+    {
+        GLog->Logf(NAME_Warning, TEXT("SpawnActor failed because no class was specified"));
+        return nullptr;
+    }
+    if (Class->ClassFlags & CLASS_Abstract)
+    {
+        GLog->Logf(NAME_Warning, TEXT("SpawnActor failed because class %s is abstract"), Class->GetName());
+        return nullptr;
+    }
+    if (!Class->IsChildOf(AActor::StaticClass()))
+    {
+        GLog->Logf(NAME_Warning, TEXT("SpawnActor failed because %s is not an actor class"), Class->GetName());
+        return nullptr;
+    }
+    AActor* Default = static_cast<AActor*>(Class->GetDefaultObject());
+    if (Default->bStatic || Default->bNoDelete)
+    {
+        GLog->Logf(NAME_Warning, TEXT("SpawnActor failed because class %s has bStatic or bNoDelete"), Class->GetName());
+        return nullptr;
+    }
+    // high detail actors are left out at low detail and on dedicated servers
+    if (Default->bHighDetail)
+    {
+        ALevelInfo* Info = GetLevelInfo();
+        if (Info->DetailMode == 0 || Info->bDropDetail || Info->NetMode == 1)
+            return nullptr;
+    }
+    if (!Template)
+        Template = Default;
+
+    // find a spot the actor fits; clients do not check actors that only collide when placed
+    if ((Template->bCollideWorld || (Template->bCollideWhenPlacing && GetLevelInfo()->NetMode != 3)) && !bNoCollisionFail)
+    {
+        const FVector Extent(Template->CollisionRadius, Template->CollisionRadius, Template->CollisionHeight);
+        if (!FindSpot(Extent, NewLocation))
+            return nullptr;
+    }
+
+    // the new slot is recorded for undo
+    const INT iActor = Actors.AddZeroed();
+    if (GUndo)
+        NOT_DECOMPILED(0x0011f441);
+    AActor* Actor = static_cast<AActor*>(StaticConstructObject(Class, GetOuter(), InName, 0, Template, GError));
+    Actors[iActor] = Actor;
+    Actor->SetFlags(RF_Transactional);
+    Actor->Tag = Class->GetFName();
+    Actor->Region.Zone = GetLevelInfo();
+    Actor->Region.iLeaf = INDEX_NONE;
+    Actor->Region.ZoneNumber = 0;
+    Actor->Level = GetLevelInfo();
+    Actor->XLevel = this;
+    Actor->bTicked = !Ticked;
+    if (bRemoteOwned)
+        Exchange(Actor->Role, Actor->RemoteRole);
+    if (Actor->Brush)
+        Actor->Brush = nullptr;
+    Actor->Location = NewLocation;
+    Actor->Rotation = Rotation;
+    if (Actor->bCollideActors && Hash)
+        Hash->AddActor(Actor);
+    Actor->CurrentPhysicsVolume = GetLevelInfo()->CurrentPhysicsVolume;
+    Actor->SetOwner(Owner);
+    Actor->bSelected = 0;
+    Actor->Instigator = Instigator;
+    KInitActorKarma(Actor);
+
+    Actor->InitExecution();
+    Actor->Spawned();
+    Actor->eventPreBeginPlay();
+    if (Actor->bDeleteMe)
+        return nullptr;
+    Actor->eventBeginPlay();
+    if (Actor->bDeleteMe)
+        return nullptr;
+    Actor->SetZone(iActor == 0, 1);
+    Actor->ClearRenderData();
+
+    if (!bNoCollisionFail)
+    {
+        if (Actor->bCollideActors && Hash)
+            Hash->RemoveActor(Actor);
+        if (CheckEncroachment(Actor, Actor->Location, Actor->Rotation, 1))
+        {
+            DestroyActor(Actor);
+            return nullptr;
+        }
+        if (Actor->bCollideActors && Hash)
+            Hash->AddActor(Actor);
+    }
+
+    Actor->eventPostBeginPlay();
+    Actor->eventPostLoadBeginPlay();
+    Actor->Unknown14C();
+    if (Actor->bDeleteMe)
+        return nullptr;
+    Actor->PostBeginPlay();
+    Actor->eventSetInitialState();
+
+    // physics 0 is none, 5 is rotating
+    if (!Actor->Base && Actor->bCollideWorld && Actor->bShouldBaseAtStartup && (Actor->Physics == 0 || Actor->Physics == 5))
+        Actor->FindBase();
+
+    if (InTick)
+    {
+        FActorLink* Link = reinterpret_cast<FActorLink*>(GEngineMem.PushBytes(sizeof(FActorLink), 16));
+        Link->Actor = Actor;
+        Link->Next = NewlySpawned;
+        NewlySpawned = Link;
+    }
+    if (!bRemoteOwned)
+        Actor->eventPostNetBeginPlay();
+    return Actor;
 }
 
 ABrush* ULevel::SpawnBrush() { NOT_DECOMPILED(0x00128849); return nullptr; }

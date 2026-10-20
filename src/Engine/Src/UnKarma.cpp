@@ -327,3 +327,29 @@ void KInitGameKarma()
     KGData->Unknown15038 = 0;
     KCreateAssetDB(&KGData->AssetDB, &KGData->AssetFactory);
 }
+
+// 0x00091192. sets up the karma parts of an actor in a level with karma.
+void KInitActorKarma(AActor* Actor)
+{
+    if (!KGData || Actor->bDeleteMe || !Actor->XLevel || !KGData->Framework)
+        return;
+    // physics 14 is ragdoll, 13 is karma
+    if (Actor->Physics == 14)
+    {
+        if (Actor->Mesh)
+            NOT_DECOMPILED(0x0008ce3c);
+        return;
+    }
+    if (AKConstraint* Constraint = Cast<AKConstraint>(Actor))
+    {
+        if (!Constraint->KConstraintActor1 && !Constraint->KConstraintActor2)
+            Constraint->Physics = 0;
+        else if (Constraint->Physics == 13)
+            NOT_DECOMPILED(0x000912a5);
+        return;
+    }
+    if (Actor->bBlockKarma)
+        NOT_DECOMPILED(0x0008c235);
+    if (Actor->Physics == 13)
+        NOT_DECOMPILED(0x00090c0f);
+}

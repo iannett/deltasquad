@@ -227,6 +227,8 @@ public:
     static UObject* StaticFindObjectFast(UClass* ObjectClass, UObject* InOuter, FName ObjectName, UBOOL ExactClass = 0);
     static FName MakeUniqueObjectName(UClass* Class);
     static UObject* StaticFindObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* Name, UBOOL ExactClass = 0);
+    // 0x00024698. a missing object is a critical error.
+    static UObject* StaticFindObjectChecked(UClass* ObjectClass, UObject* InOuter, const TCHAR* Name, UBOOL ExactClass = 0);
     static UBOOL ResolveName(UObject*& InPackage, const TCHAR*& InName, UBOOL Create, UBOOL Throw);
     static UPackage* CreatePackage(UObject* InOuter, const TCHAR* PackageName);
     static UPackage* LoadPackage(UObject* InOuter, const TCHAR* Filename, DWORD LoadFlags);
@@ -600,6 +602,9 @@ FArchive& operator<<(FArchive& Ar, T*& Object)
 // globals of the object system
 extern TArray<UObject*>     GObjObjects;
 extern TArray<ULinkerLoad*> GObjLoaders;
+
+// maps keyed by objects hash them by object index
+inline DWORD GetTypeHash(const UObject* A) { return A ? static_cast<DWORD>(A->GetIndex()) : 0; }
 extern TArray<INT>          GObjAvailable;
 extern TArray<UObject*>     GObjRoot;
 extern UObject*             GObjTransientPkg;

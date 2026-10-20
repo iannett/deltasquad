@@ -9,25 +9,29 @@ struct FBspNode
     friend FArchive& operator<<(FArchive& Ar, FBspNode& N);
 
     FPlane Plane;
-    QWORD  Unknown10;
-    INT    Unknown18;
-    INT    Unknown1C;
-    INT    Unknown20;
-    INT    Unknown24;
-    INT    Unknown28;
+    // a bit for each zone at or below this node
+    QWORD  ZoneMask;
+    // the first of the node's entries in the model's verts
+    INT    iVertPool;
+    INT    iSurf;
+    // the nodes behind and in front of the plane
+    INT    iChild[2];
+    // the next coplanar node
+    INT    iPlane;
     FPlane Unknown2C;
-    INT    Unknown3C;
-    INT    Unknown40;
-    BYTE   Unknown44;
-    BYTE   Unknown45;
-    BYTE   Unknown46;
+    INT    iCollisionBound;
+    INT    iRenderBound;
+    // the zones behind and in front
+    BYTE   iZone[2];
+    BYTE   NumVertices;
     // only the low 5 bits survive loading
-    BYTE   Unknown47;
-    INT    Unknown48;
-    INT    Unknown4C;
-    INT    Unknown50;
-    INT    Unknown54;
-    INT    Unknown58;
+    BYTE   NodeFlags;
+    // the leaves behind and in front
+    INT    iLeaf[2];
+    // the render section and its first vertex, set by BuildRenderData
+    INT    iSection;
+    INT    iFirstVertex;
+    INT    iLightMap;
     // reference counted objects, released by the model when it empties; never serialized
     TArray<void*> Unknown5C;
 };
@@ -36,12 +40,13 @@ struct FBspSurf
 {
     friend FArchive& operator<<(FArchive& Ar, FBspSurf& S);
 
-    UObject*    Unknown0;
-    DWORD       Unknown4;
-    INT         Unknown8;
-    INT         UnknownC;
-    INT         Unknown10;
-    INT         Unknown14;
+    UMaterial*  Material;
+    DWORD       PolyFlags;
+    // the texture origin in the model's points, then the normal and texture axes in its vectors
+    INT         pBase;
+    INT         vNormal;
+    INT         vTextureU;
+    INT         vTextureV;
     INT         Unknown18;
     UObject*    Unknown1C;
     // only counted, never serialized
@@ -50,21 +55,23 @@ struct FBspSurf
     FLOAT       Unknown38;
 };
 
-struct FModelUnknown64
+// a vertex of a bsp node
+struct FVert
 {
-    INT Unknown0;
-    INT Unknown4;
+    // index into the model's points
+    INT pVertex;
+    INT iSide;
 
     // 0x000aaf5c
-    friend FArchive& operator<<(FArchive& Ar, FModelUnknown64& U)
+    friend FArchive& operator<<(FArchive& Ar, FVert& V)
     {
-        return Ar << AR_INDEX(U.Unknown0) << AR_INDEX(U.Unknown4);
+        return Ar << AR_INDEX(V.pVertex) << AR_INDEX(V.iSide);
     }
 };
 
 struct FZoneProperties
 {
-    UObject* Unknown0;
+    UObject* ZoneActor;
     INT      Unknown4;
     // a bit for each zone this one connects to
     QWORD    Connectivity;
@@ -73,7 +80,7 @@ struct FZoneProperties
     // 0x000aa79f
     friend FArchive& operator<<(FArchive& Ar, FZoneProperties& Z)
     {
-        return Ar << Z.Unknown0 << Z.Connectivity << Z.Unknown10 << Z.Unknown4;
+        return Ar << Z.ZoneActor << Z.Connectivity << Z.Unknown10 << Z.Unknown4;
     }
 };
 
@@ -134,15 +141,16 @@ struct FBspVertex
 {
     FVector       Position;
     FPackedNormal Normal;
-    FLOAT         Unknown10;
-    FLOAT         Unknown14;
-    FLOAT         Unknown18;
-    FLOAT         Unknown1C;
+    // texture and light map coordinates
+    FLOAT         U;
+    FLOAT         V;
+    FLOAT         U2;
+    FLOAT         V2;
 
     // 0x000ab555. the normal is stored from version 109 on.
     friend FArchive& operator<<(FArchive& Ar, FBspVertex& V)
     {
-        Ar << V.Position << V.Unknown10 << V.Unknown14 << V.Unknown18 << V.Unknown1C;
+        Ar << V.Position << V.U << V.V << V.U2 << V.V2;
         if (Ar.Ver() > 108)
             Ar << V.Normal;
         return Ar;
@@ -170,15 +178,15 @@ public:
 struct FBspSection
 {
     // 0x000abc11
-    FBspSection() : Unknown18(0), Unknown1C(nullptr), Unknown20(0), Unknown24(INDEX_NONE) {}
+    FBspSection() : NumNodes(0), Material(nullptr), PolyFlags(0), iLightMapTexture(INDEX_NONE) {}
 
     friend FArchive& operator<<(FArchive& Ar, FBspSection& S);
 
     FBspVertexStream VertexStream;
-    INT              Unknown18;
-    UObject*         Unknown1C;
-    INT              Unknown20;
-    INT              Unknown24;
+    INT              NumNodes;
+    UMaterial*       Material;
+    DWORD            PolyFlags;
+    INT              iLightMapTexture;
 };
 
 struct FModelUnknown30
@@ -207,14 +215,16 @@ public:
     friend FArchive& operator<<(FArchive& Ar, FLightMap& L);
 
     UObject*                Unknown10;
-    INT                     Unknown14;
+    // index into the model's light map textures
+    INT                     iTexture;
     INT                     Unknown18;
     INT                     Unknown1C;
-    INT                     Unknown20;
-    INT                     Unknown24;
+    // where it sits in its texture
+    INT                     OffsetX;
+    INT                     OffsetY;
     INT                     Unknown28;
     INT                     Unknown2C;
-    FMatrix                 Unknown30;
+    FMatrix                 WorldToLightMap;
     FVector                 Unknown70;
     FVector                 Unknown7C;
     FVector                 Unknown88;

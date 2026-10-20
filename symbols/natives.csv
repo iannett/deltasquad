@@ -672,11 +672,11 @@ address,class,name,native_index,table_entry
 0022fe06,AMasterServerUplink,execGameSpyThink,0,0043304c
 0022ffd8,AMasterServerUplink,execReconnect,0,00433028
 0023002d,AMasterServerUplink,execLogStatLine,0,00433058
-00230a8c,,execSendBinary,0,00432fe0
-00230b9e,,execReadBinary,0,00432ff8
-00230d7f,,execBindPort,0,00432fc8
-002310f5,,execSendText,0,00432fd4
-002312ac,,execReadText,0,00432fec
+00230a8c,AUdpLink,execSendBinary,0,00432fe0
+00230b9e,AUdpLink,execReadBinary,0,00432ff8
+00230d7f,AUdpLink,execBindPort,0,00432fc8
+002310f5,AUdpLink,execSendText,0,00432fd4
+002312ac,AUdpLink,execReadText,0,00432fec
 00231806,ATcpLink,execIsConnected,0,00432f80
 0023194c,ATcpLink,execClose,0,00432f74
 00231a45,ATcpLink,execReadBinary,0,00432fb0

@@ -111,6 +111,16 @@ struct FBox
     FVector Min;
     FVector Max;
     BYTE    IsValid;
+
+    // 0x00061b3b
+    FBox ExpandBy(FLOAT W) const
+    {
+        FBox Result;
+        Result.Min = FVector(Min.X - W, Min.Y - W, Min.Z - W);
+        Result.Max = FVector(Max.X + W, Max.Y + W, Max.Z + W);
+        Result.IsValid = 1;
+        return Result;
+    }
 };
 
 // the xbox copies vectors, planes and boxes as raw bytes
@@ -173,6 +183,8 @@ struct FCompressedPosition
     FVector  Velocity;
 };
 
+struct FMatrix;
+
 // a coordinate system: an origin and three axes
 struct FCoords
 {
@@ -180,6 +192,14 @@ struct FCoords
     FVector XAxis;
     FVector YAxis;
     FVector ZAxis;
+
+    FCoords() = default;
+    // 0x00061abc
+    FCoords(const FVector& InOrigin, const FVector& InX, const FVector& InY, const FVector& InZ)
+        : Origin(InOrigin), XAxis(InX), YAxis(InY), ZAxis(InZ) {}
+
+    // 0x00134538. the matrix that moves a point into these coordinates.
+    FMatrix Matrix() const;
 };
 
 // a scale with an optional shear
