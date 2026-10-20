@@ -6,6 +6,8 @@
 #include "UnMath.h"
 #include "UnTex.h"
 #include "UnFont.h"
+#include "UnStaticMesh.h"
+#include "UnSkeletalMesh.h"
 
 // the classes members point at, declared ahead
 class USound;
@@ -6624,6 +6626,8 @@ class UControlChannel : public UChannel
 class UPrimitive : public UObject
 {
     DECLARE_CLASS(UPrimitive, UObject, 0x0, UObject)
+public:
+#include "CppText/UPrimitive.h"
 };
 
 // 128 bytes on the xbox
@@ -6740,12 +6744,16 @@ class ULevel : public ULevelBase
 class UMesh : public UPrimitive
 {
     DECLARE_CLASS(UMesh, UPrimitive, 0x0, UObject)
+public:
+#include "CppText/UMesh.h"
 };
 
 // 296 bytes on the xbox
 class ULodMesh : public UMesh
 {
     DECLARE_CLASS(ULodMesh, UMesh, 0x40, UObject)
+public:
+#include "CppText/ULodMesh.h"
 };
 
 // 88 bytes on the xbox
@@ -6764,6 +6772,8 @@ class ULodMeshInstance : public UMeshInstance
 class UMeshAnimation : public UObject
 {
     DECLARE_CLASS(UMeshAnimation, UObject, 0x40, UObject)
+public:
+#include "CppText/UMeshAnimation.h"
 };
 
 // 1768 bytes on the xbox
@@ -6830,6 +6840,8 @@ class UServerCommandlet : public UCommandlet
 class USkeletalMesh : public ULodMesh
 {
     DECLARE_CLASS(USkeletalMesh, ULodMesh, 0x40, UObject)
+public:
+#include "CppText/USkeletalMesh.h"
 };
 
 // 460 bytes on the xbox
@@ -6848,6 +6860,8 @@ class USkinVertexBuffer : public URenderResource
 class UStaticMesh : public UPrimitive
 {
     DECLARE_CLASS(UStaticMesh, UPrimitive, 0x20c0, UObject)
+public:
+#include "CppText/UStaticMesh.h"
 };
 
 // 96 bytes on the xbox

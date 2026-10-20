@@ -6,16 +6,19 @@
 // property flags
 enum EPropertyFlags : DWORD
 {
+    CPF_Edit            = 0x00000001, // shown in the editor
     CPF_Const           = 0x00000002, // SetPropertyText will not change it
     CPF_ExportObject    = 0x00000008,
     CPF_OptionalParm    = 0x00000010,
     CPF_Net             = 0x00000020, // replicated, has a RepOffset
+    CPF_EditConstArray  = 0x00000040, // array size fixed in the editor
     CPF_Parm            = 0x00000080, // function parameter
     CPF_ReturnParm      = 0x00000400,
     CPF_Native          = 0x00001000,
     CPF_Transient       = 0x00002000,
     CPF_Config          = 0x00004000, // loaded from the class's ini section
     CPF_Localized       = 0x00008000, // loaded from the package's .int file
+    CPF_EditConst       = 0x00020000, // shown but not editable in the editor
     CPF_GlobalConfig    = 0x00040000, // config read from the declaring class's section, not the object's
     CPF_HasObjectRef    = 0x00080000, // holds object references that CleanupDestroyed must clear
     CPF_NeedCtorLink    = 0x00400000, // needs construction and destruction (strings, arrays)

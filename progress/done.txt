@@ -730,3 +730,121 @@
 00074d57  USound::Serialize
 00072ed1  USoundMultiple::Serialize
 00071039  USoundStreamed::Serialize
+000b2743  UPrimitive::Serialize
+000a0a50  UPrimitive::Serialize (jump)
+00095a27  UStaticMesh::StaticConstructor
+00099217  UStaticMesh::Serialize
+00098f4d  UStaticMesh::UStaticMesh
+000386e7  operator<<(FArchive&, FBox&)
+00061ce7  FPackedNormal::FPackedNormal
+0006688c  operator<<(FArchive&, FPackedNormal&)
+001567aa  FRawIndexBuffer::FRawIndexBuffer
+00039b44  operator<<(FArchive&, FRawIndexBuffer&)
+00039097  operator<<(FArchive&, TArray<_WORD>&)
+000381a9  TArray<_WORD>::CountBytes
+00097d52  FStaticMeshVertexStream::FStaticMeshVertexStream
+00097de3  FStaticMeshColorStream::FStaticMeshColorStream
+00096d42  FStaticMeshTangentStream::FStaticMeshTangentStream
+000984d3  FStaticMeshUVStream::FStaticMeshUVStream
+00097cda  TVertexStream<FStaticMeshUV>::TVertexStream
+000990bb  operator<<(FArchive&, FStaticMeshVertexStream&)
+00098e34  operator<<(FArchive&, FStaticMeshColorStream&)
+00098799  operator<<(FArchive&, FStaticMeshUVStream&)
+00098e5d  operator<<(FArchive&, FStaticMeshTangentStream&)
+0009869b  SerializeStreamData<FStaticMeshVertex>
+0009833a  SerializeStreamData<FColor>
+00097f43  SerializeStreamData<FStaticMeshUV>
+000959eb  operator<<(FArchive&, FStaticMeshVertex&)
+000952ee  operator<<(FArchive&, FStaticMeshUV&)
+00095a0b  operator<<(FArchive&, FStaticMeshTangentBinormal&)
+000953ec  operator<<(FArchive&, FStaticMeshCollisionTriangle&)
+00095422  operator<<(FArchive&, FStaticMeshCollisionNode&)
+0009506d  FStaticMeshCollisionNode corner serializer
+00095ea3  operator<<(FArchive&, FStaticMeshTriangle&)
+0009537a  FStaticMeshTriangle::FStaticMeshTriangle
+00095034  FStaticMeshSection::FStaticMeshSection
+000974c4  operator<<(FArchive&, FStaticMeshLegacyCollision&)
+00095e4a  FStaticMeshLegacyCollision::FStaticMeshLegacyCollision
+0009741b  operator<<(FArchive&, FStaticMeshLegacyMaterial&)
+00095565  operator<<(FArchive&, FStaticMeshLegacyCollisionTriangle&)
+00095e6e  operator<<(FArchive&, FStaticMeshLegacyCollisionNode&)
+000383bb  operator<<(FArchive&, FUntransformedVertex&)
+00096e9c  operator<<(FArchive&, TArray<FStaticMeshSection>&)
+00098130  operator<<(FArchive&, TArray<FStaticMeshLegacyMaterial>&)
+000981d9  operator<<(FArchive&, TArray<FStaticMeshLegacyCollision>&)
+000990e4  operator<<(FArchive&, TArray<FStaticMeshUVStream>&)
+000971f0  operator<<(FArchive&, TArray<FStaticMeshLegacyCollisionTriangle>&)
+000972b2  operator<<(FArchive&, TArray<FStaticMeshLegacyCollisionNode>&)
+00096f5e  operator<<(FArchive&, TArray<FStaticMeshCollisionTriangle>&)
+0009703b  operator<<(FArchive&, TArray<FStaticMeshCollisionNode>&)
+0009711b  operator<<(FArchive&, TArray<FStaticMeshTriangle>&)
+0009842d  operator<<(FArchive&, TArray<FStaticMeshVertex>&)
+0005eb00  operator<<(FArchive&, TArray<FColor>&)
+0009735b  operator<<(FArchive&, TArray<FStaticMeshUV>&)
+000982a3  operator<<(FArchive&, TArray<FStaticMeshTangentBinormal>&)
+00039131  operator<<(FArchive&, TArray<INT>&)
+00046e13  operator<<(FArchive&, TArray<BYTE>&)
+00098036  TLazyArray<FStaticMeshTriangle>::Serialize
+0007bca3  UMesh::Serialize
+000412e8  ULodMesh::Serialize
+000522f6  USkeletalMesh::Serialize
+0004ab2c  USkeletalMesh::AddSkelAnim
+0004a812  FMeshAnimLinkup::Setup
+00047e62  operator<<(FArchive&, FMeshAnimLinkup&)
+0005132d  operator<<(FArchive&, FStaticLODModel&)
+000510e4  FStaticLODModel::FStaticLODModel
+00047dfd  operator<<(FArchive&, FSkinVertexStream&)
+00047cb2  FSkinVertexStream::FSkinVertexStream
+00050be9  PackSkinData
+0004273e  operator<<(FArchive&, FMeshBone&)
+000426eb  FMeshBone joint serializer
+0003fab0  operator<<(FArchive&, FMeshFace&)
+0003fa93  operator<<(FArchive&, FMeshWedge&)
+0003faea  operator<<(FArchive&, FLodMeshUnknownE8&)
+0003fa26  operator<<(FArchive&, FLodMeshLegacyFace&)
+00041da2  operator<<(FArchive&, FSkelMeshFace&)
+00041df6  operator<<(FArchive&, FVertInfluence&)
+00042694  operator<<(FArchive&, FSkinPoint&)
+000427e0  operator<<(FArchive&, FAttachAlias&)
+00038c01  FRigidVertexStream::FRigidVertexStream
+0003932e  operator<<(FArchive&, FRigidVertexStream&)
+00039fa7  operator<<(FArchive&, FSkelMeshRigidPart&)
+00039007  FSkelMeshRigidPart::FSkelMeshRigidPart
+0003ab51  operator<<(FArchive&, FSkeletalMeshUnknown1F0&)
+00047ebe  operator<<(FArchive&, FSkeletalMeshUnknown1D8&)
+00041d82  operator<<(FArchive&, FSkeletalMeshUnknown1E0&)
+00041cec  operator<<(FArchive&, FSkeletalMeshUnknown288&)
+00042782  operator<<(FArchive&, FSkeletalMeshLegacy14&)
+000427b1  operator<<(FArchive&, FSkeletalMeshLegacy1C&)
+00041d57  operator<<(FArchive&, FNamedBone&)
+000391a4  operator<<(FArchive&, TArray<INT>&) per element
+00041184  operator<<(FArchive&, TArray<FLodMeshLegacyFace>&)
+00099eb5  operator<<(FArchive&, TArray<UObject*>&)
+00040567  operator<<(FArchive&, TArray<FMeshFace>&)
+00040627  operator<<(FArchive&, TArray<FMeshWedge>&)
+000410c0  operator<<(FArchive&, TArray<FMeshMaterial>&)
+0003901e  operator<<(FArchive&, TArray<FVector>&)
+000477d1  operator<<(FArchive&, TArray<FMeshBone>&)
+0004c29a  operator<<(FArchive&, TArray<FMeshAnimLinkup>&)
+0004a264  operator<<(FArchive&, TArray<FSkeletalMeshUnknown1D8>&)
+0004787a  operator<<(FArchive&, TArray<FSkeletalMeshUnknown1E0>&)
+00044fed  operator<<(FArchive&, TArray<FMatrix>&)
+00047a11  operator<<(FArchive&, TArray<FAttachAlias>&)
+0003a96d  operator<<(FArchive&, TArray<FSkelMeshRigidPart>&)
+00051d50  operator<<(FArchive&, TArray<FStaticLODModel>&)
+00044e80  operator<<(FArchive&, TArray<FSkinPoint>&)
+00047325  operator<<(FArchive&, TArray<FSkelMeshSection>&)
+00044d09  SerializeStreamData<FUntransformedVertex>
+000387e4  operator<<(FArchive&, TArray<FUntransformedVertex>&)
+00045114  operator<<(FArchive&, TArray<FSkelMeshFace>&)
+00044f29  operator<<(FArchive&, TArray<FVertInfluence>&)
+00047934  operator<<(FArchive&, TArray<FSkeletalMeshUnknown288>&)
+00047b60  operator<<(FArchive&, TArray<FSkeletalMeshLegacy14>&)
+00047c09  operator<<(FArchive&, TArray<FSkeletalMeshLegacy1C>&)
+00047ab7  operator<<(FArchive&, TArray<FNamedBone>&)
+0004a077  TLazyArray<FVector>::Serialize
+000474ec  TLazyArray<FMeshWedge>::Serialize
+000476d9  TLazyArray<FSkelMeshFace>::Serialize
+000473f7  TLazyArray<FVertInfluence>::Serialize
+0004a16f  TLazyArray<_WORD>::Serialize
+000475e4  TLazyArray<FMeshFace>::Serialize

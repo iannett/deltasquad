@@ -151,6 +151,11 @@ FArchive& operator<<(FArchive& Ar, TArray<T>& A)
         A.AddZeroed(Count);
     }
     for (INT i = 0; i < Count; i++)
+    {
+        // loaded elements are constructed in place first, as each xbox copy does
+        if (Ar.IsLoading())
+            new(&A[i]) T;
         Ar << A[i];
+    }
     return Ar;
 }
