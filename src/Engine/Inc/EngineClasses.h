@@ -8,6 +8,8 @@
 #include "UnFont.h"
 #include "UnStaticMesh.h"
 #include "UnSkeletalMesh.h"
+#include "UnModel.h"
+#include "UnKarma.h"
 
 // the classes members point at, declared ahead
 class USound;
@@ -6726,6 +6728,8 @@ class UInput : public USubsystem
 class UKMeshProps : public UObject
 {
     DECLARE_CLASS(UKMeshProps, UObject, 0x0, UObject)
+public:
+#include "CppText/UKMeshProps.h"
 };
 
 // 120 bytes on the xbox
@@ -6780,6 +6784,8 @@ public:
 class UModel : public UPrimitive
 {
     DECLARE_CLASS(UModel, UPrimitive, 0x80, UObject)
+public:
+#include "CppText/UModel.h"
 };
 
 // 164 bytes on the xbox
@@ -6816,6 +6822,8 @@ class UPackageMapLevel : public UPackageMap
 class UPolys : public UObject
 {
     DECLARE_CLASS(UPolys, UObject, 0x80, UObject)
+public:
+#include "CppText/UPolys.h"
 };
 
 // 84 bytes on the xbox

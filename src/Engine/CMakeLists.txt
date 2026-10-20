@@ -3,6 +3,8 @@ add_library(Engine STATIC
     Src/EngineNativeStubs.cpp
     Src/UnAudio.cpp
     Src/UnFont.cpp
+    Src/UnKarma.cpp
+    Src/UnModel.cpp
     Src/UnRenderResource.cpp
     Src/UnSkeletalMesh.cpp
     Src/UnStaticMesh.cpp

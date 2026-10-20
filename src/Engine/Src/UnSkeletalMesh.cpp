@@ -1,3 +1,5 @@
+#include <cfloat>
+
 #include "EngineClasses.h"
 
 // ---------------------------------------------------------------------------------------------- old formats
@@ -561,4 +563,222 @@ void USkeletalMesh::Serialize(FArchive& Ar)
             Ar << Skipped1 << Skipped2 << Skipped3;
         }
     }
+}
+
+// ---------------------------------------------------------------------------------------------- mesh animations
+
+namespace
+{
+    // 0x0045f80c, 0x0045f810 and 0x0045f814, set at startup. no packed component is larger than sqrt(0.5).
+    const FLOAT GQuatPackMax = static_cast<FLOAT>(sqrt(0.5));
+    const INT GQuatPackScale = static_cast<INT>(32767.f / GQuatPackMax);
+    const FLOAT GQuatUnpackScale = 1.f / static_cast<FLOAT>(GQuatPackScale);
+
+    // 0x0045f808. the frame count of the sequence being loaded, for the last key of its old tracks.
+    INT GOldSeqNumFrames;
+
+    FLOAT Largest(FLOAT A, FLOAT B, FLOAT C)
+    {
+        const FLOAT BC = B >= C ? B : C;
+        return A >= BC ? A : BC;
+    }
+
+    // 0x00042b99. rotations before version 151 are a rotation axis scaled by the angle, pi per 32767.
+    FQuat UnpackOldQuat(const FPackedQuat& P)
+    {
+        const FLOAT Scale = 3.14159265f / 32767.f;
+        FVector V(static_cast<SWORD>(P.X) * Scale, static_cast<SWORD>(P.Y) * Scale, static_cast<SWORD>(P.Z) * Scale);
+        const FLOAT Angle = V.Size();
+        if (Angle > 0.f)
+            V = V * static_cast<FLOAT>(sin(0.5 * Angle) / Angle);
+        FLOAT WSquared = 1.f - V.X * V.X - V.Y * V.Y - V.Z * V.Z;
+        if (WSquared < 0.f)
+            WSquared = 0.f;
+        return FQuat(V.X, V.Y, V.Z, appSqrt(WSquared));
+    }
+}
+
+// 0x0004284b. the largest component is dropped after the rotation is turned towards the identity.
+FPackedQuat::FPackedQuat(const FQuat& InQ)
+{
+    FQuat Q = InQ;
+    Q.AlignWith(FQuat(0.f, 0.f, 0.f, 1.f));
+    Q.Normalize();
+    const FLOAT AbsX = fabsf(Q.X), AbsY = fabsf(Q.Y), AbsZ = fabsf(Q.Z), AbsW = fabsf(Q.W);
+    const FLOAT Scale = static_cast<FLOAT>(GQuatPackScale);
+    _WORD Sign;
+    if (AbsW >= Largest(AbsX, AbsY, AbsZ))
+    {
+        X = appRound(Scale * Q.X) & ~1;
+        Y = appRound(Scale * Q.Y) & ~1;
+        Z = appRound(Scale * Q.Z) & ~1;
+        Sign = Q.W < 0.f;
+    }
+    else if (AbsZ >= Largest(AbsW, AbsX, AbsY))
+    {
+        X = (appRound(Scale * Q.W) & ~1) | 1;
+        Y = appRound(Scale * Q.X) & ~1;
+        Z = appRound(Scale * Q.Y) & ~1;
+        Sign = Q.Z < 0.f;
+    }
+    else if (AbsY >= Largest(AbsZ, AbsW, AbsX))
+    {
+        X = appRound(Scale * Q.Z) & ~1;
+        Y = (appRound(Scale * Q.W) & ~1) | 1;
+        Z = appRound(Scale * Q.X) & ~1;
+        Sign = Q.Y < 0.f;
+    }
+    else if (AbsX >= Largest(AbsY, AbsZ, AbsW))
+    {
+        X = (appRound(Scale * Q.Y) & ~1) | 1;
+        Y = (appRound(Scale * Q.Z) & ~1) | 1;
+        Z = appRound(Scale * Q.W) & ~1;
+        Sign = Q.X < 0.f;
+    }
+    else
+    {
+        // only reached with a nan; the words are left as they were
+        return;
+    }
+    Z |= Sign;
+}
+
+// 0x00042d41
+FQuat FPackedQuat::ToQuat() const
+{
+    const FLOAT A = static_cast<SWORD>(X & ~1) * GQuatUnpackScale;
+    const FLOAT B = static_cast<SWORD>(Y & ~1) * GQuatUnpackScale;
+    const FLOAT C = static_cast<SWORD>(Z & ~1) * GQuatUnpackScale;
+    FLOAT D = appSqrt(1.f - A * A - B * B - C * C);
+    if (Z & 1)
+        D = 0.f - D;
+    if (Y & 1)
+        return (X & 1) ? FQuat(D, A, B, C) : FQuat(C, D, A, B);
+    return (X & 1) ? FQuat(B, C, D, A) : FQuat(A, B, C, D);
+}
+
+// 0x00041e23
+FPackedPos::FPackedPos(const FVector& V, FLOAT InvScale)
+{
+    const FLOAT Scale = InvScale * 32767.f;
+    X = static_cast<SWORD>(appRound(V.X * Scale));
+    Y = static_cast<SWORD>(appRound(V.Y * Scale));
+    Z = static_cast<SWORD>(appRound(V.Z * Scale));
+}
+
+// inlined by AnalogTrack::Serialize
+FVector FPackedPos::ToVector(FLOAT PosScale) const
+{
+    const FLOAT Scale = PosScale * (1.f / 32767.f);
+    return FVector(X * Scale, Y * Scale, Z * Scale);
+}
+
+// 0x00042ea2
+void AnalogTrack::UpdatePosScale(const FVector& Pos)
+{
+    const FLOAT AbsMax = Pos.GetAbsMax();
+    if (PosScale < AbsMax)
+        PosScale = AbsMax;
+}
+
+// 0x0004a330
+void AnalogTrack::Serialize(FArchive& Ar)
+{
+    if (Ar.Ver() >= 141)
+    {
+        Ar << PosScale << KeyPos << KeyQuat << KeyTime;
+        if (Ar.Ver() < 151)
+        {
+            for (INT i = 0; i < KeyQuat.Num(); i++)
+                KeyQuat[i] = FPackedQuat(UnpackOldQuat(KeyQuat[i]));
+        }
+        return;
+    }
+
+    // older tracks have full keys and float frame times, packed here
+    INT Unused;
+    TArray<FQuat> OldQuats;
+    TArray<FVector> OldPositions;
+    TArray<FLOAT> OldTimes;
+    Ar << Unused << OldQuats << OldPositions << OldTimes;
+    KeyQuat.Set(OldQuats.Num());
+    KeyPos.Set(OldPositions.Num());
+    const INT NumTimes = OldTimes.Num();
+    KeyTime.Set(NumTimes > 1 ? NumTimes : 0);
+
+    for (INT i = 0; i < KeyQuat.Num(); i++)
+        KeyQuat[i] = FPackedQuat(OldQuats[i]);
+    PosScale = 0.f;
+    for (INT i = 0; i < KeyPos.Num(); i++)
+        UpdatePosScale(OldPositions[i]);
+    const FLOAT InvScale = 1.f / (PosScale + FLT_MIN);
+    for (INT i = 0; i < KeyPos.Num(); i++)
+        KeyPos[i] = FPackedPos(OldPositions[i], InvScale);
+
+    // times become byte deltas; a gap over 255 frames gets keys inserted, blended between its neighbours
+    INT Old = 0;
+    for (INT i = 0; i < KeyTime.Num(); i++, Old++)
+    {
+        const FLOAT Next = Old < NumTimes - 1 ? OldTimes[Old + 1] : static_cast<FLOAT>(GOldSeqNumFrames);
+        INT Delta = appRound(Next - OldTimes[Old]);
+        while (Delta > 255)
+        {
+            KeyTime.InsertZeroed(i);
+            KeyTime[i] = 255;
+            if (KeyQuat.Num() > 1)
+            {
+                KeyQuat.InsertZeroed(i + 1);
+                KeyQuat[i + 1] = FPackedQuat(FQuat::Slerp(KeyQuat[i].ToQuat(), KeyQuat[i + 2].ToQuat(), 255.f / Delta));
+            }
+            if (KeyPos.Num() > 1)
+            {
+                KeyPos.InsertZeroed(i + 1);
+                const FVector Prev = KeyPos[i].ToVector(PosScale);
+                const FVector Next = KeyPos[i + 2].ToVector(PosScale);
+                KeyPos[i + 1] = FPackedPos((Next - Prev) * (255.f / Delta) + Prev, InvScale);
+            }
+            Delta -= 255;
+            i++;
+        }
+        KeyTime[i] = static_cast<BYTE>(Delta);
+    }
+}
+
+// 0x0007bf13
+void FMeshAnimSeq::Serialize(FArchive& Ar)
+{
+    Ar << Unknown2C << Name << Groups << Unknown0C << NumFrames << Notifys << Rate;
+    Ar << Unknown18 << Unknown1C << Unknown20;
+    if (Ar.Ver() < 143 && Unknown1C < 0.f)
+        Unknown1C = 0.f;
+    if (Ar.Ver() < 144)
+        Unknown30 = 1.f;
+    else
+        Ar << Unknown30;
+}
+
+// 0x000512a8
+void FSkelAnimSeq::Serialize(FArchive& Ar)
+{
+    FMeshAnimSeq::Serialize(Ar);
+    if (Ar.Ver() < 143 && Ar.IsLoading())
+    {
+        INT Unused;
+        Ar << Unused;
+    }
+    Ar << Unknown50 << Unknown54;
+    if (Ar.Ver() < 143)
+        Unknown58 = 0.f;
+    else
+        Ar << Unknown58;
+    if (Ar.Ver() < 141)
+        GOldSeqNumFrames = NumFrames;
+    Ar << Tracks;
+}
+
+// 0x000522c4
+void UMeshAnimation::Serialize(FArchive& Ar)
+{
+    Super::Serialize(Ar);
+    Ar << Version << RefBones << Moves;
 }

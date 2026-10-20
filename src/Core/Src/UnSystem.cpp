@@ -39,4 +39,5 @@ UBOOL USystem::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
 }
 
 IMPLEMENT_CLASS(USubsystem, Core)
+IMPLEMENT_CLASS(ULanguage, Core)
 IMPLEMENT_CLASS(USystem, Core)

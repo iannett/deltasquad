@@ -44,6 +44,12 @@ struct FVector
     FLOAT Size() const { return appSqrt(SizeSquared()); }
     FLOAT Size2D() const { return appSqrt(X * X + Y * Y); }
     UBOOL IsZero() const { return X == 0.f && Y == 0.f && Z == 0.f; }
+    // 0x000384d5
+    FLOAT GetAbsMax() const
+    {
+        FLOAT Max = fabsf(Y) > fabsf(X) ? fabsf(Y) : fabsf(X);
+        return fabsf(Z) > Max ? fabsf(Z) : Max;
+    }
     // unit length, or unchanged when zero
     FVector SafeNormal() const
     {
@@ -224,6 +230,41 @@ struct FQuat
 
     // 0x001348e5
     FVector RotateVector(const FVector& V) const;
+
+    // 0x00042153. a quaternion too short to normalize becomes the identity.
+    UBOOL Normalize()
+    {
+        const FLOAT SquareSum = X * X + Y * Y + Z * Z + W * W;
+        if (SquareSum >= 1e-5f)
+        {
+            const FLOAT Scale = appInvSqrt(SquareSum);
+            X *= Scale;
+            Y *= Scale;
+            Z *= Scale;
+            W *= Scale;
+            return 1;
+        }
+        X = Y = Z = 0.f;
+        W = 1.f;
+        return 0;
+    }
+
+    // 0x00135f2d. negates this when the negated rotation is closer to Q.
+    void AlignWith(const FQuat& Q)
+    {
+        const FLOAT Plus = (X + Q.X) * (X + Q.X) + (Y + Q.Y) * (Y + Q.Y) + (Z + Q.Z) * (Z + Q.Z) + (W + Q.W) * (W + Q.W);
+        const FLOAT Minus = (X - Q.X) * (X - Q.X) + (Y - Q.Y) * (Y - Q.Y) + (Z - Q.Z) * (Z - Q.Z) + (W - Q.W) * (W - Q.W);
+        if (Plus < Minus)
+        {
+            X = 0.f - X;
+            Y = 0.f - Y;
+            Z = 0.f - Z;
+            W = 0.f - W;
+        }
+    }
+
+    // 0x00134a1c
+    static FQuat Slerp(const FQuat& A, const FQuat& B, FLOAT Alpha);
 };
 
 // copied as 16 raw bytes

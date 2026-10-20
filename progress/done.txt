@@ -70,7 +70,7 @@
 000b4157  UProperty::Link
 000b4003  UProperty::Port
 000b4fd3  UProperty::GetID
-000b3673  UProperty::Serialize
+000b3673  UByteProperty::Serialize
 000b3611  UByteProperty::CopySingleValue
 000b3620  UByteProperty::CopyCompleteValue
 000b3641  UByteProperty::Identical
@@ -112,7 +112,7 @@
 000b3c0e  UStrProperty::ExportCppItem
 000b4662  UStrProperty::Link
 000b468f  UStrProperty::Identical
-000b3c1f  UProperty::Serialize
+000b3c1f  UArrayProperty::Serialize
 000b3c46  UArrayProperty::ExportCppItem
 000b4789  UArrayProperty::CleanupDestroyed
 000b4806  UArrayProperty::Link
@@ -848,3 +848,77 @@
 000473f7  TLazyArray<FVertInfluence>::Serialize
 0004a16f  TLazyArray<_WORD>::Serialize
 000475e4  TLazyArray<FMeshFace>::Serialize
+000522c4  UMeshAnimation::Serialize
+000512a8  FSkelAnimSeq::Serialize
+0007bf13  FMeshAnimSeq::Serialize
+0007bcc7  operator<<(FArchive&, FMeshAnimNotify&)
+000392f8  FMeshAnimSeq::FMeshAnimSeq
+0004c36b  FSkelAnimSeq::FSkelAnimSeq
+0004a330  AnalogTrack::Serialize
+00042ea2  AnalogTrack::UpdatePosScale
+0004284b  FPackedQuat::FPackedQuat
+00042d41  FPackedQuat::ToQuat
+00041e23  FPackedPos::FPackedPos
+00042b99  UnpackOldQuat
+00042153  FQuat::Normalize
+00135f2d  FQuat::AlignWith
+00134a1c  FQuat::Slerp
+000384d5  FVector::GetAbsMax
+00051e25  operator<<(FArchive&, TArray<FSkelAnimSeq>&)
+0007be24  operator<<(FArchive&, TArray<FMeshAnimNotify>&)
+00050a5a  operator<<(FArchive&, TArray<AnalogTrack>&)
+00044e08  operator<<(FArchive&, TArray<FPackedQuat>&)
+0004509f  operator<<(FArchive&, TArray<FQuat>&)
+002c9166  GQuatPackMax initializer
+002c9175  GQuatPackScale initializer
+002c918f  GQuatUnpackScale initializer
+000aeda2  UModel::Serialize
+000ab6c2  operator<<(FArchive&, FBspNode&)
+000ab204  operator<<(FArchive&, FBspSurf&)
+000aaf5c  operator<<(FArchive&, FModelUnknown64&)
+000aa79f  operator<<(FArchive&, FZoneProperties&)
+000aacd9  operator<<(FArchive&, FModelUnknownA4&)
+000ab555  operator<<(FArchive&, FBspVertex&)
+000ab5e7  FBspVertexStream::FBspVertexStream
+000ae52a  operator<<(FArchive&, FBspVertexStream&)
+000abc11  FBspSection::FBspSection
+000ae870  operator<<(FArchive&, FBspSection&)
+000abb8e  operator<<(FArchive&, FModelUnknown30&)
+000ade51  FLightMap::FLightMap
+000ade7f  operator<<(FArchive&, FLightMap&)
+000ae78d  FStaticLightMapTexture::FStaticLightMapTexture
+000ac7b3  operator<<(FArchive&, FStaticLightMapTexture&)
+000ae81b  FLightMapTexture::FLightMapTexture
+000adf7d  operator<<(FArchive&, FLightMapTexture&)
+000aad21  operator<<(FArchive&, FModelLegacyC0&)
+000abd6a  FPoly::Serialize
+00084610  FPoly::FPoly
+0009d490  UPolys::Serialize
+0003873b  operator<<(FArchive&, TArray<FBox>&)
+000ab9e6  operator<<(FArchive&, TArray<FBspNode>&)
+000ababa  operator<<(FArchive&, TArray<FBspSurf>&)
+000ab491  operator<<(FArchive&, TArray<FModelUnknown64>&)
+000ab3dc  operator<<(FArchive&, TArray<FModelLegacyC0>&)
+000ac5ef  operator<<(FArchive&, TArray<FModelUnknown30>&)
+000ab333  operator<<(FArchive&, TArray<FModelUnknownA4>&)
+000ae6c6  operator<<(FArchive&, TArray<FBspVertexStream>&)
+000aec1c  operator<<(FArchive&, TArray<FBspSection>&)
+000ae5ed  operator<<(FArchive&, TArray<FLightMap>&)
+000ae8fe  operator<<(FArchive&, TArray<FLightMapTexture>&)
+000ac70d  operator<<(FArchive&, TArray<FBspVertex>&)
+0009cbed  operator<<(FArchive&, TArray<FPoly>&)
+0008ee27  UKMeshProps::Serialize
+0008ee9e  operator<<(FArchive&, FKAggregateGeom&)
+0008efbe  operator<<(FArchive&, FKSphereElem&)
+0008f17d  operator<<(FArchive&, FKBoxElem&)
+0008f1b7  operator<<(FArchive&, FKCylinderElem&)
+0008f3c3  operator<<(FArchive&, FKConvexElem&)
+0008f3b2  FKConvexElem::FKConvexElem
+0008ef05  operator<<(FArchive&, TArray<FKSphereElem>&)
+0008f0c4  operator<<(FArchive&, TArray<FKBoxElem>&)
+0008f1e4  operator<<(FArchive&, TArray<FKCylinderElem>&)
+0008f2a0  operator<<(FArchive&, TArray<FKConvexElem>&)
+00025a88  UBitArray::Serialize
+00026ede  UBitArray2D::Serialize
+00026e25  UBitArray::UBitArray
+00026ec7  UBitArray2D::UBitArray2D

@@ -146,7 +146,7 @@ CPP_CLASS_NAMES = {'Object': 'UObject', 'Class': 'UClass', 'Field': 'UField', 'S
 CPP_MEMBER_TYPES = {('Texture', 'Mips'): 'TArrayNoInit<FMipmap>', ('Sound', 'Data'): 'TLazyArray<BYTE>'}
 
 # hand-written headers with the C++ types those members use, by package
-CPP_TYPE_HEADERS = {'Engine': ['UnTex.h', 'UnFont.h', 'UnStaticMesh.h', 'UnSkeletalMesh.h']}
+CPP_TYPE_HEADERS = {'Engine': ['UnTex.h', 'UnFont.h', 'UnStaticMesh.h', 'UnSkeletalMesh.h', 'UnModel.h', 'UnKarma.h']}
 
 # generated headers of the packages a package's classes build on
 PACKAGE_DEPENDENCIES = {'Gameplay': ['Engine'], 'CTGame': ['Gameplay'], 'CTMarkers': ['CTGame'], 'IpDrv': ['Engine'], 'XGame': ['Engine'],

@@ -195,6 +195,33 @@ FVector FQuat::RotateVector(const FVector& V) const
         D2 * Z + V.Z * T + (X * V.Y - V.X * Y) * W2);
 }
 
+// 0x00134a1c. close rotations are blended linearly and normalized; the cutoff is a cosine of 0.55.
+FQuat FQuat::Slerp(const FQuat& A, const FQuat& B, FLOAT Alpha)
+{
+    const FLOAT Cosine = A.X * B.X + A.Z * B.Z + A.Y * B.Y + B.W * A.W;
+    const FLOAT AbsCosine = Cosine < 0.f ? 0.f - Cosine : Cosine;
+    FLOAT ScaleA, ScaleB;
+    if (AbsCosine < 0.55f)
+    {
+        const DOUBLE Omega = acos(AbsCosine);
+        const DOUBLE InvSin = 1.0 / sin(Omega);
+        ScaleA = static_cast<FLOAT>(sin((1.0 - Alpha) * Omega) * InvSin);
+        ScaleB = static_cast<FLOAT>(sin(Omega * Alpha) * InvSin);
+        if (Cosine < 0.f)
+            ScaleB = 0.f - ScaleB;
+        return FQuat(A.X * ScaleA + B.X * ScaleB, A.Y * ScaleA + B.Y * ScaleB, A.Z * ScaleA + B.Z * ScaleB, A.W * ScaleA + B.W * ScaleB);
+    }
+    ScaleA = 1.f - Alpha;
+    ScaleB = Cosine < 0.f ? 0.f - Alpha : Alpha;
+    FQuat Result(A.X * ScaleA + B.X * ScaleB, A.Y * ScaleA + B.Y * ScaleB, A.Z * ScaleA + B.Z * ScaleB, A.W * ScaleA + B.W * ScaleB);
+    const FLOAT Scale = appInvSqrt(Result.W * Result.W + Result.Z * Result.Z + Result.Y * Result.Y + Result.X * Result.X);
+    Result.X *= Scale;
+    Result.Y *= Scale;
+    Result.Z *= Scale;
+    Result.W *= Scale;
+    return Result;
+}
+
 // 0x001347ac
 FMatrix FQuatRotationTranslationMatrix(const FQuat& Q, const FVector& Origin)
 {
