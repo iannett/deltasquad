@@ -106,6 +106,7 @@ namespace
         Check(UObject::StaticFindObject(nullptr, nullptr, TEXT("Core.IntProperty")) == UIntProperty::StaticClass(), "find by dotted path");
         Check(appStrcmp(UIntProperty::StaticClass()->GetPathName(), TEXT("Core.IntProperty")) == 0, "class path name");
         Check(UBoolProperty::StaticClass()->IsChildOf(UProperty::StaticClass()), "class hierarchy");
+        Check(UBitArray2D::StaticClass()->IsChildOf(UBitArray::StaticClass()), "bit array classes registered");
         Check((UState::StaticClass()->ClassFlags & CLASS_IsAUState) != 0, "cast flags survive registration");
         Check((UFunction::StaticClass()->ClassFlags & CLASS_Abstract) == 0, "abstract flag not inherited");
         Check(UClass::StaticClass()->GetDefaultObject() != nullptr, "class defaults created");
@@ -404,6 +405,25 @@ namespace
         Check(Function && Function->Func == static_cast<Native>(&AActor::execSpawn), "Actor.Spawn is bound to its native");
     }
 
+    // the game's other packages load on top of Engine.u
+    void TestLoadGamePackages()
+    {
+        if (!HaveGame)
+        {
+            printf("skipped loading game packages: no game files\n");
+            return;
+        }
+        const TCHAR* Packages[] = { TEXT("GamePlay"), TEXT("CTGame"), TEXT("CTMarkers"), TEXT("IpDrv"), TEXT("XGame"), TEXT("XInterface"), TEXT("XInterfaceLive"),
+            TEXT("CTAudio"), TEXT("CTCharacters"), TEXT("CTInventory"), TEXT("MPGame"), TEXT("UWindow"), TEXT("UDebugMenu"),
+            TEXT("XInterfaceCommon"), TEXT("XInterfaceCTMenus"), TEXT("XInterfaceGamespy"), TEXT("XInterfaceMP") };
+        for (const TCHAR* Name : Packages)
+        {
+            TCHAR Message[256];
+            appSprintf(Message, TEXT("%s.u loads"), Name);
+            Check(UObject::LoadPackage(nullptr, Name, 0) != nullptr, Message);
+        }
+    }
+
     void TestExit()
     {
         UObject::StaticExit();
@@ -439,6 +459,7 @@ int main()
     TestMath();
     TestNativeLayouts();
     TestLoadEngine();
+    TestLoadGamePackages();
     TestExit();
 
     printf(Failures ? "%d test(s) failed\n" : "all tests passed\n", Failures);

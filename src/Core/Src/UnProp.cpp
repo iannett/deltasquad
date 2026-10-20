@@ -778,6 +778,13 @@ void UDelegateProperty::ExportCppItem(FOutputDevice& Out, UBOOL IsLocal) const
     Out.Log(TEXT("FScriptDelegate"));
 }
 
+// 0x000b3673, shared with UByteProperty
+void UDelegateProperty::Serialize(FArchive& Ar)
+{
+    UProperty::Serialize(Ar);
+    Ar << Function;
+}
+
 // 0x000b4174
 void UDelegateProperty::Link(FArchive& Ar, UProperty* Prev)
 {

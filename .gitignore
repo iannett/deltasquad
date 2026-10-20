@@ -39,3 +39,6 @@ build/
 
 # third-party naming reference, fetched by tools/fetch_pc_exports.sh
 symbols/pc-exports/
+
+# clangd index
+.cache/

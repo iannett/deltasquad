@@ -15,5 +15,6 @@
 #include "UnFile.h"
 #include "UnLinker.h"
 #include "UnSystem.h"
+#include "UnBits.h"
 #include "UnCommandlet.h"
 #include "UnMisc.h"

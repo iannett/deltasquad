@@ -27,6 +27,7 @@ public:
 // render resource types in the low byte of a cache id
 enum ERenderResourceType
 {
+    RRT_Texture      = 0xe0,
     RRT_VertexStream = 0xe1,
     RRT_IndexBuffer  = 0xe2,
 };

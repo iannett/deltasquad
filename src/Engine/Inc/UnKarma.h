@@ -1,0 +1,71 @@
+#pragma once
+
+#include "Core.h"
+
+struct FKSphereElem
+{
+    FMatrix Unknown0;
+    FLOAT   Unknown40;
+
+    // 0x0008efbe
+    friend FArchive& operator<<(FArchive& Ar, FKSphereElem& E)
+    {
+        return Ar << E.Unknown0 << E.Unknown40;
+    }
+};
+
+struct FKBoxElem
+{
+    FMatrix Unknown0;
+    FLOAT   Unknown40;
+    FLOAT   Unknown44;
+    FLOAT   Unknown48;
+
+    // 0x0008f17d
+    friend FArchive& operator<<(FArchive& Ar, FKBoxElem& E)
+    {
+        return Ar << E.Unknown0 << E.Unknown40 << E.Unknown44 << E.Unknown48;
+    }
+};
+
+struct FKCylinderElem
+{
+    FMatrix Unknown0;
+    FLOAT   Unknown40;
+    FLOAT   Unknown44;
+
+    // 0x0008f1b7
+    friend FArchive& operator<<(FArchive& Ar, FKCylinderElem& E)
+    {
+        return Ar << E.Unknown0 << E.Unknown40 << E.Unknown44;
+    }
+};
+
+struct FKConvexElem
+{
+    // 0x0008f3b2
+    FKConvexElem() = default;
+
+    // 0x0008f3c3
+    friend FArchive& operator<<(FArchive& Ar, FKConvexElem& E)
+    {
+        return Ar << E.Unknown0 << E.Unknown40;
+    }
+
+    FMatrix         Unknown0;
+    TArray<FVector> Unknown40;
+    // never serialized
+    TArray<FPlane>  Unknown48;
+};
+
+// the collision shapes of a mesh
+struct FKAggregateGeom
+{
+    friend FArchive& operator<<(FArchive& Ar, FKAggregateGeom& G);
+
+    TArray<FKSphereElem>   SphereElems;
+    TArray<FKBoxElem>      BoxElems;
+    TArray<FKCylinderElem> CylinderElems;
+    TArray<FKConvexElem>   ConvexElems;
+    TArray<FKCylinderElem> Unknown20;
+};

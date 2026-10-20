@@ -225,6 +225,9 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 - `GUglyHackFlags` flag 8 changes how lazy arrays, materials and mips load, but nothing on the xbox sets it.
 - The mesh bone serializer reads `XSize` twice and never reads `YSize`.
 - The skin data packer counts an entry's influence dwords capped at 3 in its first two passes but skips the uncapped count in the last one. Entries with 4 or more influences would be misread.
+- Animation tracks older than version 141 get extra keys for gaps over 255 frames. Each new key is blended from the keys on both sides of it, without checking that the track has that many rotation or position keys. A track with fewer of those keys than times reads past the end of the array.
+- `UModel::Serialize` reads the zone count from the package and loads that many zones into a fixed array of 64 without checking the count.
+- Karma collision data before version 113 reads the sphere array twice. The second read replaces the first.
 
 ## Other port deviations
 

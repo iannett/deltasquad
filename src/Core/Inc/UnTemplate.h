@@ -137,11 +137,21 @@ public:
     }
     INT Add(INT Count = 1) { return FArray::Add(Count, sizeof(T)); }
     INT AddZeroed(INT Count = 1) { return FArray::AddZeroed(Count, sizeof(T)); }
+    void InsertZeroed(INT Index, INT Count = 1) { FArray::InsertZeroed(Index, Count, sizeof(T)); }
     void Shrink() { FArray::Shrink(sizeof(T)); }
     void Remove(INT Index, INT Count = 1)
     {
         DestroyRange(Index, Count);
         FArray::Remove(Index, Count, sizeof(T));
+    }
+
+    // 0x00047d34 and its copies for each element type: resizes to Num, zeroing added elements
+    void Set(INT Num)
+    {
+        if (Num < ArrayNum)
+            Remove(Num, ArrayNum - Num);
+        else
+            AddZeroed(Num - ArrayNum);
     }
 
     INT AddItem(const T& Item)
@@ -192,6 +202,18 @@ private:
                 GetData()[i].~T();
         }
     }
+};
+
+class UObject;
+
+// an array an object owns, which the editor records for undo. the owner is set by the owning object.
+template<typename T>
+class TTransArray : public TArray<T>
+{
+public:
+    TTransArray() : Owner(nullptr) {}
+
+    UObject* Owner;
 };
 
 // a TArray member left as the object system initialized it

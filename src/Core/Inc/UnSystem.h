@@ -11,6 +11,13 @@ public:
     UBOOL Exec(const TCHAR* Cmd, FOutputDevice& Ar) override { return 0; }
 };
 
+class ULanguage : public UObject
+{
+    DECLARE_CLASS(ULanguage, UObject, CLASS_Abstract | CLASS_Transient, UObject)
+public:
+    INT Unknown28;
+};
+
 // engine settings from [Core.System] in System.ini, mainly where packages are found
 class USystem : public USubsystem
 {

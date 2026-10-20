@@ -308,6 +308,10 @@ public:
     const TCHAR* ImportText(const TCHAR* Buffer, BYTE* Data, INT PortFlags) const override;
     void CopySingleValue(void* Dest, void* Src, UObject* SubobjectRoot) const override;
     void CopyCompleteValue(void* Dest, void* Src, UObject* SubobjectRoot) const override;
+    void Serialize(FArchive& Ar) override;
+
+    // the function declaring the delegate's parameters
+    UFunction* Function = nullptr;
 };
 
 // localized True and False, used by bool properties when exporting with PPF_Localized
