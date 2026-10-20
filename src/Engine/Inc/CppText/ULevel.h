@@ -119,7 +119,8 @@
     UTextBuffer*                TextBlocks[16];
     TMap<FString, FString>      TravelInfo;
     FCollisionHashBase*         Hash;
-    UObject*                    UnknownD0;
+    // destroyed actors waiting to be deleted, linked through AActor::Deleted
+    AActor*                     FirstDeleted;
     // actors spawned while the level ticks
     FActorLink*                 NewlySpawned;
     UBOOL                       InTick;

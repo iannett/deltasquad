@@ -118,6 +118,8 @@ UBOOL Parse(const TCHAR* Stream, const TCHAR* Match, FString& Value);
 UBOOL Parse(const TCHAR* Stream, const TCHAR* Match, INT& Value);
 // the next word, or quoted string, of Str; moves Str past it. false if there was none.
 UBOOL ParseToken(const TCHAR*& Str, TCHAR* Result, INT MaxLen, UBOOL UseEscape);
+// 0x00035597. whether Stream starts with the command word Match; moves Stream past it and the spaces after.
+UBOOL ParseCommand(const TCHAR** Stream, const TCHAR* Match);
 // skips whitespace and ; comments
 void ParseNext(const TCHAR** Stream);
 
@@ -128,6 +130,10 @@ void appSetBaseDir(const TCHAR* Dir);
 
 // seconds since some fixed point, for timing
 DOUBLE appSeconds();
+// the cycle counter; GSecondsPerCycle converts it to seconds. the xbox reads the cpu's timestamp counter.
+DWORD appCycles();
+// 0x00430fc0
+extern DOUBLE GSecondsPerCycle;
 const TCHAR* appTimestamp(UBOOL Date, UBOOL Time);
 void appSystemTime(INT& Year, INT& Month, INT& DayOfWeek, INT& Day, INT& Hour, INT& Min, INT& Sec, INT& MSec);
 

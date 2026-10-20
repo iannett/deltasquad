@@ -82,3 +82,21 @@ void FMemCache::CreateNewFreeSpace(BYTE* Start, BYTE* End, FCacheItem* Prev, FCa
 void FMemCache::CheckState()
 {
 }
+
+void FMemCache::Tick()
+{
+    Unknown8 = 0;
+    UnknownC = 0;
+    Unknown10 = 0;
+    Unknown100FC[2] = 0;
+    Unknown100FC[1] = 0;
+    Unknown100FC[0] = 0;
+    Unknown10028[51] = 0;
+    Unknown10028[50] = 0;
+    for (FCacheItem* Item = FirstItem; Item != LastItem; Item = Item->LinearNext)
+    {
+        if (Item->Id && Item->Time < Time)
+            Item->Cost -= Item->Cost >> 5;
+    }
+    Time++;
+}

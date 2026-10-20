@@ -287,6 +287,92 @@ INT UGameEngine::Browse(const FURL& InURL, const TMap<FString, FString>* TravelI
     return 0;
 }
 
+// 0x004321d8. a client flag the tick clears when there is no viewport; what it means is not known yet.
+static UBOOL GUnknown4321D8;
+
+void UGameEngine::Tick(FLOAT DeltaSeconds)
+{
+    // the client's start of a tick: closed windows, demo replay, attract mode and auto pause
+    if (Client)
+        NOT_DECOMPILED(0x001266cb);
+
+    if (DeltaSeconds < 0.f)
+        GError->Logf(TEXT("Negative delta time!"));
+    ElapsedInactiveTime += DeltaSeconds;
+
+    // exits after TimeUntilExit seconds of play, counted once the level has run a second or while it is paused
+    if (TimeUntilExit > 0.f && !GIsLoadingLevel)
+    {
+        ALevelInfo* Info = GLevel ? GLevel->GetLevelInfo() : nullptr;
+        if (!Info || Info->TimeSeconds >= 1.f || GLevel->IsPaused())
+        {
+            ElapsedExitTime += DeltaSeconds;
+            // the client can also exit when no movie plays, and stops a playing one first
+            if (ExitDuringMovie && TimeUntilExit <= ElapsedExitTime)
+            {
+                GIsRequestingExit = 1;
+                return;
+            }
+        }
+        else
+        {
+            ElapsedExitTime = 0.f;
+        }
+    }
+    // auto pause needs a client
+    if (TimeUntilAutoPause > 0.f && !GIsLoadingLevel)
+        ElapsedAutoPauseTime = 0.f;
+    GUnknown4321D8 = 0;
+
+    UObject::StaticTick();
+    GCache.Tick();
+
+    if (GLevel)
+        GLevel->Tick(LEVELTICK_All, DeltaSeconds);
+
+    // server travel once the level's switch countdown runs out
+    ALevelInfo* Info = GLevel ? GLevel->GetLevelInfo() : nullptr;
+    if (Info && Info->NextURL != TEXT(""))
+    {
+        Info->NextSwitchCountdown -= DeltaSeconds;
+        if (Info->NextSwitchCountdown <= 0.f)
+        {
+            TMap<FString, FString> TravelInfo;
+            if (Info->NextURL == TEXT("?RESTART"))
+            {
+                TravelInfo = GLevel->TravelInfo;
+            }
+            else if (Info->bNextItems)
+            {
+                TravelInfo = GLevel->TravelInfo;
+                // each player's pawn exports its inventory under the player's name
+                for (INT i = 0; i < GLevel->Actors.Num(); i++)
+                {
+                    APlayerController* PC = Cast<APlayerController>(GLevel->Actors[i]);
+                    if (PC && PC->Player && PC->Pawn)
+                        NOT_DECOMPILED(0x0011ea8e);
+                }
+            }
+            const FString URL = Info->NextURL;
+            Info->NextURL = TEXT("");
+            GLog->Logf(TEXT("Server switch level: %s"), *URL);
+            FString Error;
+            Browse(FURL(&LastURL, *URL, TRAVEL_Relative), &TravelInfo, Error);
+            return;
+        }
+    }
+
+    // the viewport's own travel, the pending level and the client's tick
+    if (GPendingLevel)
+        NOT_DECOMPILED(0x001266cb);
+
+    // the xbox also ticks an object at 0x00459600 here; nothing ever sets it
+    GStats.Tick();
+    CurrentTickRate = 1.f / (static_cast<FLOAT>(FStatRecord::Main().Pad1) * static_cast<FLOAT>(GSecondsPerCycle));
+
+    GFrameCounter++;
+}
+
 // 0x0011eb07
 FLOAT UGameEngine::GetMaxTickRate()
 {

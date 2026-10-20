@@ -219,6 +219,43 @@ void FOctreeNode::ActorPointCheck(FCollisionOctree* Octree, const FPlane* Bounds
     }
 }
 
+void FOctreeNode::ActorEncroachmentCheck(FCollisionOctree* Octree, const FPlane* Bounds)
+{
+    for (INT i = 0; i < Actors.Num(); i++)
+    {
+        AActor* Actor = Actors[i];
+        if (Actor->CollisionTag == static_cast<INT>(Octree->CollisionTag) || Actor->IsJoinedTo(Octree->ChkActor)
+            || !Actor->ShouldTrace(Octree->ChkActor, Octree->ChkTraceFlags))
+            continue;
+        // world geometry never stops an encroacher, and is left for a later node to skip again
+        if (Octree->ChkActor->IsEncroacher() && Actor->bWorldGeometry)
+            continue;
+        Actor->CollisionTag = Octree->CollisionTag;
+        if (!BoxesIntersect(Actor->OctreeBox, Octree->ChkBox))
+            continue;
+        FCheckResult TestHit(1.f);
+        if (Octree->ChkActor->IsOverlapping(Actor, &TestHit))
+        {
+            TestHit.Actor = Actor;
+            TestHit.Primitive = nullptr;
+            FCheckResult* NewResult = new (Octree->ChkMem->PushBytes(sizeof(FCheckResult), 16)) FCheckResult(TestHit);
+            NewResult->Next = Octree->ChkResult;
+            Octree->ChkResult = NewResult;
+        }
+    }
+    if (Children)
+    {
+        for (INT Child = 7; Child >= 0; Child--)
+        {
+            if (ChildOverlaps(*Bounds, Octree->ChkBox, Child))
+            {
+                const FPlane Sub = ChildBounds(*Bounds, Child);
+                Children[Child].ActorEncroachmentCheck(Octree, &Sub);
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------------------------- octree
 
 FCollisionOctree::FCollisionOctree()
@@ -326,10 +363,27 @@ FCheckResult* FCollisionOctree::ActorRadiusCheck()
     return nullptr;
 }
 
-FCheckResult* FCollisionOctree::ActorEncroachmentCheck()
+FCheckResult* FCollisionOctree::ActorEncroachmentCheck(FMemStack& Mem, AActor* Actor, const FVector& Location, const FRotator& Rotation,
+    DWORD TraceFlags, DWORD ExtraNodeFlags)
 {
-    NOT_DECOMPILED(0x001d17ba);
-    return nullptr;
+    CollisionTag++;
+    ChkResult = nullptr;
+    ChkMem = &Mem;
+    ChkTraceFlags = TraceFlags;
+    ChkExtraNodeFlags = ExtraNodeFlags;
+    ChkActor = Actor;
+
+    // the actor's box at the test position
+    const FVector OldLocation = Actor->Location;
+    const FRotator OldRotation = Actor->Rotation;
+    Actor->Location = Location;
+    Actor->Rotation = Rotation;
+    ChkBox = Actor->GetPrimitive()->GetCollisionBoundingBox(Actor);
+    if (ChkBox.IsValid)
+        RootNode->ActorEncroachmentCheck(this, &RootNodeBounds);
+    Actor->Location = OldLocation;
+    Actor->Rotation = OldRotation;
+    return ChkResult;
 }
 
 FCheckResult* FCollisionOctree::ActorOverlapCheck()

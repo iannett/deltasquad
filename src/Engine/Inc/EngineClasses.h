@@ -1409,6 +1409,8 @@ public:
     DECLARE_FUNCTION(execInLatentExecution)
     DECLARE_FUNCTION(execStopWaiting)
     DECLARE_FUNCTION(execWeaponFired)
+
+#include "CppText/AController.h"
 };
 
 class AAIController : public AController

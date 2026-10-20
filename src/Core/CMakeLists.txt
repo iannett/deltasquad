@@ -17,6 +17,7 @@ add_library(Core STATIC
     Src/UnObj.cpp
     Src/UnProp.cpp
     Src/UnScript.cpp
+    Src/UnStats.cpp
     Src/UnString.cpp
     Src/UnSystem.cpp
 )

@@ -2,7 +2,7 @@
 
 #include "CoreTypes.h"
 
-// blocks of memory found by a 64-bit id, in one or more segments. only Init is decompiled so far.
+// blocks of memory found by a 64-bit id, in one or more segments
 class FMemCache
 {
 public:
@@ -24,13 +24,17 @@ public:
 
     void Init(INT BytesToAllocate, INT InMaxItems, void* Start = nullptr, INT SegSize = 0);
     void CheckState();
+    // 0x00183650. clears the per-frame counters, ages the cost of items unused since the last tick and
+    // advances the clock.
+    void Tick();
 
 private:
     void CreateNewFreeSpace(BYTE* Start, BYTE* End, FCacheItem* Prev, FCacheItem* Next, INT Segment);
 
 public:
     UBOOL       Initialized;
-    INT         Unknown4;
+    // advanced by each tick; an item's Time is the tick it was last used
+    INT         Time;
     INT         Unknown8;
     INT         UnknownC;
     INT         Unknown10;

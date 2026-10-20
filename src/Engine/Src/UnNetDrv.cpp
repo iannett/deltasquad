@@ -72,12 +72,25 @@ UBOOL UNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, FString&
 
 void UNetDriver::TickFlush()
 {
-    NOT_DECOMPILED(0x000538ad);
+    // each connection ticks and sends what it has queued. UNetConnection is not decompiled yet.
+    if (ServerConnection)
+        NOT_DECOMPILED(0x000538bb);
+    for (INT i = 0; i < ClientConnections.Num(); i++)
+        NOT_DECOMPILED(0x000538ce);
 }
 
 void UNetDriver::TickDispatch(FLOAT DeltaTime)
 {
-    NOT_DECOMPILED(0x000538ec);
+    RecvCycles = 0;
+    SendCycles = 0;
+    // the xbox adds in single precision
+    Time = static_cast<FLOAT>(Time) + DeltaTime;
+    // a server deletes its closed client connections
+    if (!ServerConnection)
+    {
+        for (INT i = ClientConnections.Num() - 1; i >= 0; i--)
+            NOT_DECOMPILED(0x00053913);
+    }
 }
 
 void UNetDriver::NotifyActorDestroyed(AActor* Actor)

@@ -180,6 +180,15 @@ DOUBLE appSeconds()
     return std::chrono::duration<DOUBLE>(std::chrono::steady_clock::now() - Start).count();
 }
 
+// the port counts nanoseconds of the same clock as appSeconds
+DOUBLE GSecondsPerCycle = 1e-9;
+
+DWORD appCycles()
+{
+    return static_cast<DWORD>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count());
+}
+
 // 0x0003b4cf
 void* appGetDllHandle(const TCHAR* Filename)
 {

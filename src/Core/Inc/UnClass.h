@@ -210,6 +210,7 @@ enum { FUNC_HASH_BUCKETS = 128 };
 
 // UState::StateFlags
 enum { STATE_Auto = 0x00000002 }; // the state GotoState('Auto') picks
+enum { STATE_Simulated = 0x00000004 }; // the state code also runs on simulated proxies
 
 // one entry of a class's native function table. tables end with a null Name.
 struct FNativeEntry

@@ -158,6 +158,30 @@ FMatrix FRotationTranslationMatrix(const FRotator& Rot, const FVector& Origin)
     return Result;
 }
 
+FMatrix FMatrix::operator*(const FMatrix& Other) const
+{
+    FMatrix Result;
+    for (INT i = 0; i < 4; i++)
+        for (INT j = 0; j < 4; j++)
+            Result.M[i][j] = M[i][0] * Other.M[0][j] + M[i][1] * Other.M[1][j] + M[i][2] * Other.M[2][j] + M[i][3] * Other.M[3][j];
+    return Result;
+}
+
+FMatrix FTranslationMatrix(const FVector& Delta)
+{
+    return FMatrix(FPlane(1.f, 0.f, 0.f, 0.f), FPlane(0.f, 1.f, 0.f, 0.f), FPlane(0.f, 0.f, 1.f, 0.f), FPlane(Delta.X, Delta.Y, Delta.Z, 1.f));
+}
+
+FMatrix FScaleMatrix(const FVector& Scale)
+{
+    return FMatrix(FPlane(Scale.X, 0.f, 0.f, 0.f), FPlane(0.f, Scale.Y, 0.f, 0.f), FPlane(0.f, 0.f, Scale.Z, 0.f), FPlane(0.f, 0.f, 0.f, 1.f));
+}
+
+FMatrix FInverseRotationMatrix(const FRotator& Rot)
+{
+    return FRotationTranslationMatrix(Rot, FVector(0.f, 0.f, 0.f)).Inverse();
+}
+
 // 0x00134c9d. outside the positive trace case the w terms are sums, and the largest axis gets 0.25 / root
 // instead of 0.5 * root; both differ from the usual conversion and are kept.
 FQuat::FQuat(const FMatrix& M)

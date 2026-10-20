@@ -23,6 +23,12 @@ enum ELevelTick
     LEVELTICK_All           = 2,
 };
 
+// the latent actions a state frame can wait in; each is the index of the native that polls it
+enum EPollSlotType
+{
+    EPOLL_Sleep = 384,
+};
+
 // the net code's callbacks into a level or pending level
 class FNetworkNotify
 {
@@ -69,7 +75,8 @@ public:
     virtual FCheckResult* ActorPointCheck(FMemStack& Mem, const FVector& Location, const FVector& Extent, DWORD TraceFlags,
         DWORD ExtraNodeFlags, UBOOL bSingleResult) = 0;
     virtual FCheckResult* ActorRadiusCheck() = 0;
-    virtual FCheckResult* ActorEncroachmentCheck() = 0;
+    virtual FCheckResult* ActorEncroachmentCheck(FMemStack& Mem, AActor* Actor, const FVector& Location, const FRotator& Rotation,
+        DWORD TraceFlags, DWORD ExtraNodeFlags) = 0;
     virtual FCheckResult* ActorOverlapCheck() = 0;
     virtual void CheckActorNotReferenced(AActor* Actor) = 0;
     virtual void CheckIsEmpty() = 0;
@@ -107,6 +114,8 @@ public:
     void Serialize(FArchive& Ar);
     // 0x001d0e6b
     void ActorPointCheck(FCollisionOctree* Octree, const FPlane* Bounds);
+    // 0x001d0b64
+    void ActorEncroachmentCheck(FCollisionOctree* Octree, const FPlane* Bounds);
 
 private:
     // 0x001d2618. a full node splits into children and filters its actors again.
@@ -129,7 +138,7 @@ public:
     FVector       ChkExtent;
     DWORD         ChkTraceFlags;
     DWORD         ChkExtraNodeFlags;
-    INT           Unknown64;
+    AActor*       ChkActor;
     INT           Unknown68;
     FBox          ChkBox;
     INT           Unknown88[7];
@@ -151,7 +160,9 @@ public:
     FCheckResult* ActorPointCheck(FMemStack& Mem, const FVector& Location, const FVector& Extent, DWORD TraceFlags,
         DWORD ExtraNodeFlags, UBOOL bSingleResult) override;
     FCheckResult* ActorRadiusCheck() override;
-    FCheckResult* ActorEncroachmentCheck() override;
+    // 0x001d17ba. the actors that Actor would overlap at Location and Rotation.
+    FCheckResult* ActorEncroachmentCheck(FMemStack& Mem, AActor* Actor, const FVector& Location, const FRotator& Rotation,
+        DWORD TraceFlags, DWORD ExtraNodeFlags) override;
     FCheckResult* ActorOverlapCheck() override;
     // 0x0005ec28
     void CheckActorNotReferenced(AActor* Actor) override {}

@@ -1,5 +1,7 @@
 
     virtual void Init();
+    // 0x0005ec28. does nothing.
+    virtual void Tick(FLOAT DeltaSeconds) {}
     // 0x00011074. does nothing.
     // 0x00074cc8. no limit.
     virtual FLOAT GetMaxTickRate() { return 0.f; }

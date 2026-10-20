@@ -126,6 +126,11 @@ const TCHAR* Localize(const TCHAR* Section, const TCHAR* Key, const TCHAR* Packa
 
 // looks up an error message in the [Errors] section of Package.int
 const TCHAR* LocalizeError(const TCHAR* Key, const TCHAR* Package, const TCHAR* LangExt = nullptr);
+// 0x000367e9
+inline const TCHAR* LocalizeProgress(const TCHAR* Key, const TCHAR* Package, const TCHAR* LangExt = nullptr)
+{
+    return Localize(TEXT("Progress"), Key, Package, LangExt);
+}
 // 0x00036819
 inline const TCHAR* LocalizeGeneral(const TCHAR* Key, const TCHAR* Package, const TCHAR* LangExt = nullptr)
 {
@@ -235,6 +240,8 @@ public:
     static void ProcessRegistrants();
     static void StaticInit();
     static void StaticExit();
+    // 0x00022dc5. warns about natives and casts registered twice at startup.
+    static void StaticTick();
     static void BeginLoad(const FString& Context = FString());
     static void EndLoad();
     static const TCHAR* GetLanguage();

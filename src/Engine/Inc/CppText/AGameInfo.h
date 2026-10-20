@@ -10,3 +10,9 @@
         ProcessEvent(FindFunctionChecked(NAME_InitGame), &Parms);
         Error = Parms.Error;
     }
+    // 0x000a5f02
+    void eventDetailChange()
+    {
+        static FName NAME_DetailChange(TEXT("DetailChange"), FNAME_Intrinsic);
+        ProcessEvent(FindFunctionChecked(NAME_DetailChange), nullptr);
+    }

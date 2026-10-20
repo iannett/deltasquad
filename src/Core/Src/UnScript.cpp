@@ -316,6 +316,14 @@ void FFrame::Serialize(const TCHAR* Text, EName Event)
         GLog->Logf(NAME_ScriptWarning, TEXT("%s (%s:%04X) %s"), Object->GetFullName(), Node->GetFullName(), static_cast<INT>(Code - Node->Script.GetData()), Text);
 }
 
+void UObject::StaticTick()
+{
+    if (GNativeDuplicate)
+        GError->Logf(TEXT("Duplicate native registered: %i"), GNativeDuplicate);
+    if (GCastDuplicate)
+        GError->Logf(TEXT("Duplicate cast registered: %i"), GCastDuplicate);
+}
+
 // 0x000c15f0. calls a function from c++ with its parameters laid out in Parms; Result is unused.
 void UObject::ProcessEvent(UFunction* Function, void* Parms, void* Result)
 {

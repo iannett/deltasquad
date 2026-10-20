@@ -2,6 +2,8 @@
 #include "UnEngineGlobals.h"
 
 void KInitActorKarma(AActor* Actor);
+void KTickLevelKarma(ULevel* Level, FLOAT DeltaSeconds);
+void KEndLevelTick();
 
 // 0x000a975c
 FArchive& operator<<(FArchive& Ar, FURL& U)
@@ -116,8 +118,7 @@ void ULevel::Destroy()
         NOT_DECOMPILED(0x000a6475);
     if (Unknown1128 && Unknown112C)
         NOT_DECOMPILED(0x0009085e);
-    // also resets a global at 0x004aacb0 (0x00136bce) whose class is not known yet
-    NOT_DECOMPILED(0x00136bce);
+    GRenderUnknown.Reset();
     ULevelBase::Destroy();
 }
 
@@ -147,7 +148,7 @@ void ULevel::Serialize(FArchive& Ar)
         TimeSeconds = GetLevelInfo()->TimeSeconds;
     Ar << Model;
     Ar.Serialize(&TimeSeconds, sizeof(TimeSeconds));
-    Ar << UnknownD0;
+    Ar << FirstDeleted;
     for (INT i = 0; i < 16; i++)
         Ar << TextBlocks[i];
     if (Ar.Ver() > 0x3e)
@@ -210,15 +211,213 @@ void ULevel::SetActorCollision(UBOOL bCollision, UBOOL Unknown)
     Hash = nullptr;
 }
 
-void ULevel::Tick(ELevelTick TickType, FLOAT DeltaSeconds) { NOT_DECOMPILED(0x00131c90); }
+// 0x00462110 and 0x00462114: the time and delta of the last level tick
+FLOAT GUnknown462110;
+FLOAT GUnknown462114;
+
+void ULevel::Tick(ELevelTick TickType, FLOAT DeltaSeconds)
+{
+    ALevelInfo* Info = GetLevelInfo();
+    FMemMark MemMark(GMem);
+    FMemMark EngineMemMark(GEngineMem);
+    InTick = 1;
+
+    // shadows follow the client's setting
+    if (GEngine->Client)
+        NOT_DECOMPILED(0x00131ceb);
+    else
+        Info->ShadowsEnabled = 0;
+
+    // receive what came in
+    if (DemoRecDriver)
+        NOT_DECOMPILED(0x00053d7b);
+    if (NetDriver)
+    {
+        NetDriver->TickDispatch(DeltaSeconds);
+        if (NetDriver->ServerConnection)
+            TickNetClient(DeltaSeconds);
+    }
+    if (Hash)
+        Hash->Tick();
+
+    if (DeltaSeconds < 0.0005f || DeltaSeconds >= 0.4f)
+        DeltaSeconds = DeltaSeconds < 0.0005f ? 0.0005f : 0.4f;
+    if (!GIsBenchmarking)
+        DeltaSeconds *= Info->TimeDilation;
+    if (!IsPaused())
+        Info->TimeSeconds += DeltaSeconds;
+    GUnknown462110 = Info->TimeSeconds;
+    GUnknown462114 = DeltaSeconds;
+    UpdateTime(Info);
+
+    if (Info->bPlayersOnly)
+        TickType = LEVELTICK_ViewportsOnly;
+    // a client whose connection isn't open yet only ticks like a paused level
+    if (NetDriver && NetDriver->ServerConnection)
+        NOT_DECOMPILED(0x0007d13c);
+
+    if (TickType == LEVELTICK_TimeOnly || IsPaused())
+    {
+        // paused: player controllers with a viewport and actors marked bAlwaysTick still tick
+        if (IsPaused())
+        {
+            NewlySpawned = nullptr;
+            INT Updated = 1;
+            for (INT i = iFirstDynamicActor; i < Actors.Num(); i++)
+            {
+                AActor* Actor = Actors[i];
+                APlayerController* PC = Cast<APlayerController>(Actor);
+                if (PC && Cast<UViewport>(PC->Player))
+                {
+                    NOT_DECOMPILED(0x00131fda);
+                }
+                else if (Actor)
+                {
+                    if (Actor->bAlwaysTick && !Actor->bDeleteMe)
+                        Actor->Tick(DeltaSeconds, TickType);
+                    else
+                        Actor->bTicked = Ticked;
+                }
+            }
+            while (NewlySpawned && Updated)
+            {
+                FActorLink* Link = NewlySpawned;
+                NewlySpawned = nullptr;
+                Updated = 0;
+                for (; Link; Link = Link->Next)
+                {
+                    AActor* Actor = Link->Actor;
+                    if (Actor->bTicked != static_cast<UBOOL>(Ticked) && !Actor->bDeleteMe)
+                    {
+                        if (Actor->bAlwaysTick)
+                            Updated += Actor->Tick(DeltaSeconds, TickType);
+                        else
+                            Actor->bTicked = Ticked;
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        // tick every dynamic actor once, then the actors they spawn
+        NewlySpawned = nullptr;
+        INT Updated = 1;
+        KTickLevelKarma(this, DeltaSeconds);
+        for (INT i = iFirstDynamicActor; i < Actors.Num(); i++)
+        {
+            AActor* Actor = Actors[i];
+            if (Actor && !Actor->bDeleteMe && Actor->bTicked != static_cast<UBOOL>(Actor->XLevel->Ticked))
+                Updated += Actor->Tick(DeltaSeconds, TickType);
+        }
+        while (NewlySpawned && Updated)
+        {
+            FActorLink* Link = NewlySpawned;
+            NewlySpawned = nullptr;
+            Updated = 0;
+            for (; Link; Link = Link->Next)
+            {
+                AActor* Actor = Link->Actor;
+                if (Actor && !Actor->bDeleteMe && Actor->bTicked != static_cast<UBOOL>(Actor->XLevel->Ticked))
+                    Updated += Actor->Tick(DeltaSeconds, TickType);
+            }
+        }
+        KEndLevelTick();
+    }
+
+    // send what is due
+    if (NetDriver)
+    {
+        if (!NetDriver->ServerConnection)
+            TickNetServer(DeltaSeconds);
+        NetDriver->TickFlush();
+    }
+    if (DemoRecDriver)
+        NOT_DECOMPILED(0x00131d06);
+
+    InTick = 0;
+    Ticked = !Ticked;
+    MemMark.Pop();
+    EngineMemMark.Pop();
+    CleanupDestroyed(0);
+}
 void ULevel::TickNetClient(FLOAT DeltaSeconds) { NOT_DECOMPILED(0x001332cb); }
-void ULevel::TickNetServer(FLOAT DeltaSeconds) { NOT_DECOMPILED(0x00133478); }
-INT ULevel::ServerTickClients(FLOAT DeltaSeconds) { NOT_DECOMPILED(0x00131109); return 0; }
+void ULevel::TickNetServer(FLOAT DeltaSeconds)
+{
+    // an actor whose replicated properties changed is marked for every open connection's channel
+    ALevelInfo* Info = GetLevelInfo();
+    if (Info && Info->bNetDirty)
+    {
+        for (INT i = NetDriver->ClientConnections.Num() - 1; i >= 0; i--)
+            NOT_DECOMPILED(0x001319f7);
+        Info->bNetDirty = 0;
+    }
+    for (INT iActor = iFirstNetRelevantActor; iActor < Actors.Num(); iActor++)
+    {
+        AActor* Actor = Actors[iActor];
+        if (Actor && Actor->bNetDirty)
+        {
+            for (INT i = NetDriver->ClientConnections.Num() - 1; i >= 0; i--)
+                NOT_DECOMPILED(0x001319f7);
+            Actor->bNetDirty = 0;
+        }
+    }
+
+    const INT Updated = ServerTickClients(DeltaSeconds);
+
+    // the title line once a second
+    Info = GetLevelInfo();
+    if (static_cast<INT>(Info->TimeSeconds - DeltaSeconds) != static_cast<INT>(Info->TimeSeconds))
+    {
+        const INT NumPlayers = Info->Game ? Info->Game->NumPlayers : NetDriver->ClientConnections.Num();
+        GLog->Logf(NAME_Title, LocalizeProgress(TEXT("RunningNet"), TEXT("Engine")), *Info->Title, *URL.Map, NumPlayers);
+    }
+
+    // the stat lines each open connection asked for
+    if (Updated)
+    {
+        for (INT i = 0; i < NetDriver->ClientConnections.Num(); i++)
+            NOT_DECOMPILED(0x001335d9);
+    }
+}
+INT ULevel::ServerTickClients(FLOAT DeltaSeconds)
+{
+    // replicates the relevant actors to each client; returns how many clients were updated
+    if (NetDriver->ClientConnections.Num() == 0)
+        return 0;
+    NOT_DECOMPILED(0x00131109);
+    return 0;
+}
 void ULevel::ReconcileActors() { NOT_DECOMPILED(0x000a6b89); }
 void ULevel::RememberActors() { NOT_DECOMPILED(0x000a5f39); }
 UBOOL ULevel::Exec(const TCHAR* Cmd, FOutputDevice& Ar) { NOT_DECOMPILED(0x000a64c0); return 0; }
 void ULevel::ShrinkLevel() { NOT_DECOMPILED(0x000ab8a2); }
-void ULevel::CompactActors() { NOT_DECOMPILED(0x0012cec5); }
+void ULevel::CompactActors()
+{
+    // packs the live dynamic actors down over the empty slots; one marked deleted but still listed is dropped
+    INT c = iFirstDynamicActor;
+    for (INT i = iFirstDynamicActor; i < Actors.Num(); i++)
+    {
+        AActor* Actor = Actors[i];
+        if (!Actor)
+            continue;
+        if (Actor->bDeleteMe)
+        {
+            GLog->Logf(TEXT("Undeleted %s"), Actor->GetFullName());
+            continue;
+        }
+        // the undo hooks of TTransArray::ModifyItem and Remove
+        if (c != i && GUndo)
+            NOT_DECOMPILED(0x00129602);
+        Actors[c++] = Actors[i];
+    }
+    if (c != Actors.Num())
+    {
+        if (GUndo)
+            NOT_DECOMPILED(0x0012caae);
+        Actors.Remove(c, Actors.Num() - c);
+    }
+}
 UBOOL ULevel::Listen(FString& Error)
 {
     if (NetDriver)
@@ -304,7 +503,43 @@ UBOOL ULevel::FarMoveActor(AActor* Actor, const FVector& DestLocation, UBOOL Tes
 }
 
 UBOOL ULevel::DestroyActor(AActor* Actor, UBOOL bNetForce) { NOT_DECOMPILED(0x00129d5b); return 0; }
-void ULevel::CleanupDestroyed(UBOOL bForce) { NOT_DECOMPILED(0x001284e7); }
+void ULevel::CleanupDestroyed(UBOOL bForce)
+{
+    if (!bForce)
+        CompactActors();
+    if (!FirstDeleted)
+        return;
+    // without bForce, waits until 128 actors are waiting
+    if (!bForce)
+    {
+        INT Count = 0;
+        for (AActor* Actor = FirstDeleted; Actor; Actor = Actor->Deleted)
+            Count++;
+        if (Count < 128)
+            return;
+    }
+
+    // clear every reference to them, then delete them
+    for (INT i = 0; i < Actors.Num(); i++)
+    {
+        if (AActor* Actor = Actors[i])
+        {
+            Actor->GetClass()->CleanupDestroyed(reinterpret_cast<BYTE*>(Actor));
+            Actor->FixupSubObjectPointers();
+        }
+    }
+    while (FirstDeleted)
+    {
+        AActor* Actor = FirstDeleted;
+        FirstDeleted = Actor->Deleted;
+        if (Actor->MeshInstance)
+        {
+            delete Actor->MeshInstance;
+            Actor->MeshInstance = nullptr;
+        }
+        delete Actor;
+    }
+}
 
 AActor* ULevel::SpawnActor(UClass* Class, FName InName, const FVector& Location, FRotator Rotation, AActor* Template,
     UBOOL bNoCollisionFail, UBOOL bRemoteOwned, AActor* Owner, APawn* Instigator)
@@ -439,7 +674,98 @@ UBOOL ULevel::CheckSlice(FVector& Location, const FVector& Extent, INT& bKeepTry
 
 UBOOL ULevel::CheckEncroachment(AActor* Actor, const FVector& TestLocation, const FRotator& TestRotation, UBOOL bTouchNotify)
 {
-    NOT_DECOMPILED(0x0012c094);
+    if (!Actor->bCollideActors && !Actor->bBlockActors && !Actor->bBlockPlayers)
+        return 0;
+
+    // an encroacher carries what it hits along: these map a point from where it is to where it would be
+    FMatrix WorldToLocal;
+    FMatrix TestLocalToWorld;
+    if (Actor->IsEncroacher())
+    {
+        WorldToLocal = Actor->WorldToLocal();
+        const FVector OldLocation = Actor->Location;
+        const FRotator OldRotation = Actor->Rotation;
+        Actor->Location = TestLocation;
+        Actor->Rotation = TestRotation;
+        TestLocalToWorld = Actor->LocalToWorld();
+        Actor->Location = OldLocation;
+        Actor->Rotation = OldRotation;
+    }
+
+    FMemMark Mark(GMem);
+    FCheckResult* FirstHit = Hash ? Hash->ActorEncroachmentCheck(GMem, Actor, TestLocation, TestRotation, 0x9f, 0) : nullptr;
+    for (FCheckResult* Test = FirstHit; Test; Test = Test->GetNext())
+    {
+        AActor* Other = Test->Actor;
+        if (Other == Actor || Other == GetLevelInfo() || Other->IsJoinedTo(Actor) || !Actor->IsBlockedBy(Other))
+            continue;
+
+        // an encroacher pushes what isn't one out of its way, except a karma body (physics 13) and pawns
+        if (Actor->IsEncroacher() && !Other->IsEncroacher() && !(Actor->Physics == 13 && Other->IsA(APawn::StaticClass())))
+        {
+            FVector PushVect = TestLocation - Actor->Location;
+            if (TestRotation != Actor->Rotation)
+            {
+                const FVector& Point = Other->Location;
+                PushVect = (TestLocalToWorld.TransformFVector(WorldToLocal.TransformFVector(Point)) - Point) * 1.5f + PushVect;
+            }
+            Other->moveSmooth(PushVect);
+
+            // whether the pushed actor is clear of the moved one
+            const FVector OldLocation = Actor->Location;
+            const FRotator OldRotation = Actor->Rotation;
+            Actor->Location = TestLocation;
+            Actor->Rotation = TestRotation;
+            FCheckResult Hit(1.f);
+            UBOOL bClear;
+            if (Other->Brush && Other->IsAVolume())
+                bClear = Other->GetPrimitive()->PointCheck(Hit, Other, Actor->Location,
+                    FVector(Actor->CollisionRadius, Actor->CollisionRadius, Actor->CollisionHeight), 0);
+            else
+                bClear = Actor->GetPrimitive()->PointCheck(Hit, Actor, Other->Location,
+                    FVector(Other->CollisionRadius, Other->CollisionRadius, Other->CollisionHeight), 0);
+            Actor->Location = OldLocation;
+            Actor->Rotation = OldRotation;
+            if (bClear)
+            {
+                // moves it back towards the encroacher, which now stands at the test location
+                Actor->Location = TestLocation;
+                const FVector BackVect = PushVect * -1.f;
+                MoveActor(Other, BackVect, Other->Rotation, Hit, 0, 0, 0, 0, 0);
+                Actor->Location = OldLocation;
+                continue;
+            }
+        }
+        if (Actor->eventEncroachingOn(Other))
+        {
+            Mark.Pop();
+            return 1;
+        }
+    }
+
+    // untouch what the actor no longer overlaps
+    if (bTouchNotify)
+    {
+        for (INT i = 0; i < Actor->Touching.Num();)
+        {
+            if (Actor->Touching[i] && !Actor->IsOverlapping(Actor->Touching[i]))
+                Actor->EndTouch(Actor->Touching[i], 0);
+            else
+                i++;
+        }
+    }
+    // what blocks the actor is told it is encroached on; the rest is touched
+    for (FCheckResult* Test = FirstHit; Test; Test = Test->GetNext())
+    {
+        AActor* Other = Test->Actor;
+        if (Other == Actor || Other->IsJoinedTo(Actor) || Other == GetLevelInfo())
+            continue;
+        if (Actor->IsBlockedBy(Other))
+            Other->eventEncroachedBy(Actor);
+        else if (bTouchNotify)
+            Actor->BeginTouch(Other);
+    }
+    Mark.Pop();
     return 0;
 }
 
@@ -480,10 +806,10 @@ FCheckResult* ULevel::MultiLineCheck(FMemStack& Mem, const FVector& End, const F
 
 void ULevel::DetailChange(BYTE NewDetail)
 {
-    NOT_DECOMPILED(0x00136bce);
+    GRenderUnknown.Reset();
     GetLevelInfo()->DetailMode = NewDetail;
     if (GetLevelInfo()->Game)
-        NOT_DECOMPILED(0x000a5f02);
+        GetLevelInfo()->Game->eventDetailChange();
     for (INT i = 0; i < Actors.Num(); i++)
         if (Actors[i])
             Actors[i]->StaticFilterState = 0;
@@ -498,7 +824,12 @@ void ULevel::UpdateTime(ALevelInfo* Info)
         Info->Millisecond);
 }
 
-UBOOL ULevel::IsPaused() { NOT_DECOMPILED(0x00131c65); return 0; }
+UBOOL ULevel::IsPaused()
+{
+    // a pause takes PauseDelay seconds to start
+    ALevelInfo* Info = GetLevelInfo();
+    return Info->Pauser && Info->PauseDelay <= Info->TimeSeconds;
+}
 void ULevel::WelcomePlayer(UNetConnection* Connection, TCHAR* Optional) { NOT_DECOMPILED(0x000a6eea); }
 void ULevel::BuildRenderData() { NOT_DECOMPILED(0x000a8815); }
 

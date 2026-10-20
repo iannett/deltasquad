@@ -328,6 +328,21 @@ void KInitGameKarma()
     KCreateAssetDB(&KGData->AssetDB, &KGData->AssetFactory);
 }
 
+// 0x00090a71. steps the level's karma world.
+void KTickLevelKarma(ULevel* Level, FLOAT DeltaSeconds)
+{
+    if (!KGData || !Level->Unknown1128)
+        return;
+    NOT_DECOMPILED(0x00090a71);
+}
+
+// ULevel::Tick clears this inline once its actors have ticked
+void KEndLevelTick()
+{
+    if (KGData)
+        KGData->Unknown15024 = 0;
+}
+
 // 0x00091192. sets up the karma parts of an actor in a level with karma.
 void KInitActorKarma(AActor* Actor)
 {

@@ -57,6 +57,16 @@ UBOOL UPrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector&
     return 0;
 }
 
+FVector UPrimitive::GetEncroachExtent(AActor* Owner)
+{
+    return FVector(Owner->CollisionRadius, Owner->CollisionRadius, Owner->CollisionHeight);
+}
+
+FVector UPrimitive::GetEncroachCenter(AActor* Owner)
+{
+    return Owner->Location;
+}
+
 UBOOL UStaticMesh::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
 {
     NOT_DECOMPILED(0x001960bf);

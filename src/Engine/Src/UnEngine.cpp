@@ -6,6 +6,7 @@ FMemCache           GCache;
 UEngine*            GEngine;
 UCubemapManager*    GCubemapManager;
 FStatGraph*         GStatGraph;
+FRenderUnknown      GRenderUnknown;
 FTempLineBatcher*   GTempLineBatcher;
 UGlobalTempObjects* GGlobalTempObjects;
 UBOOL               GIsLoadingLevel;

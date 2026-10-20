@@ -162,7 +162,7 @@ BYTE GRegisterNative(INT iNative, const Native& Func);
 BYTE GRegisterCast(INT CastCode, const Native& Func);
 
 #define IMPLEMENT_FUNCTION(cls, num, func) \
-    static BYTE cls##func##Temp = GRegisterNative(num, &cls::func);
+    static BYTE cls##func##Temp = GRegisterNative(num, static_cast<Native>(&cls::func));
 #define IMPLEMENT_CAST_FUNCTION(cls, num, func) \
     static BYTE cls##func##CastTemp = GRegisterCast(num, &cls::func);
 // hooks a native table up to its class. it has to follow the class's IMPLEMENT_CLASS in the same file,
@@ -248,6 +248,7 @@ struct FFrame : public FOutputDevice
 #define P_GET_BYTE_REF(Var)  P_GET_REF(BYTE, Var, 0)
 #define P_GET_INT_REF(Var)   P_GET_REF(INT, Var, 0)
 #define P_GET_FLOAT_REF(Var) P_GET_REF(FLOAT, Var, 0.f)
+#define P_GET_OBJECT_REF(Cls, Var) P_GET_REF(Cls*, Var, nullptr)
 #define P_GET_STRUCT_REF(Type, Var) \
     Type Var##Temp; \
     GPropAddr = nullptr; \
@@ -255,6 +256,25 @@ struct FFrame : public FOutputDevice
     if (GPropObject) \
         GPropObject->NetDirty(GProperty); \
     Type* Var = GPropAddr ? reinterpret_cast<Type*>(GPropAddr) : &Var##Temp;
+
+// an iterator native runs the foreach body itself: the body follows the parameters, then the offset of the
+// code after the loop. each pass steps the body until EX_IteratorNext starts the next pass or EX_IteratorPop
+// leaves the loop (a break or return inside it).
+#define PRE_ITERATOR \
+    const INT wEndOffset = Stack.ReadWord(); \
+    BYTE* const StartCode = Stack.Code; \
+    BYTE IterBuffer[1024];
+#define POST_ITERATOR \
+    BYTE IterToken; \
+    while ((IterToken = *Stack.Code) != EX_IteratorPop && IterToken != EX_IteratorNext) \
+        Stack.Step(Stack.Object, IterBuffer); \
+    if (*Stack.Code++ == EX_IteratorNext) \
+        Stack.Code = StartCode; \
+    if (IterToken == EX_IteratorPop) \
+        return;
+// the loop ran out: continue after it
+#define END_ITERATOR \
+    Stack.Code = &Stack.Node->Script[wEndOffset + 1];
 
 // the frame an object runs its state code in
 struct FStateFrame : public FFrame

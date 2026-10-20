@@ -63,12 +63,6 @@ void AActor::execError(FFrame& Stack, RESULT_DECL)
     NOT_DECOMPILED(0x000e52d0);
 }
 
-// 0x000df4cc
-void AActor::execSleep(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000df4cc);
-}
-
 // 0x000dfa24
 void AActor::execSetCollision(FFrame& Stack, RESULT_DECL)
 {
@@ -657,22 +651,10 @@ void AActor::execFastTrace(FFrame& Stack, RESULT_DECL)
     NOT_DECOMPILED(0x000e10bc);
 }
 
-// 0x000e11b3
-void AActor::execSpawn(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e11b3);
-}
-
 // 0x000e12de
 void AActor::execDestroy(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x000e12de);
-}
-
-// 0x000e131b
-void AActor::execSetTimer(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e131b);
 }
 
 // 0x000e066c
@@ -817,12 +799,6 @@ void AActor::execGetCacheEntry(FFrame& Stack, RESULT_DECL)
 void AActor::execMoveCacheEntry(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x001049b3);
-}
-
-// 0x000e3022
-void AActor::execAllActors(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e3022);
 }
 
 // 0x000e31ca

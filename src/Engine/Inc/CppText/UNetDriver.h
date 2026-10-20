@@ -18,8 +18,9 @@
     UBOOL                   ProfileStats;
     UProperty*              RoleProperty;
     UProperty*              RemoteRoleProperty;
-    INT                     Unknown80;
-    INT                     Unknown84;
+    // stat cycles spent sending and receiving this frame
+    INT                     SendCycles;
+    INT                     RecvCycles;
     INT                     MaxDownloadSize;
     TArray<FString>         DownloadManagers;
 

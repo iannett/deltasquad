@@ -1,5 +1,7 @@
 
     void Init() override;
+    // 0x001266cb. ticks the level and the client, and travels when the level asks to.
+    void Tick(FLOAT DeltaSeconds) override;
     // 0x0011eb07. the server's tick rate limit from its net driver's settings.
     FLOAT GetMaxTickRate() override;
     // 0x00121d03

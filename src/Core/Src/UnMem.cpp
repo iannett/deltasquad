@@ -23,6 +23,16 @@ void FMemStack::FreeChunks(FTaggedMemory* NewTopChunk)
     }
 }
 
+void FMemStack::Exit()
+{
+    while (UnusedChunks)
+    {
+        FTaggedMemory* Chunk = UnusedChunks;
+        UnusedChunks = Chunk->Next;
+        appFree(Chunk);
+    }
+}
+
 BYTE* FMemStack::AllocateNewChunk(INT MinSize)
 {
     FTaggedMemory* Chunk = nullptr;

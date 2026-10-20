@@ -9,6 +9,10 @@ FString GOutDir(TEXT("Z:\\Out\\"));
 UBOOL   GIsStarted;
 UBOOL   GIsStrict;
 UBOOL   GIsUTracing;
+UBOOL   GIsRunning;
+UBOOL   GIsRequestingExit;
+QWORD   GFrameCounter;
+UBOOL   GIsBenchmarking;
 INT     GProfilingStackDepth;
 FString GPlatformName;
 FString GMachineCPU;
@@ -385,6 +389,31 @@ void appMD5Decode(DWORD* Output, const BYTE* Input, INT Len)
 
 // 0x000368ea. the xbox also frees a lock pool and a network lock that appInit makes there; the port's
 // appInit does not make them yet.
+void appPreExit()
+{
+    GLog->Logf(NAME_Exit, TEXT("Preparing to exit."));
+    if (GConfig)
+    {
+        GConfig->Exit();
+        delete GConfig;
+        GConfig = nullptr;
+    }
+    UObject::StaticExit();
+    GMem.Exit();
+}
+
+void appRequestExit(UBOOL Force)
+{
+    GLog->Logf(TEXT("appRequestExit(%i)"), Force);
+    if (Force)
+    {
+        for (;;)
+        {
+        }
+    }
+    GIsRequestingExit = 1;
+}
+
 void appExit()
 {
     GLog->Logf(NAME_Exit, TEXT("Exiting."));

@@ -121,6 +121,10 @@ struct FBox
         Result.IsValid = 1;
         return Result;
     }
+    // 0x00076548
+    FVector GetCenter() const { return FVector((Min.X + Max.X) * 0.5f, (Min.Y + Max.Y) * 0.5f, (Min.Z + Max.Z) * 0.5f); }
+    // half the size on each axis
+    FVector GetExtent() const { return FVector((Max.X - Min.X) * 0.5f, (Max.Y - Min.Y) * 0.5f, (Max.Z - Min.Z) * 0.5f); }
 };
 
 // the xbox copies vectors, planes and boxes as raw bytes
@@ -225,7 +229,24 @@ struct FMatrix
     FMatrix Inverse() const;
     // 0x00135e47
     FRotator Rotator() const;
+
+    // this transform followed by Other
+    FMatrix operator*(const FMatrix& Other) const;
+    // a point: the vector as a row with w 1
+    FVector TransformFVector(const FVector& V) const
+    {
+        return FVector(V.X * M[0][0] + V.Y * M[1][0] + V.Z * M[2][0] + M[3][0],
+                       V.X * M[0][1] + V.Y * M[1][1] + V.Z * M[2][1] + M[3][1],
+                       V.X * M[0][2] + V.Y * M[1][2] + V.Z * M[2][2] + M[3][2]);
+    }
 };
+
+// 0x0002fe4a
+FMatrix FTranslationMatrix(const FVector& Delta);
+// 0x0002fee4
+FMatrix FScaleMatrix(const FVector& Scale);
+// 0x0002feaa. the inverse of the rotation by Rot.
+FMatrix FInverseRotationMatrix(const FRotator& Rot);
 
 // copied as 64 raw bytes
 inline FArchive& operator<<(FArchive& Ar, FMatrix& M)

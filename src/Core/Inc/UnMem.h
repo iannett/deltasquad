@@ -15,6 +15,8 @@ class FMemStack
 {
 public:
     void Init(INT InDefaultChunkSize);
+    // 0x0015d76d. frees the chunks kept for reuse; the stack's own chunks stay.
+    void Exit();
 
     // 0x0004198e
     BYTE* PushBytes(INT AllocSize, INT Align)

@@ -73,7 +73,33 @@ UBOOL UTcpNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, FStri
 
 void UTcpNetDriver::TickDispatch(FLOAT DeltaTime)
 {
-    NOT_DECOMPILED(0x0022c9a0);
+    UNetDriver::TickDispatch(DeltaTime);
+
+    // read every waiting packet. the xbox charges the reads to RecvCycles.
+    for (;;)
+    {
+        BYTE Data[1024];
+        sockaddr_in FromAddr;
+        socklen_t FromSize = sizeof(FromAddr);
+        const INT Size = static_cast<INT>(recvfrom(Socket, Data, sizeof(Data), 0, reinterpret_cast<sockaddr*>(&FromAddr), &FromSize));
+        if (Size == SOCKET_ERROR)
+        {
+            const INT Code = errno;
+            if (Code == EWOULDBLOCK)
+                return;
+            // winsock's connection reset is an icmp port unreachable; posix reports it as connection refused
+            if (Code != ECONNRESET && Code != ECONNREFUSED)
+            {
+                static UBOOL FirstError = 1;
+                if (FirstError)
+                    GLog->Logf(TEXT("UDP recvfrom error: %i from %s:%d"), Code, *IpString(FromAddr.sin_addr), ntohs(FromAddr.sin_port));
+                FirstError = 0;
+                return;
+            }
+        }
+        // the packet's connection, a new one, or the unreachable client's disconnect
+        NOT_DECOMPILED(0x0022cb34);
+    }
 }
 
 void UTcpNetDriver::PreServerTravel()

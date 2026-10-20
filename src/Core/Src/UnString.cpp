@@ -385,6 +385,25 @@ void ParseNext(const TCHAR** Stream)
     }
 }
 
+UBOOL ParseCommand(const TCHAR** Stream, const TCHAR* Match)
+{
+    while (**Stream == ' ' || **Stream == '\t')
+        (*Stream)++;
+    if (appStrnicmp(*Stream, Match, appStrlen(Match)) == 0)
+    {
+        *Stream += appStrlen(Match);
+        // the match has to end the word
+        if (!appIsAlnum(**Stream))
+        {
+            while (**Stream == ' ' || **Stream == '\t')
+                (*Stream)++;
+            return 1;
+        }
+        *Stream -= appStrlen(Match);
+    }
+    return 0;
+}
+
 // 0x000352e5
 UBOOL ParseParam(const TCHAR* Stream, const TCHAR* Param)
 {

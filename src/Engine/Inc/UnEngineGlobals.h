@@ -102,8 +102,44 @@ public:
     INT        Unknown1B0;
 };
 
+// an element of FRenderUnknown's first array; its fields are not known yet
+struct FRenderUnknownEntry
+{
+    INT    Unknown0;
+    INT    Unknown4;
+    INT    Unknown8;
+    DOUBLE UnknownC;
+    INT    Unknown14;
+};
+
+// a render-side cache with 64 slots, reset whenever the level or its detail mode changes. its class and its
+// virtual functions are not known yet; the xbox gives it a vtable at 0x003dcbac.
+class FRenderUnknown
+{
+public:
+    // 0x00136bce
+    void Reset()
+    {
+        Unknown704 = 0.0;
+        Unknown710 = 0;
+        Unknown714 = 0;
+        Unknown70C = 0.f;
+        memset(Unknown4, 0, sizeof(Unknown4));
+        memset(Unknown604, 0, sizeof(Unknown604));
+    }
+
+    FRenderUnknownEntry Unknown4[64];
+    INT                 Unknown604[64];
+    DOUBLE              Unknown704;
+    FLOAT               Unknown70C;
+    INT                 Unknown710;
+    INT                 Unknown714;
+};
+
 // 0x004a9508
 extern FEngineStats        GEngineStats;
+// 0x004aacb0
+extern FRenderUnknown      GRenderUnknown;
 // 0x00462100
 extern FMemStack           GEngineMem;
 // 0x00462120
