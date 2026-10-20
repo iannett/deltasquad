@@ -71,6 +71,12 @@ TCHAR* appStrcpy(TCHAR* Dest, const TCHAR* Src)
     return strcpy(Dest, Src);
 }
 
+// 0x0003aced
+TCHAR* appStrcat(TCHAR* Dest, const TCHAR* Src)
+{
+    return strcat(Dest, Src);
+}
+
 // 0x0003ace3
 const TCHAR* appStrchr(const TCHAR* String, INT Ch)
 {

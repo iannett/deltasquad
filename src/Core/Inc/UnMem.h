@@ -8,6 +8,7 @@
 void* appMalloc(size_t Size);
 void* appRealloc(void* Ptr, size_t Size);
 void  appFree(void* Ptr);
+size_t appMallocSize(void* Ptr);
 
 // a stack of temporary allocations freed in bulk. only Init is decompiled so far.
 class FMemStack

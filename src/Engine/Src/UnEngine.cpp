@@ -8,6 +8,8 @@ UCubemapManager*    GCubemapManager;
 FStatGraph*         GStatGraph;
 FTempLineBatcher*   GTempLineBatcher;
 UGlobalTempObjects* GGlobalTempObjects;
+UBOOL               GIsLoadingLevel;
+UBOOL               GUseFrontEnd;
 
 // 0x000a3fe2
 void UEngine::Init()

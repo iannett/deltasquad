@@ -228,6 +228,9 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 - Animation tracks older than version 141 get extra keys for gaps over 255 frames. Each new key is blended from the keys on both sides of it, without checking that the track has that many rotation or position keys. A track with fewer of those keys than times reads past the end of the array.
 - `UModel::Serialize` reads the zone count from the package and loads that many zones into a fixed array of 64 without checking the count.
 - Karma collision data before version 113 reads the sphere array twice. The second read replaces the first.
+- The game's aligned allocator for Karma rounds the size up to the alignment but returns an unaligned block.
+- The game's Karma message handler sends info, warning and debug messages to the info output, and checks them all against the info level.
+- `LoadMap`'s timer keeps a second double next to the time that is never set, so the second value of each lap is garbage. The logs only print the first, and the port leaves the second out.
 
 ## Other port deviations
 
@@ -235,4 +238,8 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 - `UDelegateProperty::ImportText` stops its name buffers at `NAME_SIZE`. The Xbox does not bound them.
 - `appExit` skips freeing a lock pool and a network lock, because the port's `appInit` does not create them yet.
 - `GameEngine.GetLocalizedKeyName` has a stub native entry. The Xbox has none, so binding it would be fatal there.
+- Karma's memory stats count a resized block with the size of the old block on the Xbox, which has already been freed. The port asks the new block.
+- Karma and engine messages that the Xbox passes as format strings are logged as plain text here.
 - Static mesh vertex, colour and UV streams are plain arrays. The Xbox allocates them from a second allocator (`0x430d5c`, likely memory the GPU reads) and locks them while loading.
+- `LoadMap` logs a memory watermark of 0 before and after loading. The Xbox reads a peak usage field from its allocator, which the port does not have.
+- The port's file managers keep no file statistics, so `LoadMap`'s file load stats lines show zeros. On the Xbox they come from slot `0x40` of its file manager.

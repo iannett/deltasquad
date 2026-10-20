@@ -35,6 +35,9 @@ public:
     virtual void BeginSlowTask(const TCHAR* Task, UBOOL StatusWindow) {}
     virtual void EndSlowTask() {}
     virtual UBOOL StatusUpdatef(INT Numerator, INT Denominator, const TCHAR* Fmt, ...) { return 1; }
+    // xbox slot 0x1c. narrows the part of the loading bar that the following updates fill; a negative Start
+    // continues from the current end. its real name is not known.
+    virtual void SetProgressRange(FLOAT Start, FLOAT End) {}
 };
 
 extern FOutputDevice*      GLog;

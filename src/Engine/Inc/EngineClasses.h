@@ -10,6 +10,8 @@
 #include "UnSkeletalMesh.h"
 #include "UnModel.h"
 #include "UnKarma.h"
+#include "UnURL.h"
+#include "UnLevel.h"
 
 // the classes members point at, declared ahead
 class USound;
@@ -1326,6 +1328,8 @@ public:
     DECLARE_FUNCTION(execMultiply_FloatColor)
     DECLARE_FUNCTION(execAdd_ColorColor)
     DECLARE_FUNCTION(execMultiply_ColorFloat)
+
+#include "CppText/AActor.h"
 };
 
 class AController : public AActor
@@ -3374,6 +3378,8 @@ public:
     FLOAT NextMatchmakingQueryTime;
 
     DECLARE_FUNCTION(execGetLocalizedKeyName)
+
+#include "CppText/UGameEngine.h"
 };
 
 class AGameInfo : public AInfo
@@ -3471,6 +3477,8 @@ public:
     DECLARE_FUNCTION(execGetNetworkNumber)
     DECLARE_FUNCTION(execPreServerTravel)
     DECLARE_FUNCTION(execParseKillMessage)
+
+#include "CppText/AGameInfo.h"
 };
 
 class AReplicationInfo : public AInfo
@@ -4441,6 +4449,8 @@ public:
     DECLARE_FUNCTION(execIsDemoBuild)
     DECLARE_FUNCTION(execGetAddressURL)
     DECLARE_FUNCTION(execGetLevelURL)
+
+#include "CppText/ALevelInfo.h"
 };
 
 class ALevelLoadingView : public ANavigationPoint
@@ -5089,6 +5099,8 @@ public:
     TArrayNoInit<USound*> Table;
 
     DECLARE_FUNCTION(execGetSound)
+
+#include "CppText/UPawnAudioTable.h"
 };
 
 class APerch : public ANavigationPoint
@@ -6739,15 +6751,19 @@ public:
 };
 
 // 120 bytes on the xbox
-class ULevelBase : public UObject
+class ULevelBase : public UObject, public FNetworkNotify
 {
     DECLARE_CLASS(ULevelBase, UObject, 0x1, UObject)
+public:
+#include "CppText/ULevelBase.h"
 };
 
 // 4464 bytes on the xbox
 class ULevel : public ULevelBase
 {
     DECLARE_CLASS(ULevel, ULevelBase, 0x0, UObject)
+public:
+#include "CppText/ULevel.h"
 };
 
 // 88 bytes on the xbox

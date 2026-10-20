@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "UnString.h"
 
 class FArchive;
 class FOutputDevice;
@@ -11,6 +12,21 @@ enum EFileFlags
     FILEREAD_NoFail = 0x01,
     FILEWRITE_NoFail = 0x01,
     FILEWRITE_Append = 0x10,
+};
+
+// file activity counts the xbox file manager keeps, logged around level loads
+struct FFileStats
+{
+    INT Opens;
+    INT Seeks;
+    INT Skips;
+    INT Reads;
+    INT ReadBytes;
+    INT Serializes;
+    INT SerializeBytes;
+
+    // 0x00037ffb
+    FString Describe() const;
 };
 
 // opens files as archives. each platform provides one; the xbox version is platform code the port replaces.
@@ -27,6 +43,10 @@ public:
     virtual SQWORD GetDiskFreeSpace(const TCHAR* Path) = 0;
     virtual UBOOL MakeDirectory(const TCHAR* Path, UBOOL Tree = 0) = 0;
     virtual UBOOL SetDefaultDirectory(const TCHAR* Path) = 0;
+    // xbox slot 0x2c
+    virtual TArray<FString> FindFiles(const TCHAR* Wildcard, UBOOL Files, UBOOL Directories) = 0;
+    // xbox slot 0x40. the port's file managers keep no counts, so these stay zero.
+    virtual FFileStats GetFileStats(UBOOL Reset) { return FFileStats{}; }
 };
 
 extern FFileManager* GFileManager;

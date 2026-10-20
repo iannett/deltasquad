@@ -25,6 +25,13 @@ public:
         , Unknown38(100), Unknown3C(0), Unknown40(0.33f), Unknown44(100), Unknown50(0)
     {}
 
+    // 0x00199041
+    void Reset()
+    {
+        Unknown18.Empty();
+        Unknown8.Empty();
+    }
+
     INT                                  Unknown0;
     INT                                  Unknown4;
     TMap<FString, INT>                   Unknown8;
@@ -63,6 +70,40 @@ public:
     TArray<FColor>  Unknown38;
 };
 
+// a memory budget and what has been counted against it
+struct FMemBudget
+{
+    INT Budget;
+    INT Unknown4;
+    INT Unknown8;
+    INT UnknownC;
+};
+
+// memory and frame stats for the on-screen display. only the memory budgets are decompiled so far.
+class FEngineStats
+{
+public:
+    // 0x00169cb3
+    void Init() { InitMemBudgets(); }
+    // 0x00168b27. splits the xbox's 64 MB between the budgets.
+    void InitMemBudgets();
+    // 0x00168a57
+    void UpdateMemTotals();
+
+    INT        TotalMemory;
+    INT        Unknown4[9];
+    FMemBudget Unknown28;
+    FMemBudget Unknown38[13];
+    FMemBudget Unknown108;
+    FMemBudget Unknown118[8];
+    INT        Unknown198;
+    FMemBudget Unknown19C;
+    INT        Unknown1AC;
+    INT        Unknown1B0;
+};
+
+// 0x004a9508
+extern FEngineStats        GEngineStats;
 // 0x00462100
 extern FMemStack           GEngineMem;
 // 0x00462120
@@ -77,3 +118,7 @@ extern FStatGraph*         GStatGraph;
 extern FTempLineBatcher*   GTempLineBatcher;
 // 0x00477700
 extern UGlobalTempObjects* GGlobalTempObjects;
+// 0x0045a768. set while LoadMap runs.
+extern UBOOL               GIsLoadingLevel;
+// 0x0045a724. CT's name; nothing sets it on the server.
+extern UBOOL               GUseFrontEnd;

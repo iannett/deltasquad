@@ -308,7 +308,7 @@ UBOOL FConfigCacheIni::GetSection(const TCHAR* Section, TCHAR* Result, INT Size,
     {
         if (appStrlen(*Sec->KeyAt(i)) + static_cast<INT>(End - Result) + 1 >= Size)
             break;
-        End += appSprintf(End, TEXT("%s=%s"), *Sec->KeyAt(i), **Sec->ValueAt(i)) + 1;
+        End += appSprintf(End, TEXT("%s=%s"), *Sec->KeyAt(i), *Sec->ValueAt(i)) + 1;
     }
     *End = 0;
     return 1;

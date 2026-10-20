@@ -146,7 +146,11 @@ CPP_CLASS_NAMES = {'Object': 'UObject', 'Class': 'UClass', 'Field': 'UField', 'S
 CPP_MEMBER_TYPES = {('Texture', 'Mips'): 'TArrayNoInit<FMipmap>', ('Sound', 'Data'): 'TLazyArray<BYTE>'}
 
 # hand-written headers with the C++ types those members use, by package
-CPP_TYPE_HEADERS = {'Engine': ['UnTex.h', 'UnFont.h', 'UnStaticMesh.h', 'UnSkeletalMesh.h', 'UnModel.h', 'UnKarma.h']}
+CPP_TYPE_HEADERS = {'Engine': ['UnTex.h', 'UnFont.h', 'UnStaticMesh.h', 'UnSkeletalMesh.h', 'UnModel.h', 'UnKarma.h', 'UnURL.h',
+                               'UnLevel.h']}
+
+# C++ interfaces a native class also derives from, by C++ class name
+CPP_EXTRA_BASES = {'ULevelBase': 'FNetworkNotify'}
 
 # generated headers of the packages a package's classes build on
 PACKAGE_DEPENDENCIES = {'Gameplay': ['Engine'], 'CTGame': ['Gameplay'], 'CTMarkers': ['CTGame'], 'IpDrv': ['Engine'], 'XGame': ['Engine'],
@@ -399,7 +403,8 @@ class Generator:
             cpp = row['cpp_name']
             sup = self.class_cpp(row['super'])
             out.append(f'// {row["size"]} bytes on the xbox')
-            out.append(f'class {cpp} : public {sup}')
+            extra = f', public {CPP_EXTRA_BASES[cpp]}' if cpp in CPP_EXTRA_BASES else ''
+            out.append(f'class {cpp} : public {sup}{extra}')
             out.append('{')
             out.append(f'    DECLARE_CLASS({cpp}, {sup}, {row["class_flags"]}, {self.class_cpp(row["within"])})')
             if os.path.exists(os.path.join(cpptext_dir, cpp + '.h')):

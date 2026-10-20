@@ -424,6 +424,23 @@ namespace
         }
     }
 
+    // urls parse the way the game's own parser does
+    void TestURL()
+    {
+        if (!HaveGame)
+            return;
+        FURL::StaticInit();
+        FURL Map(nullptr, TEXT("Entry"), TRAVEL_Absolute);
+        Check(Map.Valid && Map.Map == TEXT("Entry") && Map.Port == 1000, "a map name is a valid url");
+        FURL Remote(nullptr, TEXT("10.0.0.2:7777/Hangar?Name=Bob#Start"), TRAVEL_Absolute);
+        Check(Remote.Valid && Remote.Host == TEXT("10.0.0.2") && Remote.Port == 7777 && Remote.Map == TEXT("Hangar"), "host, port and map");
+        Check(appStricmp(Remote.GetOption(TEXT("Name="), TEXT("")), TEXT("Bob")) == 0 && Remote.Portal == TEXT("Start"), "options and portal");
+        FURL Spaced(nullptr, TEXT("Entry?Bad Option"), TRAVEL_Absolute);
+        Check(!Spaced.Valid, "an option with a space is invalid");
+        FURL Slash(nullptr, TEXT("/Entry"), TRAVEL_Absolute);
+        Check(!Slash.Valid, "a single slash is invalid");
+    }
+
     void TestExit()
     {
         UObject::StaticExit();
@@ -460,6 +477,7 @@ int main()
     TestNativeLayouts();
     TestLoadEngine();
     TestLoadGamePackages();
+    TestURL();
     TestExit();
 
     printf(Failures ? "%d test(s) failed\n" : "all tests passed\n", Failures);

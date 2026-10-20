@@ -65,6 +65,7 @@ enum EClassFlags : DWORD
     CLASS_IsAUState     = 0x00040000,
     CLASS_IsAUFunction  = 0x00080000,
     CLASS_EditInlineNew = 0x00200000, // instances can be created inline in the editor
+    CLASS_NoAutoLoad    = 0x01000000, // its script is not loaded with the native classes at engine start
     // classes whose unnamed instances get unique names instead of NAME_InGameTempName
     CLASS_UniqueNames   = CLASS_IsAUProperty | CLASS_IsAUState | CLASS_IsAUFunction | 0x00800000,
 };

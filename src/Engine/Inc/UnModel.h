@@ -66,13 +66,14 @@ struct FZoneProperties
 {
     UObject* Unknown0;
     INT      Unknown4;
-    QWORD    Unknown8;
+    // a bit for each zone this one connects to
+    QWORD    Connectivity;
     QWORD    Unknown10;
 
     // 0x000aa79f
     friend FArchive& operator<<(FArchive& Ar, FZoneProperties& Z)
     {
-        return Ar << Z.Unknown0 << Z.Unknown8 << Z.Unknown10 << Z.Unknown4;
+        return Ar << Z.Unknown0 << Z.Connectivity << Z.Unknown10 << Z.Unknown4;
     }
 };
 

@@ -7,6 +7,15 @@
 #include "CoreTypes.h"
 #include "UnMem.h"
 
+template<typename T> inline T Max(const T A, const T B) { return A >= B ? A : B; }
+template<typename T> inline T Min(const T A, const T B) { return A <= B ? A : B; }
+template<typename T> inline void Exchange(T& A, T& B)
+{
+    const T Temp = A;
+    A = B;
+    B = Temp;
+}
+
 // for members of native classes that the object system fills in before the c++ constructor runs
 enum ENoInit { E_NoInit };
 
@@ -109,6 +118,7 @@ class TArray : public FArray
 public:
     TArray() = default;
     explicit TArray(ENoInit) : FArray(E_NoInit) {}
+    TArray(const TArray& Other) : FArray() { *this = Other; }
     ~TArray() { DestroyRange(0, ArrayNum); }
 
     T* GetData() { return static_cast<T*>(Data); }

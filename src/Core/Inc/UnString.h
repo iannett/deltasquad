@@ -17,7 +17,19 @@ INT appStricmp(const TCHAR* A, const TCHAR* B);
 INT appStrcmp(const TCHAR* A, const TCHAR* B);
 INT appStrlen(const TCHAR* Str);
 TCHAR* appStrcpy(TCHAR* Dest, const TCHAR* Src);
+TCHAR* appStrcat(TCHAR* Dest, const TCHAR* Src);
 const TCHAR* appStrchr(const TCHAR* String, INT Ch);
+inline TCHAR* appStrchr(TCHAR* String, INT Ch) { return const_cast<TCHAR*>(appStrchr(static_cast<const TCHAR*>(String), Ch)); }
+// the latin-1 letters the engine accepts, as the xbox inlines it: no eth, sharp s or y with diaeresis
+inline UBOOL appIsAlpha(TCHAR Ch)
+{
+    const BYTE C = static_cast<BYTE>(Ch);
+    return (C >= 'A' && C <= 'Z') || (C >= 0xc0 && C <= 0xcf) || (C >= 0xd1 && C <= 0xd6) || (C >= 0xd8 && C <= 0xdd)
+        || C == 0x8a || C == 0x8e || C == 0xfe || (C >= 'a' && C <= 'z') || (C >= 0xe0 && C <= 0xef) || (C >= 0xf1 && C <= 0xf6)
+        || (C >= 0xf8 && C <= 0xfd) || C == 0x9a || C == 0x9e || C == 0xde;
+}
+inline UBOOL appIsDigit(TCHAR Ch) { return Ch >= '0' && Ch <= '9'; }
+inline UBOOL appIsAlnum(TCHAR Ch) { return appIsAlpha(Ch) || appIsDigit(Ch); }
 INT appAtoi(const TCHAR* Str);
 FLOAT appAtof(const TCHAR* Str);
 INT appStrnicmp(const TCHAR* A, const TCHAR* B, INT Count);
@@ -116,6 +128,8 @@ void appSetBaseDir(const TCHAR* Dir);
 
 // seconds since some fixed point, for timing
 DOUBLE appSeconds();
+const TCHAR* appTimestamp(UBOOL Date, UBOOL Time);
+void appSystemTime(INT& Year, INT& Month, INT& DayOfWeek, INT& Day, INT& Hour, INT& Min, INT& Sec, INT& MSec);
 
 // with everything statically linked this just returns a non-null handle, as on the xbox
 void* appGetDllHandle(const TCHAR* Filename);

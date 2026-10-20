@@ -4,6 +4,9 @@ add_library(Engine STATIC
     Src/UnAudio.cpp
     Src/UnEngine.cpp
     Src/UnFont.cpp
+    Src/UnActor.cpp
+    Src/UnGame.cpp
+    Src/UnLevel.cpp
     Src/UnKarma.cpp
     Src/UnModel.cpp
     Src/UnURL.cpp
@@ -13,4 +16,4 @@ add_library(Engine STATIC
     Src/UnTex.cpp
 )
 target_include_directories(Engine PUBLIC Inc)
-target_link_libraries(Engine PUBLIC Core)
+target_link_libraries(Engine PUBLIC Core Karma)

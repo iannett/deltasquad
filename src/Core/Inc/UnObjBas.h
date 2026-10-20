@@ -203,6 +203,14 @@ public:
 
     INT GetIndex() const { return Index; }
     UObject* GetOuter() const { return Outer; }
+    // whether SomeOuter is among the outers; a null SomeOuter matches everything
+    UBOOL IsIn(UObject* SomeOuter) const
+    {
+        for (UObject* It = Outer; It; It = It->Outer)
+            if (It == SomeOuter)
+                return 1;
+        return SomeOuter == nullptr;
+    }
     UClass* GetClass() const { return Class; }
     FName GetFName() const { return Name; }
     DWORD GetFlags() const { return ObjectFlags; }

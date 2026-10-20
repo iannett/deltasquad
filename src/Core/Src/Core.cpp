@@ -1,8 +1,15 @@
 #include <chrono>
+#include <ctime>
+#include <cstring>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
+#if defined(__APPLE__)
+#include <malloc/malloc.h>
+#else
+#include <malloc.h>
+#endif
 
 #include "Core.h"
 
@@ -24,6 +31,16 @@ void* appRealloc(void* Ptr, size_t Size)
 void appFree(void* Ptr)
 {
     free(Ptr);
+}
+
+// the size the allocator actually gave a block, as the xbox allocator reports for its memory stats
+size_t appMallocSize(void* Ptr)
+{
+#if defined(__APPLE__)
+    return malloc_size(Ptr);
+#else
+    return malloc_usable_size(Ptr);
+#endif
 }
 
 // stand-in log devices until the platform layer is written
@@ -122,9 +139,45 @@ void appSetBaseDir(const TCHAR* Dir)
     appStrncpy(GBaseDir, Dir, ARRAY_COUNT(GBaseDir));
 }
 
+// 0x0003add0. the crt's date and time formats, "MM/DD/YY HH:MM:SS".
+const TCHAR* appTimestamp(UBOOL Date, UBOOL Time)
+{
+    static TCHAR Result[64];
+    Result[0] = 0;
+    const time_t Now = time(nullptr);
+    const tm* Local = localtime(&Now);
+    if (Date)
+        strftime(Result, sizeof(Result), "%m/%d/%y", Local);
+    if (Time)
+    {
+        if (Date)
+            strcat(Result, " ");
+        strftime(Result + strlen(Result), sizeof(Result) - strlen(Result), "%H:%M:%S", Local);
+    }
+    return Result;
+}
+
+// 0x0003b552. the local date and time, as the xbox's GetLocalTime gives it.
+void appSystemTime(INT& Year, INT& Month, INT& DayOfWeek, INT& Day, INT& Hour, INT& Min, INT& Sec, INT& MSec)
+{
+    const auto Now = std::chrono::system_clock::now();
+    const time_t Seconds = std::chrono::system_clock::to_time_t(Now);
+    const tm* Local = localtime(&Seconds);
+    Year = Local->tm_year + 1900;
+    Month = Local->tm_mon + 1;
+    DayOfWeek = Local->tm_wday;
+    Day = Local->tm_mday;
+    Hour = Local->tm_hour;
+    Min = Local->tm_min;
+    Sec = Local->tm_sec;
+    MSec = static_cast<INT>(std::chrono::duration_cast<std::chrono::milliseconds>(Now.time_since_epoch()).count() % 1000);
+}
+
+// 0x0003b4da. counts from the first call, as the xbox's millisecond tick sum does.
 DOUBLE appSeconds()
 {
-    return std::chrono::duration<DOUBLE>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    static const std::chrono::steady_clock::time_point Start = std::chrono::steady_clock::now();
+    return std::chrono::duration<DOUBLE>(std::chrono::steady_clock::now() - Start).count();
 }
 
 // 0x0003b4cf

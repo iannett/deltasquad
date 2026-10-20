@@ -9,7 +9,7 @@ class FConfigCache;
 class FString;
 
 // the build number and engine version the xbox build reports
-enum { ENGINE_BUILD = 139, ENGINE_VERSION = 2226 };
+enum { ENGINE_BUILD = 139, ENGINE_VERSION = 2226, ENGINE_MIN_NET_VERSION = 2000 };
 
 extern TCHAR   GErrorHist[4096];
 extern FString GBuildLabel;

@@ -390,3 +390,10 @@ void appExit()
     GLog->Logf(NAME_Exit, TEXT("Exiting."));
     FName::StaticExit();
 }
+
+// 0x00037ffb
+FString FFileStats::Describe() const
+{
+    return FString::Printf(TEXT("Opens %i, Seeks %i, Skips %i, Reads %i KB / %i, Serialize %i KB / %i"), Opens, Seeks, Skips,
+        ReadBytes / 1024, Reads, SerializeBytes / 1024, Serializes);
+}

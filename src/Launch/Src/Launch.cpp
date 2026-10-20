@@ -10,9 +10,16 @@
 // BASEDIR= names the game's System directory, with a trailing slash; the game starts there.
 int main(int argc, char** argv)
 {
+    // BASEDIR= is for the port only and stays off the game's command line
     TCHAR CmdLine[4096] = TEXT("");
+    const TCHAR* BaseDir = nullptr;
     for (int i = 1; i < argc; i++)
     {
+        if (!strncmp(argv[i], "BASEDIR=", 8))
+        {
+            BaseDir = argv[i] + 8;
+            continue;
+        }
         strncat(CmdLine, " ", sizeof(CmdLine) - strlen(CmdLine) - 1);
         strncat(CmdLine, argv[i], sizeof(CmdLine) - strlen(CmdLine) - 1);
     }
@@ -20,8 +27,7 @@ int main(int argc, char** argv)
     GIsStarted = 1;
     GIsScriptable = 1;
     GFileManager = CreatePosixFileManager();
-    TCHAR BaseDir[1024];
-    if (Parse(CmdLine, TEXT("BASEDIR="), BaseDir, ARRAY_COUNT(BaseDir)))
+    if (BaseDir)
         appSetBaseDir(BaseDir);
 
     appInit(CmdLine, GLog, GError, GWarn, CreateConfigCacheIni, 0);

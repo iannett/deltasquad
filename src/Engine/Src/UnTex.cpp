@@ -4,6 +4,22 @@ UClient* UTexture::__Client = nullptr;
 
 // ---------------------------------------------------------------------------------------------- materials
 
+void UMaterial::ClearCachedPasses()
+{
+    for (INT i = 0; i < 8; i++)
+    {
+        if (CachedMaterialPasses[i])
+        {
+            appFree(reinterpret_cast<void*>(static_cast<PTRINT>(CachedMaterialPasses[i])));
+            CachedMaterialPasses[i] = 0;
+        }
+    }
+    NumPassesCached = 0;
+    if (static_cast<DWORD>(MaterialCacheFlags) != 0x80000000)
+        MaterialCacheFlags = (MaterialCacheFlags & 0x20000000) + 0x40000000;
+    CachedType = 0;
+}
+
 // 0x0009dcc0
 void UMaterial::Serialize(FArchive& Ar)
 {

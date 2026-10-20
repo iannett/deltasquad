@@ -11,6 +11,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 endif()
 
 add_subdirectory(src/Core)
+add_subdirectory(src/Karma)
 add_subdirectory(src/Engine)
 add_subdirectory(src/Gameplay)
 add_subdirectory(src/CTGame)

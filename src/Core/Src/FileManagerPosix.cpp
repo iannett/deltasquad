@@ -2,6 +2,10 @@
 
 #include <cstdio>
 #include <cerrno>
+#include <cstring>
+#include <dirent.h>
+#include <fnmatch.h>
+#include <new>
 #include <cstdlib>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -14,6 +18,13 @@ FFileManager* GFileManager;
 
 namespace
 {
+    void Exchange(FString& A, FString& B)
+    {
+        FString Temp(A);
+        A = B;
+        B = Temp;
+    }
+
     void MakeDirectoryTree(const std::string& Path)
     {
         for (size_t Slash = Path.find('/', 1); Slash != std::string::npos; Slash = Path.find('/', Slash + 1))
@@ -186,6 +197,37 @@ namespace
         UBOOL SetDefaultDirectory(const TCHAR* Path) override
         {
             return !*Path || chdir(ToHostPath(Path).c_str()) == 0;
+        }
+
+        // the names, without the folder, of the files or folders matching the wildcard. the xbox file system
+        // ignores case, so matching does too.
+        TArray<FString> FindFiles(const TCHAR* Wildcard, UBOOL Files, UBOOL Directories) override
+        {
+            TArray<FString> Result;
+            const std::string HostPath = ToHostPath(Wildcard);
+            const size_t Slash = HostPath.rfind('/');
+            const std::string Folder = Slash == std::string::npos ? std::string(".") : HostPath.substr(0, Slash);
+            const std::string Pattern = Slash == std::string::npos ? HostPath : HostPath.substr(Slash + 1);
+            DIR* Dir = opendir(Folder.c_str());
+            if (!Dir)
+                return Result;
+            while (dirent* Entry = readdir(Dir))
+            {
+                if (!strcmp(Entry->d_name, ".") || !strcmp(Entry->d_name, "..") || fnmatch(Pattern.c_str(), Entry->d_name, FNM_CASEFOLD) != 0)
+                    continue;
+                struct stat Info;
+                if (stat((Folder + "/" + Entry->d_name).c_str(), &Info) != 0)
+                    continue;
+                const UBOOL IsDirectory = S_ISDIR(Info.st_mode);
+                if ((IsDirectory && Directories) || (!IsDirectory && Files))
+                    new(&Result[Result.Add()]) FString(Entry->d_name);
+            }
+            closedir(Dir);
+            // directory order depends on the host; sorted so loading is the same everywhere
+            for (INT i = 1; i < Result.Num(); i++)
+                for (INT j = i; j > 0 && appStricmp(*Result[j - 1], *Result[j]) > 0; j--)
+                    Exchange(Result[j - 1], Result[j]);
+            return Result;
         }
     };
 }
