@@ -140,7 +140,7 @@ FArchive& operator<<(FArchive& Ar, TArray<T>& A)
     {
         for (INT i = 0; i < Count; i++)
         {
-            T Skipped;
+            T Skipped{};
             Ar << Skipped;
         }
         return Ar;

@@ -9,6 +9,7 @@
 
 template<typename T> inline T Max(const T A, const T B) { return A >= B ? A : B; }
 template<typename T> inline T Min(const T A, const T B) { return A <= B ? A : B; }
+template<typename T> inline T Clamp(const T X, const T Lo, const T Hi) { return X < Lo ? Lo : X < Hi ? X : Hi; }
 template<typename T> inline void Exchange(T& A, T& B)
 {
     const T Temp = A;

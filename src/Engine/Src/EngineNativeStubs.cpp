@@ -3,12 +3,6 @@
 
 #include "EngineClasses.h"
 
-// 0x000e9620
-void AActor::execConsoleCommand(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e9620);
-}
-
 // 0x0010bfb9
 void AActor::execCopyMaterialsToSkins(FFrame& Stack, RESULT_DECL)
 {
@@ -61,12 +55,6 @@ void AActor::execRemoveFromTargetList(FFrame& Stack, RESULT_DECL)
 void AActor::execError(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x000e52d0);
-}
-
-// 0x000dfa24
-void AActor::execSetCollision(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000dfa24);
 }
 
 // 0x000dfb69
@@ -651,12 +639,6 @@ void AActor::execFastTrace(FFrame& Stack, RESULT_DECL)
     NOT_DECOMPILED(0x000e10bc);
 }
 
-// 0x000e12de
-void AActor::execDestroy(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e12de);
-}
-
 // 0x000e066c
 void AActor::execPlaySound(FFrame& Stack, RESULT_DECL)
 {
@@ -799,30 +781,6 @@ void AActor::execGetCacheEntry(FFrame& Stack, RESULT_DECL)
 void AActor::execMoveCacheEntry(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x001049b3);
-}
-
-// 0x000e31ca
-void AActor::execDynamicActors(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e31ca);
-}
-
-// 0x000e337e
-void AActor::execChildActors(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e337e);
-}
-
-// 0x000e350e
-void AActor::execBasedActors(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e350e);
-}
-
-// 0x000e3693
-void AActor::execTouchingActors(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e3693);
 }
 
 // 0x000e380d
@@ -1153,12 +1111,6 @@ void APlayerController::execGetPlayerNetworkAddress(FFrame& Stack, RESULT_DECL)
 void APlayerController::execGetServerNetworkAddress(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x000e9d93);
-}
-
-// 0x00102fba
-void APlayerController::execConsoleCommand(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x00102fba);
 }
 
 // 0x00101679
@@ -2157,34 +2109,10 @@ void AZoneInfo::execZoneActors(FFrame& Stack, RESULT_DECL)
     NOT_DECOMPILED(0x000e450a);
 }
 
-// 0x000df499
-void ALevelInfo::execIsSplitScreen(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000df499);
-}
-
 // 0x000df414
 void ALevelInfo::execDetailChange(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x000df414);
-}
-
-// 0x000e5420
-void ALevelInfo::execIsEntry(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e5420);
-}
-
-// 0x000e548b
-void ALevelInfo::execIsDedicatedServer(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e548b);
-}
-
-// 0x0002c0b0
-void ALevelInfo::execIsSystemLink(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x0002c0b0);
 }
 
 // 0x0002c0e3
@@ -2197,12 +2125,6 @@ void ALevelInfo::execRegenerateBlockedRegions(FFrame& Stack, RESULT_DECL)
 void ALevelInfo::execGetLocalURL(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x000e9e72);
-}
-
-// 0x000df470
-void ALevelInfo::execIsDemoBuild(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000df470);
 }
 
 // 0x000e9ec2
@@ -2371,12 +2293,6 @@ void UPawnAudioTable::execGetSound(FFrame& Stack, RESULT_DECL)
 void AProjectile::execGetTossVelocity(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x000e4b7d);
-}
-
-// 0x0007673b
-void AProjector::execAttachProjector(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x0007673b);
 }
 
 // 0x000fdb3f

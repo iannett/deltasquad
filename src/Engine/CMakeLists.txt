@@ -15,6 +15,7 @@ add_library(Engine STATIC
     Src/UnRenderResource.cpp
     Src/UnSkeletalMesh.cpp
     Src/UnStaticMesh.cpp
+    Src/UnTerrain.cpp
     Src/UnTex.cpp
 )
 target_include_directories(Engine PUBLIC Inc)

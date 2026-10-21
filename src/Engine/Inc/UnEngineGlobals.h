@@ -32,6 +32,10 @@ public:
         Unknown8.Empty();
     }
 
+    // 0x00199134. GRAPH and BARGRAPH.
+    UBOOL Exec(const TCHAR* Cmd, FOutputDevice& Ar);
+
+    // set hides the line graph
     INT                                  Unknown0;
     INT                                  Unknown4;
     TMap<FString, INT>                   Unknown8;
@@ -46,6 +50,7 @@ public:
     FLOAT                                Unknown40;
     BYTE                                 Unknown44;
     TArray<INT>                          Unknown48;
+    // set shows the bar graph
     INT                                  Unknown50;
     TArray<INT>                          Unknown54;
     TMap<FString, FStatGraphUnknown5C>   Unknown5C;
@@ -79,12 +84,9 @@ struct FMemBudget
     INT UnknownC;
 };
 
-// memory and frame stats for the on-screen display. only the memory budgets are decompiled so far.
-class FEngineStats
+// the memory budgets inside FEngineStats; its real name is not known
+struct FEngineMemStats
 {
-public:
-    // 0x00169cb3
-    void Init() { InitMemBudgets(); }
     // 0x00168b27. splits the xbox's 64 MB between the budgets.
     void InitMemBudgets();
     // 0x00168a57
@@ -100,6 +102,26 @@ public:
     FMemBudget Unknown19C;
     INT        Unknown1AC;
     INT        Unknown1B0;
+};
+
+// memory and frame stats for the on-screen display
+class FEngineStats
+{
+public:
+    // 0x00169cb3
+    void Init() { Unknown1598.InitMemBudgets(); }
+
+    // shown stats, toggled by STAT MEM, MAIN, FPS, PAWNS, HIGH and NET
+    BYTE            Unknown0;
+    BYTE            Unknown1;
+    BYTE            Unknown2;
+    BYTE            Unknown3;
+    BYTE            Unknown4;
+    BYTE            Unknown5;
+    // toggled by TVSAFEZONE
+    BYTE            Unknown6;
+    // the stat records the constructor (0x0016936e) builds from +0x8 are not added yet
+    FEngineMemStats Unknown1598;
 };
 
 // an element of FRenderUnknown's first array; its fields are not known yet
@@ -136,6 +158,7 @@ public:
     INT                 Unknown714;
 };
 
+// 0x004a9508
 // 0x004a9508
 extern FEngineStats        GEngineStats;
 // 0x004aacb0

@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "Core.h"
 #include "Karma.h"
 
@@ -177,10 +179,33 @@ namespace
         NOT_DECOMPILED(0x00196a20);
     }
 
-    // 0x00196a40
-    void McdTriangleListGetAABB(void*, void*, void*)
+    // the list's box moved by TM, as a box along the axes
+    void McdTriangleListTransformBox(const McdTriangleList* List, const FLOAT* TM, FLOAT* Min, FLOAT* Max)
     {
-        NOT_DECOMPILED(0x00196a40);
+        for (INT i = 0; i < 3; i++)
+        {
+            const FLOAT Extent = fabsf(TM[i]) * List->Extent[0] + fabsf(TM[4 + i]) * List->Extent[1] + fabsf(TM[8 + i]) * List->Extent[2];
+            const FLOAT Center = List->Center[0] * TM[i] + List->Center[1] * TM[4 + i] + List->Center[2] * TM[8 + i] + TM[12 + i];
+            Min[i] = Center - Extent;
+            Max[i] = Center + Extent;
+        }
+    }
+
+    // 0x00196a40. with FinalTM the box also covers where the list ends up.
+    void McdTriangleListGetAABB(void* InstancePtr, void* FinalTM, void*)
+    {
+        McdGeometryInstance* Instance = static_cast<McdGeometryInstance*>(InstancePtr);
+        const McdTriangleList* List = reinterpret_cast<McdTriangleList*>(Instance->Geometry);
+        McdTriangleListTransformBox(List, Instance->TM, Instance->Min, Instance->Max);
+        if (!FinalTM)
+            return;
+        FLOAT Min[3], Max[3];
+        McdTriangleListTransformBox(List, static_cast<FLOAT*>(FinalTM), Min, Max);
+        for (INT i = 0; i < 3; i++)
+        {
+            Instance->Min[i] = Instance->Min[i] < Min[i] ? Instance->Min[i] : Min[i];
+            Instance->Max[i] = Max[i] < Instance->Max[i] ? Instance->Max[i] : Max[i];
+        }
     }
 
     // 0x00196d00

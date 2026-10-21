@@ -248,6 +248,11 @@ public:
     static void SetLanguage(const TCHAR* LanguageExt);
     static void ResetLoaders(UObject* Pkg, UBOOL DynamicOnly, UBOOL ForceLazyLoad);
     static void PurgeGarbage(UBOOL OnlyFlagged = 0);
+    // 0x00029bea. allocator, object and name debugging commands, GET and SET.
+    static UBOOL StaticExec(const TCHAR* Cmd, FOutputDevice& Ar);
+    // 0x00028fea. sets the property in the class's defaults and saves its config; Immediate also sets it in
+    // every object of the class.
+    static void GlobalSetProperty(const TCHAR* Value, UClass* Class, UProperty* Property, INT Offset, UBOOL Immediate);
     void RemoveFromRoot();
 
     // objects come from appMalloc in StaticAllocateObject
@@ -607,6 +612,9 @@ FArchive& operator<<(FArchive& Ar, T*& Object)
 }
 
 // globals of the object system
+// 0x0003531e. Match=Name in Stream names an object of Class, or NONE for null.
+UBOOL ParseObject(const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObject*& DestRes, UObject* InParent);
+
 extern TArray<UObject*>     GObjObjects;
 extern TArray<ULinkerLoad*> GObjLoaders;
 
@@ -620,6 +628,10 @@ extern INT                  GObjRegisterCount;
 extern UBOOL                GCheckConflicts;
 extern UBOOL                GObjInitialized;
 extern UBOOL                GNoGC;
+// 0x004595f4. a command handler UEngine::Exec tries; nothing on the xbox sets it.
+extern FExec*               GExec;
+// 0x0045a708. printed by GTIME; nothing on the xbox sets it.
+extern DOUBLE               GTime;
 extern INT                  GGarbageRefCount;
 extern TArray<UObject*>     GObjLoaded;
 extern UBOOL                GObjStaticInitStarted;

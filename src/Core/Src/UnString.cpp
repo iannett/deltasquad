@@ -466,3 +466,16 @@ UBOOL Parse(const TCHAR* Stream, const TCHAR* Match, INT& Value)
     Value = appAtoi(Found + appStrlen(Match));
     return 1;
 }
+
+const TCHAR* appSpc(INT Num)
+{
+    static TCHAR Spaces[256];
+    static INT OldNum = 0;
+    if (Num != OldNum)
+    {
+        for (OldNum = 0; OldNum < Num; OldNum++)
+            Spaces[OldNum] = ' ';
+        Spaces[Num] = 0;
+    }
+    return Spaces;
+}

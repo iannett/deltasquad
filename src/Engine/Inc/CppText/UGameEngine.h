@@ -1,5 +1,7 @@
 
     void Init() override;
+    // 0x001233a9. travel, server and debug commands, then the level's, the game's and the engine's.
+    UBOOL Exec(const TCHAR* Cmd, FOutputDevice& Ar) override;
     // 0x001266cb. ticks the level and the client, and travels when the level asks to.
     void Tick(FLOAT DeltaSeconds) override;
     // 0x0011eb07. the server's tick rate limit from its net driver's settings.
@@ -14,5 +16,7 @@
     virtual ULevel* LoadMap(const FURL& URL, UPendingLevel* Pending, const TMap<FString, FString>* TravelInfo, FString& Error, UBOOL Unknown);
     // 0x0011e5aa. the master map holds the level's package and the server packages.
     virtual void BuildServerMasterMap(UNetDriver* NetDriver, ULevel* InLevel);
+    // 0x0011d7c2. closes and drops the pending level.
+    virtual void CancelPending();
     // 0x0011e2f0. redraws the loading screen.
     virtual void UpdateProgress();

@@ -408,16 +408,64 @@ FPointRegion UModel::PointRegion(AZoneInfo* Zone, const FVector& Location) const
     return Result;
 }
 
+// 0x0017b9a0. the model's box turned with the owner.
 FBox UModel::GetCollisionBoundingBox(const AActor* Owner) const
 {
-    NOT_DECOMPILED(0x0017b9a0);
-    return FBox{};
+    if (!Owner)
+        return BoundingBox;
+    const FMatrix LocalToWorld = Owner->LocalToWorld();
+    FBox Box = FBox();
+    for (INT X = 0; X < 2; X++)
+        for (INT Y = 0; Y < 2; Y++)
+            for (INT Z = 0; Z < 2; Z++)
+            {
+                const FVector Corner(X ? BoundingBox.Max.X : BoundingBox.Min.X, Y ? BoundingBox.Max.Y : BoundingBox.Min.Y,
+                    Z ? BoundingBox.Max.Z : BoundingBox.Min.Z);
+                Box += LocalToWorld.TransformFVector(Corner);
+            }
+    return Box;
 }
 
+// returns 0 when the point or box is inside the model's solid space
 UBOOL UModel::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
 {
-    NOT_DECOMPILED(0x0017e441);
-    return 1;
+    Result.Normal = FVector(0, 0, 0);
+    Result.Location = Location;
+    Result.Primitive = this;
+    Result.Actor = Owner;
+    Result.Time = 0.f;
+    UBOOL Outside = UnknownD4;
+    if (Nodes.Num() == 0)
+        return Outside;
+
+    if (!Extent.IsZero())
+    {
+        // the box walk, through a check info set up by 0x0017bbab
+        NOT_DECOMPILED(0x0017bbf4);
+        return Outside;
+    }
+
+    // walk down the tree with the planes moved to where the owner is
+    const FMatrix ToWorld = Owner ? Owner->LocalToWorld() : FMatrix::Identity;
+    const FMatrix ToWorldTA = ToWorld.TransposeAdjoint();
+    const FLOAT Det = ToWorld.Determinant();
+    INT iNode = 0;
+    INT IsFront = 0;
+    INT iPrevNode;
+    do
+    {
+        const FBspNode& Node = Nodes[iNode];
+        FVector Normal = ToWorldTA.TransformNormal(Node.Plane).SafeNormal();
+        if (Det < 0.f)
+            Normal = Normal * -1.f;
+        const FVector Base = ToWorld.TransformFVector(Node.Plane * Node.Plane.W);
+        IsFront = ((Location | Normal) - (Base | Normal)) > 0.f;
+        Outside = Node.ChildOutside(IsFront, Outside);
+        iPrevNode = iNode;
+        iNode = Node.iChild[IsFront];
+    } while (iNode != INDEX_NONE);
+    Result.Item = IsFront + iPrevNode * 2;
+    return Outside;
 }
 
 // ---------------------------------------------------------------------------------------------- polys

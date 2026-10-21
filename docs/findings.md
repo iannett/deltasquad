@@ -216,6 +216,8 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 - Socket setup always succeeds here. The Xbox reports whether its network stack started.
 - Socket error messages print the error number. The Xbox passes the error's name to `%i`, which prints the address of the name.
 - The `<<` and `>>` vector-by-rotator natives inline `FCoords` math on the Xbox. Here they use the rotation matrix, which gives the same result up to float rounding.
+- `appCycles` counts nanoseconds of the clock `appSeconds` uses, and `GSecondsPerCycle` is 1e-9. The Xbox reads the CPU timestamp counter, which runs at 733 MHz.
+- UDP receives treat both `ECONNRESET` and `ECONNREFUSED` as Winsock's `WSAECONNRESET` (a port unreachable reply). macOS reports `ECONNREFUSED`.
 
 ## Bugs kept from the original
 
@@ -249,3 +251,4 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 - Static mesh vertex, colour and UV streams are plain arrays. The Xbox allocates them from a second allocator (`0x430d5c`, likely memory the GPU reads) and locks them while loading.
 - `LoadMap` logs a memory watermark of 0 before and after loading. The Xbox reads a peak usage field from its allocator, which the port does not have.
 - The port's file managers keep no file statistics, so `LoadMap`'s file load stats lines show zeros. On the Xbox they come from slot `0x40` of its file manager.
+- `-SERVER` runs without a client. The Xbox always creates one, and `UGameEngine::Tick` uses it without a null check. The port checks for it before the client parts.

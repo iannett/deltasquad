@@ -146,3 +146,10 @@ MeUnknown1C* MeUnknown1CCreate(INT Max)
     Array->UnknownC = 0;
     return Array;
 }
+
+// 0x0018a910
+void MeUnknown1CDestroy(MeUnknown1C* Array)
+{
+    MeMemory.Destroy(Array->Data);
+    MeMemory.Destroy(Array);
+}

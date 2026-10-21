@@ -1,3 +1,8 @@
+    void Serialize(FArchive& Ar) override;
+    // 0x001052f3. events only run once the level has begun play, and never while garbage is collected.
+    void ProcessEvent(UFunction* Function, void* Parms, void* Result = nullptr) override;
+    // 0x0007e27c. the collision model karma made for the actor.
+    virtual McdModel* getKModel() const;
     // 0x001328d2. ticks the actor's owner and base first, then its animation, script, timers and physics.
     virtual UBOOL Tick(FLOAT DeltaTime, ELevelTick TickType);
     // 0x000e46af. runs the latent action and the state code.
@@ -35,6 +40,16 @@
         if (IsProbing(FName(NAME_Timer)))
             ProcessEvent(FindFunctionChecked(FName(NAME_Timer)), nullptr);
     }
+    // 0x00052bf0. CT's name; called by DestroyActor after the Destroyed event.
+    virtual void PostScriptDestroyed() {}
+    // 0x0012962d
+    void eventDestroyed()
+    {
+        if (IsProbing(FName(NAME_Destroyed)))
+            ProcessEvent(FindFunctionChecked(FName(NAME_Destroyed)), nullptr);
+    }
+    // 0x000bd7d6
+    void eventEndState() { ProcessEvent(FindFunctionChecked(FName(NAME_EndState)), nullptr); }
     // 0x00052bf0. CT's name; called on every actor while destroyed actors are deleted.
     virtual void FixupSubObjectPointers() {}
     // 0x00070cad. the pawn when a player controls it.
@@ -122,6 +137,8 @@
     virtual void Spawned() {}
     // 0x0010ba9d
     void SetOwner(AActor* NewOwner);
+    // 0x0010df4b. CT's name. touches what it newly overlaps and leaves what it stops colliding with.
+    void SetCollision(UBOOL NewCollideActors, UBOOL NewBlockActors, UBOOL NewBlockPlayers);
     // 0x0010bf4f. also takes an anti portal actor out of its zones' lists.
     void ClearRenderData();
 

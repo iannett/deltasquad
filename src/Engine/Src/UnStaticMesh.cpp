@@ -1,4 +1,5 @@
 #include "EngineClasses.h"
+#include "Karma.h"
 
 #define CPP_PROPERTY(Name) static_cast<INT>(reinterpret_cast<BYTE*>(&this->Name) - reinterpret_cast<BYTE*>(static_cast<UObject*>(this)))
 
@@ -107,25 +108,6 @@ FBox UProjectorPrimitive::GetCollisionBoundingBox(const AActor* Owner) const
 
 namespace
 {
-    // materials before version 92
-    struct FStaticMeshLegacyMaterial
-    {
-        UObject* Material;
-        INT      Unknown4;
-
-        // 0x0009741b
-        friend FArchive& operator<<(FArchive& Ar, FStaticMeshLegacyMaterial& M)
-        {
-            Ar << M.Material;
-            if (Ar.Ver() < 147)
-            {
-                TArray<BYTE> Skipped;
-                Ar << Skipped;
-            }
-            return Ar << M.Unknown4;
-        }
-    };
-
     // the point where three planes meet, or zero when they nearly don't
     FVector IntersectPlanes(const FPlane& P1, const FPlane& P2, const FPlane& P3)
     {
@@ -293,10 +275,43 @@ FArchive& operator<<(FArchive& Ar, FStaticMeshTriangle& T)
 
 // ---------------------------------------------------------------------------------------------- static meshes
 
+// 0x001937f7. the mesh's box turned with the actor, grown by the collision model and the actor's karma model.
 FBox UStaticMesh::GetCollisionBoundingBox(const AActor* Owner) const
 {
-    NOT_DECOMPILED(0x001937f7);
-    return FBox{};
+    FBox Box;
+    if (!Owner->bUseCylinderCollision)
+    {
+        const FMatrix LocalToWorld = Owner->LocalToWorld();
+        Box = FBox();
+        for (INT X = 0; X < 2; X++)
+            for (INT Y = 0; Y < 2; Y++)
+                for (INT Z = 0; Z < 2; Z++)
+                {
+                    const FVector Corner(X ? BoundingBox.Max.X : BoundingBox.Min.X, Y ? BoundingBox.Max.Y : BoundingBox.Min.Y,
+                        Z ? BoundingBox.Max.Z : BoundingBox.Min.Z);
+                    Box += LocalToWorld.TransformFVector(Corner);
+                }
+        if (CollisionModel)
+            Box += CollisionModel->GetCollisionBoundingBox(Owner);
+    }
+    else
+    {
+        Box = UPrimitive::GetCollisionBoundingBox(Owner);
+    }
+    if (Owner->bBlockKarma)
+    {
+        if (McdModel* Model = Owner->getKModel())
+        {
+            FLOAT KMin[3], KMax[3];
+            McdModelGetAABB(Model, KMin, KMax);
+            FBox KBox;
+            KBox.Min = KME2UPosition(KMin);
+            KBox.Max = KME2UPosition(KMax);
+            KBox.IsValid = 1;
+            Box += KBox;
+        }
+    }
+    return Box;
 }
 
 // 0x00095a27
@@ -480,4 +495,25 @@ void UStaticMesh::Serialize(FArchive& Ar)
         Ar << UseCollisionForBakedShadowsOnly;
         UseCollisionForBakedShadowsOnly = 1;
     }
+}
+
+// ---------------------------------------------------------------------------------------------- static mesh instance
+
+// 0x000991b5
+void UStaticMeshInstance::Serialize(FArchive& Ar)
+{
+    Super::Serialize(Ar);
+    if (Ar.Ver() < 112)
+    {
+        TArray<FRawColorStream> OldStreams;
+        Ar << OldStreams;
+    }
+    else
+    {
+        Ar << Unknown30;
+    }
+    if (Ar.Ver() >= 110)
+        Ar << Unknown28;
+    if (Ar.Ver() >= 147)
+        Ar << Unknown48;
 }

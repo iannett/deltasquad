@@ -29,8 +29,13 @@ void UTcpNetDriver::StaticConstructor()
 
 UBOOL UTcpNetDriver::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-    NOT_DECOMPILED(0x0022cf39);
-    return 0;
+    if (ParseCommand(&Cmd, TEXT("RETRY_XNET")))
+    {
+        // a system link client decodes its stored session key and translates the host's address with XNet
+        NOT_DECOMPILED(0x0022cf5a);
+        return 1;
+    }
+    return UNetDriver::Exec(Cmd, Ar);
 }
 
 void UTcpNetDriver::LowLevelDestroy()

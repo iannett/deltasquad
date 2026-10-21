@@ -65,9 +65,14 @@ namespace
         McdFramework* Framework;
         MeAssetDB*      AssetDB;
         MeAssetFactory* AssetFactory;
-        INT           Unknown15018[3];
+        INT           Unknown15018[2];
+        // debug drawing flags toggled by KDRAW
+        DWORD         Unknown15020;
+        // toggled by KSTEP and cleared after each level tick
         UBOOL         Unknown15024;
+        // toggled by KSTOP
         UBOOL         Unknown15028;
+        // set by KSAFETIME
         UBOOL         Unknown1502C;
         // counts karma memory in the second stat instead of the first
         UBOOL         UseMemStat2;
@@ -328,10 +333,201 @@ void KInitGameKarma()
     KCreateAssetDB(&KGData->AssetDB, &KGData->AssetFactory);
 }
 
+// ---------------------------------------------------------------------------------------------- level karma
+
+// the level's asset factory and the callbacks it builds karma objects with (name invented)
+struct KLevelFactory
+{
+    MeAssetFactory* Factory;
+    INT             Unknown4;
+    INT             Unknown8;
+    McdModel*       (*CreateModel)(void* Unknown1, void* Unknown2, void* Unknown3, void* Unknown4);
+    INT             Unknown10;
+    INT             Unknown14;
+    INT             (*Unknown18)(void* Unknown1, void* Unknown2, void* Unknown3, void* Unknown4, void* Unknown5);
+    INT             Unknown1C;
+    INT             Unknown20;
+};
+
+namespace
+{
+    // 0x00431130. the [Karma] settings of System.ini, read again when each level starts.
+    struct KarmaSettings
+    {
+        FLOAT UnitLength           = 0.95f;
+        FLOAT UnitMass             = 0.95f;
+        FLOAT GammaPerSec          = 6.f;
+        FLOAT GammaMin             = 0.1f;
+        FLOAT GammaMax             = 0.5f;
+        FLOAT Epsilon              = 0.001f;
+        FLOAT PenOffset            = 0.015f;
+        FLOAT PenScale             = 1.f;
+        FLOAT ContactSoft          = 0.01f;
+        FLOAT FrictionScale        = 0.5f;
+        FLOAT MaxTimestep          = 0.04f;
+        FLOAT DoDoubleTickTimestep = 0.025f;
+        FLOAT MaxPenetration       = 0.1f;
+    } KSettings;
+
+    // what the level model's user data points at (name invented)
+    struct KModelData
+    {
+        INT Unknown0;
+        INT Unknown4;
+        INT Unknown8;
+        INT UnknownC;
+        INT Unknown10;
+    };
+
+    // 0x0008bc6b
+    void KBodyEnableCB(void* Body)
+    {
+        NOT_DECOMPILED(0x0008bc6b);
+    }
+
+    // 0x0008bc28
+    void KBodyDisableCB(void* Body)
+    {
+        NOT_DECOMPILED(0x0008bc28);
+    }
+
+    // 0x0007d4c6
+    void KBodyUnknownCB(void* Body)
+    {
+        NOT_DECOMPILED(0x0007d4c6);
+    }
+
+    // 0x00082f5b
+    McdModel* KFactoryCreateModel(void* Unknown1, void* Unknown2, void* Unknown3, void* Unknown4)
+    {
+        NOT_DECOMPILED(0x00082f5b);
+        return nullptr;
+    }
+
+    // 0x00196f30
+    INT KFactoryUnknown18(void* Unknown1, void* Unknown2, void* Unknown3, void* Unknown4, void* Unknown5)
+    {
+        NOT_DECOMPILED(0x00196f30);
+        return 0;
+    }
+
+    // 0x0008ec55. hands the level's triangles near a model to the collision.
+    INT KTriListGenerator(void* Pair, void* Triangles, FLOAT* Position, FLOAT Radius, INT MaxTriangles)
+    {
+        NOT_DECOMPILED(0x0008ec55);
+        return 0;
+    }
+
+    // 0x00086311
+    INT KIntersectCB(void* Unknown1, void* Unknown2, void* Unknown3)
+    {
+        NOT_DECOMPILED(0x00086311);
+        return 0;
+    }
+
+    // 0x000b3c92, which the xbox shares with UMapProperty::Identical. keeps every contact.
+    INT KPerContactCB(void* Unknown1, void* Unknown2)
+    {
+        return 1;
+    }
+}
+
+// 0x0008f45a. makes the level's dynamics world, its collision bridge and a model for the level's own triangles.
+void KInitLevelKarma(ULevel* Level)
+{
+    if (!KGData || Level->KarmaWorld || !KGData->Framework)
+        return;
+    GLog->Log(TEXT("(Karma): Initialising Karma for Level."));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_UNIT_LENGTH"), KSettings.UnitLength, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_UNIT_MASS"), KSettings.UnitMass, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_GAMMA_PERSEC"), KSettings.GammaPerSec, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_GAMMA_MIN"), KSettings.GammaMin, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_GAMMA_MAX"), KSettings.GammaMax, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_EPSILON"), KSettings.Epsilon, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_PENOFFSET"), KSettings.PenOffset, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_PENSCALE"), KSettings.PenScale, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_CONTACTSOFT"), KSettings.ContactSoft, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_FRICTIONSCALE"), KSettings.FrictionScale, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_MAX_TIMESTEP"), KSettings.MaxTimestep, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_DO_DOUBLETICK_TIMESTEP"), KSettings.DoDoubleTickTimestep, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_MAX_PENETRATION"), KSettings.MaxPenetration, TEXT("System.ini"));
+
+    MdtWorld* World = MdtWorldCreate(1, 1, KSettings.UnitLength, KSettings.UnitMass);
+    Level->KarmaWorld = World;
+    MdtWorldSetUnknown22C(World, 1);
+    MdtWorldSetAutoDisable(Level->KarmaWorld, 1);
+    MdtWorldSetEpsilon(Level->KarmaWorld, KSettings.Epsilon);
+    FLOAT LinearVelocity = 0.02f;
+    FLOAT LinearAcceleration = 0.05f;
+    FLOAT AngularVelocity = 0.001f;
+    FLOAT AngularAcceleration = 0.05f;
+    FLOAT AliveTime = 1.f;
+    GConfig->GetFloat(TEXT("Karma"), TEXT("AutoDisableLinearVelocityThreshold"), LinearVelocity, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("AutoDisableLinearAccelerationThreshold"), LinearAcceleration, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("AutoDisableAngularVelocityThreshold"), AngularVelocity, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("AutoDisableAngularAccelerationThreshold"), AngularAcceleration, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("AutoDisableAliveTime"), AliveTime, TEXT("System.ini"));
+    MdtWorldSetAutoDisableVelocityThreshold(Level->KarmaWorld, LinearVelocity);
+    MdtWorldSetAutoDisableAccelerationThreshold(Level->KarmaWorld, LinearAcceleration);
+    MdtWorldSetAutoDisableAngularVelocityThreshold(Level->KarmaWorld, AngularVelocity);
+    MdtWorldSetAutoDisableAngularAccelerationThreshold(Level->KarmaWorld, AngularAcceleration);
+    MdtWorldSetAutoDisableAliveWindow(Level->KarmaWorld, AliveTime);
+    Level->KarmaWorld->BodyDisableCB = KBodyDisableCB;
+    Level->KarmaWorld->BodyEnableCB = KBodyEnableCB;
+    Level->KarmaWorld->Unknown1D4 = KBodyUnknownCB;
+
+    Level->KarmaBridge = MstBridgeCreate(KGData->Framework, 2);
+    MstBridgeSetUnknown0C(Level->KarmaBridge, 0x400);
+
+    Level->KarmaFactory = static_cast<KLevelFactory*>(appMalloc(sizeof(KLevelFactory)));
+    Level->KarmaFactory->Factory = KGData->AssetFactory;
+    Level->KarmaFactory->Unknown4 = 0;
+    Level->KarmaFactory->Unknown8 = 0;
+    Level->KarmaFactory->CreateModel = KFactoryCreateModel;
+    Level->KarmaFactory->Unknown10 = 0;
+    Level->KarmaFactory->Unknown14 = 0;
+    Level->KarmaFactory->Unknown18 = KFactoryUnknown18;
+    Level->KarmaFactory->Unknown1C = 0;
+    Level->KarmaFactory->Unknown20 = 0;
+
+    // the level model sits at the origin and its list covers everything
+    FLOAT* TM = static_cast<FLOAT*>(MeMemory.CreateAligned(16 * sizeof(FLOAT), 0x10));
+    for (INT i = 0; i < 16; i++)
+        TM[i] = i % 5 == 0 ? 1.f : 0.f;
+    const FLOAT Max[3] = { 524288.f, 524288.f, 524288.f };
+    const FLOAT Min[3] = { -524288.f, -524288.f, -524288.f };
+    McdTriangleList* TriList = McdTriangleListCreate(KGData->Framework, Min, Max, 0x400, KTriListGenerator);
+    KGData->Unknown15038++;
+    McdTriangleListSetUserData(TriList, Level);
+    Level->KarmaLevelModel = McdModelCreate(&TriList->Base);
+    KGData->Unknown15034++;
+    McdModelSetTransformPtr(Level->KarmaLevelModel, TM);
+    McdModelUpdate(Level->KarmaLevelModel);
+    KModelData* Data = static_cast<KModelData*>(KMemCreate(sizeof(KModelData)));
+    Data->Unknown4 = 0;
+    Data->Unknown8 = 0;
+    Data->UnknownC = 0;
+    Data->Unknown10 = 0;
+    Data->Unknown0 = 0;
+    McdModelSetUserData(Level->KarmaLevelModel, Data);
+
+    INT* Request = McdFrameworkGetDefaultRequestPtr(KGData->Framework);
+    Request[1] = 1;
+    Request[0] = 10;
+    MstBridgeSetIntersectCB(Level->KarmaBridge, 0, 0, KIntersectCB);
+    MstBridgeSetPerContactCB(Level->KarmaBridge, 0, 0, KPerContactCB);
+    MdtContactParams* Params = MstBridgeGetContactParams(Level->KarmaBridge, 0, 0);
+    MdtContactParamsSetType(Params, 2);
+    MdtContactParamsSetFrictionModel(Params, 1);
+    MdtContactParamsSetPrimarySlip(Params, 0.5f);
+    MdtContactParamsSetSoftness(Params, KSettings.ContactSoft);
+    MdtContactParamsSetFriction(Params, 10.f);
+}
+
 // 0x00090a71. steps the level's karma world.
 void KTickLevelKarma(ULevel* Level, FLOAT DeltaSeconds)
 {
-    if (!KGData || !Level->Unknown1128)
+    if (!KGData || !Level->KarmaWorld)
         return;
     NOT_DECOMPILED(0x00090a71);
 }
@@ -341,6 +537,90 @@ void KEndLevelTick()
 {
     if (KGData)
         KGData->Unknown15024 = 0;
+}
+
+// 0x0007ebd9. the karma debugging commands; the real name is not known.
+UBOOL KExec(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+    if (ParseCommand(&Cmd, TEXT("KDRAW")))
+    {
+        if (!KGData)
+        {
+            Ar.Log(TEXT("Cannot execute Karma debugging options (No KGData)."));
+            return 0;
+        }
+        if (ParseCommand(&Cmd, TEXT("COLLISION")))
+            KGData->Unknown15020 ^= 0x1;
+        else if (ParseCommand(&Cmd, TEXT("CONTACTS")))
+            KGData->Unknown15020 ^= 0x100;
+        else if (ParseCommand(&Cmd, TEXT("JOINTS")))
+            KGData->Unknown15020 ^= 0x30;
+        else if (ParseCommand(&Cmd, TEXT("TRIANGLES")))
+            KGData->Unknown15020 ^= 0x200;
+        else if (ParseCommand(&Cmd, TEXT("COM")))
+            KGData->Unknown15020 ^= 0x2;
+        else if (ParseCommand(&Cmd, TEXT("ORIGIN")))
+            KGData->Unknown15020 ^= 0x4;
+        else if (ParseCommand(&Cmd, TEXT("WHEEL")))
+            KGData->Unknown15020 ^= 0x400;
+        else if (ParseCommand(&Cmd, TEXT("SAFETIME")))
+            KGData->Unknown15020 ^= 0x800;
+        else if (ParseCommand(&Cmd, TEXT("REPULSORS")))
+            KGData->Unknown15020 ^= 0x1000;
+        else
+            return 0;
+        Ar.Log(TEXT("Karma debugging option recognized"));
+        return 1;
+    }
+    if (ParseCommand(&Cmd, TEXT("KSTEP")))
+    {
+        if (!KGData)
+        {
+            Ar.Log(TEXT("Cannot execute Karma debugging options (No KGData)."));
+            return 0;
+        }
+        KGData->Unknown15024 = !KGData->Unknown15024;
+        return 1;
+    }
+    if (ParseCommand(&Cmd, TEXT("KSTOP")))
+    {
+        if (!KGData)
+        {
+            Ar.Log(TEXT("Cannot execute Karma debugging options (No KGData)."));
+            return 0;
+        }
+        KGData->Unknown15028 = !KGData->Unknown15028;
+        return 1;
+    }
+    if (ParseCommand(&Cmd, TEXT("KSAFETIME")))
+    {
+        if (!KGData)
+        {
+            Ar.Log(TEXT("Cannot execute Karma debugging options (No KGData)."));
+            return 0;
+        }
+        if (ParseCommand(&Cmd, TEXT("0")))
+            KGData->Unknown1502C = 0;
+        else if (ParseCommand(&Cmd, TEXT("1")))
+            KGData->Unknown1502C = 1;
+        Ar.Log(KGData->Unknown1502C ? TEXT("Karma Safe-Time Enabled.") : TEXT("Karma Safe-Time Disabled."));
+        return 1;
+    }
+    return 0;
+}
+
+// 0x0008946f. name invented. adds the actor to its level's Unknown1148 list once, or takes it out.
+void KSetActorListed(AActor* Actor, UBOOL bListed)
+{
+    TArray<AActor*>& List = Actor->XLevel->Unknown1148;
+    if (!bListed)
+    {
+        List.RemoveItem(Actor);
+        return;
+    }
+    INT Index = 0;
+    if (!List.FindItem(Actor, Index))
+        List.AddItem(Actor);
 }
 
 // 0x00091192. sets up the karma parts of an actor in a level with karma.

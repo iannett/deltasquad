@@ -34,6 +34,14 @@ struct FBspNode
     INT    iLightMap;
     // reference counted objects, released by the model when it empties; never serialized
     TArray<void*> Unknown5C;
+
+    // 0x0007ee66. a node with polygons that is part of the csg (0x01 not csg, 0x20 new, plus ExtraFlags).
+    UBOOL IsCsg(DWORD ExtraFlags = 0) const { return NumVertices > 0 && !(NodeFlags & (ExtraFlags | 0x21)); }
+    // 0x0007ee7d. whether the child on that side is outside, given whether this node is.
+    UBOOL ChildOutside(UBOOL IsFront, UBOOL Outside, DWORD ExtraFlags = 0) const
+    {
+        return IsFront ? (Outside || IsCsg(ExtraFlags)) : (Outside && !IsCsg(ExtraFlags));
+    }
 };
 
 struct FBspSurf

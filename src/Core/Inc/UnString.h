@@ -120,6 +120,8 @@ UBOOL Parse(const TCHAR* Stream, const TCHAR* Match, INT& Value);
 UBOOL ParseToken(const TCHAR*& Str, TCHAR* Result, INT MaxLen, UBOOL UseEscape);
 // 0x00035597. whether Stream starts with the command word Match; moves Stream past it and the spaces after.
 UBOOL ParseCommand(const TCHAR** Stream, const TCHAR* Match);
+// 0x00035036. a shared buffer of Num spaces.
+const TCHAR* appSpc(INT Num);
 // skips whitespace and ; comments
 void ParseNext(const TCHAR** Stream);
 

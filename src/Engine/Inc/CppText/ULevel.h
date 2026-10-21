@@ -113,6 +113,9 @@
     // 0x000a5d06
     void NotifyReceivedFile(UNetConnection* Connection, INT PackageIndex, const TCHAR* Error, UBOOL Skipped) override;
 
+    // 0x00128802
+    INT GetActorIndex(AActor* Actor);
+
     ALevelInfo* GetLevelInfo() { return reinterpret_cast<ALevelInfo*>(Actors[0]); }
 
     UModel*                     Model;
@@ -140,16 +143,19 @@
     TArray<void*>               Unknown1108;
     TArray<INT>                 Unknown1110;
     INT                         Unknown1118;
+    // toggled by the SHOWLINECHECK, SHOWEXTENTLINECHECK and SHOWPOINTCHECK commands
     INT                         Unknown111C;
     INT                         Unknown1120;
     INT                         Unknown1124;
-    // karma objects made by the level's karma init (0x0008f45a)
-    void*                       Unknown1128;
-    void*                       Unknown112C;
-    INT                         Unknown1130;
-    void*                       Unknown1134;
+    // made by KInitLevelKarma (0x0008f45a)
+    struct MdtWorld*            KarmaWorld;
+    struct MstBridge*           KarmaBridge;
+    struct KLevelFactory*       KarmaFactory;
+    // collides with the level's own triangles
+    struct McdModel*            KarmaLevelModel;
     TArray<INT>                 Unknown1138;
     TArray<INT>                 Unknown1140;
-    TArray<INT>                 Unknown1148;
+    // actors with bBlockKarma that collide, kept by KSetActorListed (0x0008946f)
+    TArray<AActor*>             Unknown1148;
     TMap<INT, INT>              Unknown1150;
     TMap<INT, INT>              Unknown1160;

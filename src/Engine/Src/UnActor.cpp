@@ -1,5 +1,7 @@
 #include "EngineClasses.h"
 
+void KSetActorListed(AActor* Actor, UBOOL bListed);
+
 UPrimitive* AActor::GetPrimitive()
 {
     if (Mesh)
@@ -9,6 +11,44 @@ UPrimitive* AActor::GetPrimitive()
     if (AntiPortal)
         return AntiPortal;
     return XLevel->Engine ? XLevel->Engine->Cylinder : nullptr;
+}
+
+// 0x0007e27c
+McdModel* AActor::getKModel() const
+{
+    return KParams ? KParams->KarmaData : nullptr;
+}
+
+// 0x0010b947
+void AActor::Serialize(FArchive& Ar)
+{
+    // tagged properties only hold LightRadius when it differs from the defaults, so a negative marker shows whether
+    // it was loaded
+    const FLOAT OldLightRadius = LightRadius;
+    if (Ar.IsLoading())
+        LightRadius = -1.f;
+    if (Ar.IsSaving() && Cast<ULodMeshInstance>(MeshInstance))
+        NOT_DECOMPILED(0x00108ef0); // stores the mesh instance's animation channels in SimAnim
+    Super::Serialize(Ar);
+    if (!Ar.IsLoading())
+    {
+        if (!Ar.IsSaving())
+            Ar << Projectors << StaticMeshProjectors;
+    }
+    else
+    {
+        if (LightRadius < 0.f)
+            LightRadius = OldLightRadius;
+        else if (Ar.Ver() < 129)
+            LightRadius *= 25.f;
+        // only LE_StaticSpot and LE_Spotlight keep their cone from older packages
+        if (Ar.Ver() < 129 && LightEffect != 12 && LightEffect != 8)
+            LightCone = 0;
+    }
+    if (ActorRenderData)
+        Ar.CountBytes(ActorRenderData, 0x144);
+    if (LightRenderData)
+        Ar.CountBytes(LightRenderData, 0x4c);
 }
 
 void AActor::SetOwner(AActor* NewOwner)
@@ -401,6 +441,11 @@ UBOOL APawn::ShouldTrace(AActor* SourceActor, DWORD TraceFlags)
     return 0;
 }
 
+void APawn::PostScriptDestroyed()
+{
+    NOT_DECOMPILED(0x00179c7f);
+}
+
 UBOOL AMover::ShouldTrace(AActor* SourceActor, DWORD TraceFlags)
 {
     NOT_DECOMPILED(0x0011b54e);
@@ -411,6 +456,19 @@ UBOOL AProjector::ShouldTrace(AActor* SourceActor, DWORD TraceFlags)
 {
     NOT_DECOMPILED(0x000764ad);
     return 0;
+}
+
+void AProjector::Attach()
+{
+    // the xbox first checks a render global at 0x00460af0, which is null without a render device
+    if (GetProjTexture() && Level->NetMode != 1)
+        NOT_DECOMPILED(0x0007b7fc);
+}
+
+void AProjector::execAttachProjector(FFrame& Stack, RESULT_DECL)
+{
+    P_FINISH;
+    Attach();
 }
 
 UBOOL ATurret::ShouldTrace(AActor* SourceActor, DWORD TraceFlags)
@@ -481,6 +539,65 @@ APhysicsVolume* ALevelInfo::GetPhysicsVolume(const FVector& Loc, AActor* A, UBOO
     return NewVolume;
 }
 
+UBOOL ALevelInfo::IsSplitScreen() const
+{
+    if (!XLevel || !XLevel->Engine)
+        return 0;
+    UGameEngine* GameEngine = Cast<UGameEngine>(XLevel->Engine);
+    // port: a dedicated server has no client; the xbox reads it unchecked
+    if (!GameEngine->Client)
+        return 0;
+    // the client's viewport count
+    NOT_DECOMPILED(0x000a69cb);
+    return 0;
+}
+
+UBOOL ALevelInfo::IsSystemLink()
+{
+    UGameEngine* GameEngine = CastChecked<UGameEngine>(XLevel->Engine);
+    return GameEngine && GameEngine->LastURL.HasOption(TEXT("LAN"));
+}
+
+void ALevelInfo::execIsSplitScreen(FFrame& Stack, RESULT_DECL)
+{
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = IsSplitScreen();
+}
+
+void ALevelInfo::execIsEntry(FFrame& Stack, RESULT_DECL)
+{
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = 0;
+    if (!XLevel || !XLevel->Engine)
+        return;
+    UGameEngine* GameEngine = Cast<UGameEngine>(XLevel->Engine);
+    if (GameEngine && GameEngine->GLevel == GameEngine->GEntry)
+        *static_cast<DWORD*>(Result) = 1;
+}
+
+void ALevelInfo::execIsDedicatedServer(FFrame& Stack, RESULT_DECL)
+{
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = 0;
+    if (!XLevel || !XLevel->Engine)
+        return;
+    UGameEngine* GameEngine = Cast<UGameEngine>(XLevel->Engine);
+    if (GameEngine)
+        *static_cast<DWORD*>(Result) = GameEngine->GLevel->IsDedicatedServer();
+}
+
+void ALevelInfo::execIsSystemLink(FFrame& Stack, RESULT_DECL)
+{
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = IsSystemLink();
+}
+
+void ALevelInfo::execIsDemoBuild(FFrame& Stack, RESULT_DECL)
+{
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = 0;
+}
+
 APhysicsVolume* ALevelInfo::GetDefaultPhysicsVolume()
 {
     if (!CurrentPhysicsVolume)
@@ -532,6 +649,123 @@ void AActor::execAllActors(FFrame& Stack, RESULT_DECL)
         {
             AActor* TestActor = XLevel->Actors[iActor++];
             if (TestActor && !TestActor->bDeleteMe && TestActor->IsA(BaseClass) && (MatchTag == NAME_None || TestActor->Tag == MatchTag))
+                *OutActor = TestActor;
+        }
+        if (!*OutActor)
+            break;
+        POST_ITERATOR;
+    }
+    END_ITERATOR;
+}
+
+// the actors after the static ones whose tag or hidden tag matches
+void AActor::execDynamicActors(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_OBJECT(UClass, BaseClass);
+    P_GET_OBJECT_REF(AActor, OutActor);
+    P_GET_NAME(MatchTag);
+    P_FINISH;
+
+    if (!BaseClass)
+        BaseClass = AActor::StaticClass();
+    INT iActor = XLevel->iFirstDynamicActor;
+    PRE_ITERATOR;
+    for (;;)
+    {
+        *OutActor = nullptr;
+        while (iActor < XLevel->Actors.Num() && !*OutActor)
+        {
+            AActor* TestActor = XLevel->Actors[iActor++];
+            if (TestActor && !TestActor->bDeleteMe && TestActor->IsA(BaseClass)
+                && (MatchTag == NAME_None || TestActor->Tag == MatchTag || TestActor->HiddenTag == MatchTag))
+                *OutActor = TestActor;
+        }
+        if (!*OutActor)
+            break;
+        POST_ITERATOR;
+    }
+    END_ITERATOR;
+}
+
+// the actors this one owns, directly or further down; includes itself when it is a BaseClass
+void AActor::execChildActors(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_OBJECT(UClass, BaseClass);
+    P_GET_OBJECT_REF(AActor, OutActor);
+    P_FINISH;
+
+    if (!BaseClass)
+        BaseClass = AActor::StaticClass();
+    INT iActor = 0;
+    PRE_ITERATOR;
+    for (;;)
+    {
+        *OutActor = nullptr;
+        while (iActor < XLevel->Actors.Num() && !*OutActor)
+        {
+            AActor* TestActor = XLevel->Actors[iActor++];
+            if (TestActor && !TestActor->bDeleteMe && TestActor->IsA(BaseClass))
+            {
+                for (AActor* Test = TestActor; Test; Test = Test->Owner)
+                {
+                    if (Test == this)
+                    {
+                        *OutActor = TestActor;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!*OutActor)
+            break;
+        POST_ITERATOR;
+    }
+    END_ITERATOR;
+}
+
+void AActor::execBasedActors(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_OBJECT(UClass, BaseClass);
+    P_GET_OBJECT_REF(AActor, OutActor);
+    P_FINISH;
+
+    if (!BaseClass)
+        BaseClass = AActor::StaticClass();
+    INT iActor = 0;
+    PRE_ITERATOR;
+    for (;;)
+    {
+        *OutActor = nullptr;
+        while (iActor < XLevel->Actors.Num() && !*OutActor)
+        {
+            AActor* TestActor = XLevel->Actors[iActor++];
+            if (TestActor && !TestActor->bDeleteMe && TestActor->IsA(BaseClass) && TestActor->Base == this)
+                *OutActor = TestActor;
+        }
+        if (!*OutActor)
+            break;
+        POST_ITERATOR;
+    }
+    END_ITERATOR;
+}
+
+void AActor::execTouchingActors(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_OBJECT(UClass, BaseClass);
+    P_GET_OBJECT_REF(AActor, OutActor);
+    P_FINISH;
+
+    if (!BaseClass)
+        BaseClass = AActor::StaticClass();
+    INT iTouching = 0;
+    PRE_ITERATOR;
+    for (;;)
+    {
+        *OutActor = nullptr;
+        while (iTouching < Touching.Num() && !*OutActor)
+        {
+            AActor* TestActor = Touching[iTouching++];
+            if (TestActor && !TestActor->bDeleteMe && TestActor->IsA(BaseClass))
                 *OutActor = TestActor;
         }
         if (!*OutActor)
@@ -695,6 +929,14 @@ UBOOL APlayerController::LocalPlayerController()
     return Player && Player->IsA(UViewport::StaticClass());
 }
 
+void APlayerController::PostScriptDestroyed()
+{
+    delete PlayerInput;
+    PlayerInput = nullptr;
+    delete CheatManager;
+    CheatManager = nullptr;
+}
+
 void AActor::execSleep(FFrame& Stack, RESULT_DECL)
 {
     P_GET_FLOAT(Seconds);
@@ -721,4 +963,99 @@ void AActor::execSetTimer(FFrame& Stack, RESULT_DECL)
     TimerCounter = 0.f;
     bTimerLoop = bLoop;
     TimerRate = NewTimerRate;
+}
+
+void AActor::ProcessEvent(UFunction* Function, void* Parms, void* Result)
+{
+    if (Level->bBegunPlay && !GIsGarbageCollecting)
+        UObject::ProcessEvent(Function, Parms, Result);
+}
+
+void AActor::SetCollision(UBOOL NewCollideActors, UBOOL NewBlockActors, UBOOL NewBlockPlayers)
+{
+    const UBOOL OldCollideActors = bCollideActors;
+    if (OldCollideActors && XLevel->Hash)
+        XLevel->Hash->RemoveActor(this);
+    if (bCollideActors && !NewCollideActors)
+    {
+        for (INT i = 0; i < Touching.Num();)
+        {
+            if (Touching[i])
+                Touching[i]->EndTouch(this, 0);
+            else
+                i++;
+        }
+    }
+    bCollideActors = NewCollideActors;
+    bBlockActors = NewBlockActors;
+    bBlockPlayers = NewBlockPlayers;
+    if (bCollideActors && XLevel->Hash)
+        XLevel->Hash->AddActor(this);
+
+    // touch what it overlaps now
+    if (NewCollideActors && !OldCollideActors)
+    {
+        FMemMark Mark(GMem);
+        FCheckResult* FirstHit = XLevel->Hash
+            ? XLevel->Hash->ActorEncroachmentCheck(GMem, this, Location, Rotation, 0x9f, 0)
+            : nullptr;
+        for (FCheckResult* Test = FirstHit; Test; Test = Test->Next)
+        {
+            AActor* Other = Test->Actor;
+            if (Other != this && !Other->IsJoinedTo(this) && Other != Level && !IsBlockedBy(Other))
+                BeginTouch(Other);
+        }
+        Mark.Pop();
+    }
+    bNetDirty = 1;
+
+    if (bBlockKarma)
+    {
+        // physics 14 is ragdoll, 13 is karma
+        if (bCollideActors && !OldCollideActors && (Physics == 14 || Physics == 13))
+            KSetActorListed(this, 1);
+        else if (!bCollideActors && OldCollideActors)
+        {
+            KSetActorListed(this, 0);
+            NOT_DECOMPILED(0x00088f50);
+        }
+    }
+}
+
+void AActor::execSetCollision(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_UBOOL_OPTX(NewCollideActors, bCollideActors);
+    P_GET_UBOOL_OPTX(NewBlockActors, bBlockActors);
+    P_GET_UBOOL_OPTX(NewBlockPlayers, bBlockPlayers);
+    P_FINISH;
+    SetCollision(NewCollideActors, NewBlockActors, NewBlockPlayers);
+}
+
+void AActor::execDestroy(FFrame& Stack, RESULT_DECL)
+{
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = XLevel->DestroyActor(this);
+}
+
+void AActor::execConsoleCommand(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_STR(Command);
+    P_FINISH;
+    FStringOutputDevice StrOut;
+    XLevel->Engine->Exec(*Command, StrOut);
+    *static_cast<FString*>(Result) = *StrOut;
+}
+
+void APlayerController::execConsoleCommand(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_STR(Command);
+    P_FINISH;
+    *static_cast<FString*>(Result) = TEXT("");
+    FStringOutputDevice StrOut;
+    if (Player)
+        // the player's FExec at +0x2c; UPlayer isn't an FExec in the port yet
+        NOT_DECOMPILED(0x00103028);
+    else
+        XLevel->Engine->Exec(*Command, StrOut);
+    *static_cast<FString*>(Result) = *StrOut;
 }

@@ -225,6 +225,7 @@ struct FFrame : public FOutputDevice
 
 // native parameters, read in order by running each one's expression
 #define P_GET_UBOOL(Var)         DWORD Var = 0; Stack.Step(Stack.Object, &Var);
+#define P_GET_UBOOL_OPTX(Var, D) DWORD Var = D; Stack.Step(Stack.Object, &Var);
 #define P_GET_BYTE(Var)          BYTE Var = 0; Stack.Step(Stack.Object, &Var);
 #define P_GET_INT(Var)           INT Var = 0; Stack.Step(Stack.Object, &Var);
 #define P_GET_INT_OPTX(Var, D)   INT Var = D; Stack.Step(Stack.Object, &Var);

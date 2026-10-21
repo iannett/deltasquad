@@ -10,7 +10,7 @@
     TArray<FStaticMeshCollisionTriangle> CollisionTriangles;
     TArray<FStaticMeshCollisionNode>     CollisionNodes;
     BYTE                                 Unknown138[12];
-    UObject*                             CollisionModel;
+    UModel*                              CollisionModel;
     UBOOL                                UseSimpleLineCollision;
     UBOOL                                UseSimpleBoxCollision;
     UBOOL                                UseVertexColor;

@@ -142,6 +142,8 @@ public:
     DECLARE_FUNCTION(execSendBinary)
     DECLARE_FUNCTION(execReadText)
     DECLARE_FUNCTION(execReadBinary)
+
+#include "CppText/ATcpLink.h"
 };
 
 class AUdpLink : public AInternetLink
@@ -158,6 +160,8 @@ public:
     DECLARE_FUNCTION(execSendBinary)
     DECLARE_FUNCTION(execReadText)
     DECLARE_FUNCTION(execReadBinary)
+
+#include "CppText/AUdpLink.h"
 };
 
 // native classes without script. their members are added when their code is decompiled.

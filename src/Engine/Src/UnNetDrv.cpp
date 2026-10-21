@@ -54,8 +54,15 @@ void UNetDriver::Serialize(FArchive& Ar)
 
 UBOOL UNetDriver::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-    NOT_DECOMPILED(0x000543eb);
-    return 0;
+    if (!ParseCommand(&Cmd, TEXT("SOCKETS")))
+        return 0;
+    Ar.Logf(TEXT("Connections:"));
+    // each connection and its open channels
+    if (ServerConnection)
+        NOT_DECOMPILED(0x0005442d);
+    if (ClientConnections.Num())
+        NOT_DECOMPILED(0x000544d2);
+    return 1;
 }
 
 UBOOL UNetDriver::InitConnect(FNetworkNotify* InNotify, FURL& ConnectURL, FString& Error)
@@ -95,5 +102,7 @@ void UNetDriver::TickDispatch(FLOAT DeltaTime)
 
 void UNetDriver::NotifyActorDestroyed(AActor* Actor)
 {
-    NOT_DECOMPILED(0x000552b7);
+    // each connection forgets the actor and closes its channel
+    for (INT i = ClientConnections.Num() - 1; i >= 0; i--)
+        NOT_DECOMPILED(0x000552c8);
 }

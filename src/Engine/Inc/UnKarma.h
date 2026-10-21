@@ -2,6 +2,17 @@
 
 #include "Core.h"
 
+struct McdModel;
+
+// karma works in metres; one is 50 unreal units
+const FLOAT K_ME2UScale = 50.f;
+
+// 0x0007eb49
+inline FVector KME2UPosition(const FLOAT* V)
+{
+    return FVector(V[0] * K_ME2UScale, V[1] * K_ME2UScale, V[2] * K_ME2UScale);
+}
+
 struct FKSphereElem
 {
     FMatrix Unknown0;

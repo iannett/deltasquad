@@ -175,3 +175,22 @@ struct FStaticMeshMaterial
     UMaterial* Material;
     UBOOL      EnableCollision;
 };
+
+// materials of static meshes before version 92, and of static mesh instances
+struct FStaticMeshLegacyMaterial
+{
+    UObject* Material;
+    INT      Unknown4;
+
+    // 0x0009741b
+    friend FArchive& operator<<(FArchive& Ar, FStaticMeshLegacyMaterial& M)
+    {
+        Ar << M.Material;
+        if (Ar.Ver() < 147)
+        {
+            TArray<BYTE> Skipped;
+            Ar << Skipped;
+        }
+        return Ar << M.Unknown4;
+    }
+};

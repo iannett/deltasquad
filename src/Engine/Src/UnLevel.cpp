@@ -2,8 +2,10 @@
 #include "UnEngineGlobals.h"
 
 void KInitActorKarma(AActor* Actor);
+void KInitLevelKarma(ULevel* Level);
 void KTickLevelKarma(ULevel* Level, FLOAT DeltaSeconds);
 void KEndLevelTick();
+UBOOL KExec(const TCHAR* Cmd, FOutputDevice& Ar);
 
 // 0x000a975c
 FArchive& operator<<(FArchive& Ar, FURL& U)
@@ -116,7 +118,7 @@ void ULevel::Destroy()
     }
     if (Unknown1108.Num())
         NOT_DECOMPILED(0x000a6475);
-    if (Unknown1128 && Unknown112C)
+    if (KarmaWorld && KarmaBridge)
         NOT_DECOMPILED(0x0009085e);
     GRenderUnknown.Reset();
     ULevelBase::Destroy();
@@ -135,7 +137,7 @@ void ULevel::PostLoad()
             Actor->XLevel = this;
     }
     if (!GetLevelInfo()->bKNoInit)
-        NOT_DECOMPILED(0x0008f45a);
+        KInitLevelKarma(this);
     Model->BuildRenderData();
 }
 
@@ -390,7 +392,35 @@ INT ULevel::ServerTickClients(FLOAT DeltaSeconds)
 }
 void ULevel::ReconcileActors() { NOT_DECOMPILED(0x000a6b89); }
 void ULevel::RememberActors() { NOT_DECOMPILED(0x000a5f39); }
-UBOOL ULevel::Exec(const TCHAR* Cmd, FOutputDevice& Ar) { NOT_DECOMPILED(0x000a64c0); return 0; }
+UBOOL ULevel::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+    const TCHAR* Str = Cmd;
+    if (NetDriver && NetDriver->Exec(Cmd, Ar))
+        return 1;
+    if (DemoRecDriver && DemoRecDriver->Exec(Cmd, Ar))
+        return 1;
+    if (ParseCommand(&Cmd, TEXT("SHOWEXTENTLINECHECK")))
+        Unknown1120 = !Unknown1120;
+    else if (ParseCommand(&Cmd, TEXT("SHOWLINECHECK")))
+        Unknown111C = !Unknown111C;
+    else if (ParseCommand(&Cmd, TEXT("SHOWPOINTCHECK")))
+        Unknown1124 = !Unknown1124;
+    else if (ParseCommand(&Str, TEXT("DEBUGREGIONMATRIX")))
+    {
+        // the xbox tests the whole command for being empty, which it never is
+        INT Index = 0;
+        if (appStrcmp(Cmd, TEXT("")))
+            Index = appAtoi(Str);
+        UBitArray2D* Matrix = GetLevelInfo()->RegionConnection[Index];
+        GLog->Logf(TEXT("Region Connection Matrix %d, Total regions: %d"), Index, Matrix->Unknown34);
+        Matrix->DebugPrint();
+    }
+    else
+    {
+        return KExec(Cmd, Ar) != 0;
+    }
+    return 1;
+}
 void ULevel::ShrinkLevel() { NOT_DECOMPILED(0x000ab8a2); }
 void ULevel::CompactActors()
 {
@@ -476,8 +506,11 @@ UBOOL ULevel::Listen(FString& Error)
 
 UBOOL ULevel::IsServer()
 {
-    if (NetDriver || DemoRecDriver)
-        NOT_DECOMPILED(0x000a5c32);
+    // a client's drivers have a server connection
+    if (NetDriver && NetDriver->ServerConnection)
+        return 0;
+    if (DemoRecDriver && DemoRecDriver->ServerConnection)
+        return 0;
     return 1;
 }
 
@@ -502,7 +535,102 @@ UBOOL ULevel::FarMoveActor(AActor* Actor, const FVector& DestLocation, UBOOL Tes
     return 0;
 }
 
-UBOOL ULevel::DestroyActor(AActor* Actor, UBOOL bNetForce) { NOT_DECOMPILED(0x00129d5b); return 0; }
+INT ULevel::GetActorIndex(AActor* Actor)
+{
+    for (INT i = 0; i < Actors.Num(); i++)
+        if (Actors[i] == Actor)
+            return i;
+    GError->Logf(TEXT("Actor not found: %s"), Actor->GetFullName());
+    return -1;
+}
+
+UBOOL ULevel::DestroyActor(AActor* Actor, UBOOL bNetForce)
+{
+    if (Actor->bStatic || Actor->bNoDelete)
+        return 0;
+    if (Actor->bDeleteMe)
+        return 1;
+    // only the authority destroys actors, unless forced or the actor is temporary
+    if (Actor->Role != 4 && !bNetForce && !Actor->bNetTemporary)
+        return 0;
+
+    // a remote player's controller closes its connection first (sets bPendingDestroy, closes channel 0, returns 0)
+    if (Actor->IsAPlayerController())
+    {
+        APlayerController* PC = Cast<APlayerController>(Actor);
+        if (PC && Cast<UNetConnection>(PC->Player))
+            NOT_DECOMPILED(0x00129dbd);
+    }
+
+    // the xbox also tells an object at 0x00459600; nothing ever sets it
+    const INT ActorIndex = GetActorIndex(Actor);
+    // the undo hook of TTransArray::ModifyItem
+    if (GUndo)
+        NOT_DECOMPILED(0x00129602);
+    Actor->Modify();
+
+    // the script events may destroy it again; the inner call finishes the job
+    Actor->bPendingDelete = 1;
+    if (Actor->GetStateFrame() && Actor->GetStateFrame()->StateNode)
+    {
+        Actor->eventEndState();
+        if (Actor->bDeleteMe)
+            return 1;
+    }
+    Actor->eventDestroyed();
+    Actor->PostScriptDestroyed();
+
+    if (Actor->Base)
+    {
+        Actor->SetBase(nullptr, FVector(0, 0, 1), 1);
+        if (Actor->bDeleteMe)
+            return 1;
+    }
+    for (INT i = 0; i < Actor->Attached.Num(); i++)
+        if (Actor->Attached[i])
+            Actor->Attached[i]->SetBase(nullptr, FVector(0, 0, 1), 1);
+    if (Actor->bDeleteMe)
+        return 1;
+    for (INT i = 0; i < Actor->Touching.Num(); i++)
+    {
+        AActor* Other = Actor->Touching[i];
+        INT OtherIndex = 0;
+        if (Other && Other->Touching.FindItem(Actor, OtherIndex))
+        {
+            Actor->EndTouch(Other, 1);
+            i--;
+            if (Actor->bDeleteMe)
+                return 1;
+        }
+    }
+    if (Actor->Owner)
+    {
+        Actor->Owner->eventLostChild(Actor);
+        if (Actor->bDeleteMe)
+            return 1;
+    }
+
+    if (NetDriver)
+        NetDriver->NotifyActorDestroyed(Actor);
+    if (DemoRecDriver && !DemoRecDriver->ServerConnection)
+        DemoRecDriver->NotifyActorDestroyed(Actor);
+    if (Hash && Actor->bCollideActors)
+        Hash->RemoveActor(Actor);
+    Actor->ClearRenderData();
+    if (ActorIndex >= 0)
+        Actors[ActorIndex] = nullptr;
+    Actor->bDeleteMe = 1;
+    // stops the actor's sounds
+    if (Engine->Audio)
+        NOT_DECOMPILED(0x00074ed7);
+    Actor->ConditionalDestroy();
+
+    // CleanupDestroyed deletes it later
+    Actor->Deleted = FirstDeleted;
+    FirstDeleted = Actor;
+    return 1;
+}
+
 void ULevel::CleanupDestroyed(UBOOL bForce)
 {
     if (!bForce)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "UnString.h"
 
 enum EName : INT;
 
@@ -38,6 +39,14 @@ public:
     // xbox slot 0x1c. narrows the part of the loading bar that the following updates fill; a negative Start
     // continues from the current end. its real name is not known.
     virtual void SetProgressRange(FLOAT Start, FLOAT End) {}
+};
+
+// collects everything written to it in a string. ctor 0x000af74e, Serialize 0x000af96e
+class FStringOutputDevice : public FString, public FOutputDevice
+{
+public:
+    FStringOutputDevice(const TCHAR* InStr = TEXT("")) : FString(InStr) {}
+    void Serialize(const TCHAR* Text, EName Event) override { *this += Text; }
 };
 
 extern FOutputDevice*      GLog;

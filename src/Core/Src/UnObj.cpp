@@ -25,6 +25,8 @@ TArray<UObject*>     GObjRegistrants;
 INT                  GObjRegisterCount;
 FConfigCache*        GConfig;
 UBOOL                GNoGC;
+DOUBLE               GTime;
+FExec*               GExec;
 INT                  GGarbageRefCount;
 // the preference and driver lists aren't decompiled yet; StaticExit stops if they were ever filled
 INT                  GObjPreferencesNum;
@@ -1571,4 +1573,276 @@ void UObject::EndLoad()
 
     if (--GObjBeginLoadCount == 0)
         GWarn->EndSlowTask();
+}
+
+UBOOL ParseObject(const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObject*& DestRes, UObject* InParent)
+{
+    TCHAR TempStr[256];
+    if (!Parse(Stream, Match, TempStr, 64))
+        return 0;
+    if (!appStricmp(TempStr, TEXT("NONE")))
+    {
+        DestRes = nullptr;
+        return 1;
+    }
+    UObject* Res = UObject::StaticFindObject(Class, InParent, TempStr);
+    if (!Res)
+        return 0;
+    DestRes = Res;
+    return 1;
+}
+
+void UObject::GlobalSetProperty(const TCHAR* Value, UClass* Class, UProperty* Property, INT Offset, UBOOL Immediate)
+{
+    if (Immediate)
+    {
+        for (INT i = 0; i < GObjObjects.Num(); i++)
+        {
+            UObject* Obj = GObjObjects[i];
+            if (Obj && (Obj->IsA(Class) || !Class))
+            {
+                Property->ImportText(Value, reinterpret_cast<BYTE*>(Obj) + Offset, 1);
+                Obj->PostEditChange();
+            }
+        }
+    }
+    Property->ImportText(Value, reinterpret_cast<BYTE*>(Class->GetDefaultObject()) + Offset, 1);
+    Class->GetDefaultObject()->SaveConfig(CPF_Config, nullptr, nullptr);
+}
+
+namespace
+{
+    // 0x00025413. logs the class tree under Class, indented by depth; the real name is not known.
+    void ShowClasses(UClass* Class, FOutputDevice& Ar, INT Indent)
+    {
+        Ar.Logf(TEXT("%s%s"), appSpc(Indent), Class->GetName());
+        for (INT i = 0; i < GObjObjects.Num(); i++)
+        {
+            UClass* Child = Cast<UClass>(GObjObjects[i]);
+            if (Child && Child->GetSuperClass() == Class)
+                ShowClasses(Child, Ar, Indent + 2);
+        }
+    }
+}
+
+UBOOL UObject::StaticExec(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+    const TCHAR* Str = Cmd;
+    // the allocator commands call the xbox allocator, which the port does not have
+    if (ParseCommand(&Str, TEXT("MEM")))
+    {
+        NOT_DECOMPILED(0x00029c1c);
+    }
+    else if (ParseCommand(&Str, TEXT("DUMPALLOCSBYSIZE")))
+    {
+        INT Count = 4;
+        if (appStrcmp(Cmd, TEXT("")))
+            Count = appAtoi(Str);
+        (void)Count;
+        NOT_DECOMPILED(0x00029c61);
+    }
+    else if (ParseCommand(&Str, TEXT("INCWATERMARK")))
+    {
+        NOT_DECOMPILED(0x00029c83);
+    }
+    else if (ParseCommand(&Str, TEXT("DECWATERMARK")))
+    {
+        NOT_DECOMPILED(0x00029ca4);
+    }
+    else if (ParseCommand(&Str, TEXT("WATERMARK")))
+    {
+        NOT_DECOMPILED(0x00029cc8);
+    }
+    else if (ParseCommand(&Str, TEXT("NAMECOUNT")))
+    {
+        GLog->Logf(TEXT("Max names: %d, Names in use: %d"), FName::GetMaxNames(), FName::GetNumNames());
+    }
+    else if (ParseCommand(&Str, TEXT("DUMPALLOCPROFILE")))
+    {
+        NOT_DECOMPILED(0x00029d5b);
+    }
+    else if (ParseCommand(&Str, TEXT("RESETALLOCPROFILE")))
+    {
+        NOT_DECOMPILED(0x00029da8);
+    }
+    else if (ParseCommand(&Str, TEXT("DUMPOBJECTPROFILE")))
+    {
+        // the object profiler is not decompiled yet
+        NOT_DECOMPILED(0x00022f1f);
+    }
+    else if (ParseCommand(&Str, TEXT("STARTOBJECTPROFILE")))
+    {
+        NOT_DECOMPILED(0x00025d13);
+    }
+    else if (ParseCommand(&Str, TEXT("DUMPFREELIST")))
+    {
+        NOT_DECOMPILED(0x00029e3f);
+    }
+    else if (ParseCommand(&Str, TEXT("DUMPNATIVES")))
+    {
+        for (INT i = 0; i < MAX_NATIVES; i++)
+            if (GNatives[i] == &UObject::execUndefined)
+                GLog->Logf(TEXT("Native index %i is available"), i);
+    }
+    else if (ParseCommand(&Str, TEXT("GET")))
+    {
+        TCHAR ClassName[256];
+        TCHAR PropertyName[256];
+        UClass* Class;
+        UProperty* Property;
+        if (!ParseToken(Str, ClassName, ARRAY_COUNT(ClassName), 1)
+            || (Class = Cast<UClass>(StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, ClassName))) == nullptr)
+        {
+            Ar.Logf(NAME_ExecWarning, TEXT("Unrecognized class %s"), ClassName);
+        }
+        else if (!ParseToken(Str, PropertyName, ARRAY_COUNT(PropertyName), 1)
+            || (Property = FindField<UProperty>(Class, PropertyName)) == nullptr)
+        {
+            Ar.Logf(NAME_ExecWarning, TEXT("Unrecognized property %s"), PropertyName);
+        }
+        else
+        {
+            TCHAR Temp[256] = {};
+            if (Class->Defaults.Num())
+            {
+                BYTE* Defaults = reinterpret_cast<BYTE*>(Class->GetDefaultObject());
+                Property->ExportText(0, Temp, Defaults, Defaults, 1);
+            }
+            Ar.Log(Temp);
+        }
+    }
+    else if (ParseCommand(&Str, TEXT("SET")))
+    {
+        TCHAR ClassName[256];
+        TCHAR PropertyName[256];
+        UClass* Class;
+        UProperty* Property;
+        if (!ParseToken(Str, ClassName, ARRAY_COUNT(ClassName), 1)
+            || (Class = Cast<UClass>(StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, ClassName))) == nullptr)
+        {
+            Ar.Logf(NAME_ExecWarning, TEXT("Unrecognized class %s"), ClassName);
+        }
+        else if (!ParseToken(Str, PropertyName, ARRAY_COUNT(PropertyName), 1)
+            || (Property = FindField<UProperty>(Class, PropertyName)) == nullptr)
+        {
+            Ar.Logf(NAME_ExecWarning, TEXT("Unrecognized property %s"), PropertyName);
+        }
+        else
+        {
+            while (*Str == ' ')
+                Str++;
+            GlobalSetProperty(Str, Class, Property, Property->Offset, 1);
+        }
+    }
+    else if (ParseCommand(&Str, TEXT("OBJ")))
+    {
+        if (ParseCommand(&Str, TEXT("GARBAGE")))
+        {
+            // collects even with -NOGC
+            const UBOOL SavedNoGC = GNoGC;
+            GNoGC = 0;
+            // CollectGarbage(RF_Native)
+            NOT_DECOMPILED(0x00025946);
+            GNoGC = SavedNoGC;
+        }
+        else if (ParseCommand(&Str, TEXT("MARK")))
+        {
+            // the mark is the bit ShutdownAfterError also uses
+            GLog->Logf(TEXT("Marking objects"));
+            for (INT i = 0; i < GObjObjects.Num(); i++)
+                if (GObjObjects[i])
+                    GObjObjects[i]->ObjectFlags |= RF_ErrorShutdown;
+        }
+        else if (ParseCommand(&Str, TEXT("MARKCHECK")))
+        {
+            GLog->Logf(TEXT("Unmarked objects:"));
+            for (INT i = 0; i < GObjObjects.Num(); i++)
+                if (GObjObjects[i] && !(GObjObjects[i]->ObjectFlags & RF_ErrorShutdown))
+                    GLog->Logf(TEXT("%s"), GObjObjects[i]->GetFullName());
+        }
+        else if (ParseCommand(&Str, TEXT("REFS")))
+        {
+            UObject* Class;
+            UObject* Object;
+            if (ParseObject(Str, TEXT("CLASS="), UClass::StaticClass(), Class, ANY_PACKAGE)
+                && ParseObject(Str, TEXT("NAME="), static_cast<UClass*>(Class), Object, ANY_PACKAGE))
+            {
+                // the referencers and the shortest path from the root set
+                NOT_DECOMPILED(0x0002a1c5);
+            }
+        }
+        else if (ParseCommand(&Str, TEXT("HASH")))
+        {
+            // the xbox then walks every object and every object hash chain without printing anything
+            FName::DisplayHash(Ar);
+        }
+        else if (ParseCommand(&Str, TEXT("CLASSES")))
+        {
+            ShowClasses(UObject::StaticClass(), Ar, 0);
+        }
+        else if (ParseCommand(&Str, TEXT("DEPENDENCIES")))
+        {
+            UObject* Pkg;
+            if (ParseObject(Str, TEXT("PACKAGE="), UPackage::StaticClass(), Pkg, nullptr))
+                NOT_DECOMPILED(0x0002a3c4);
+        }
+        else if (ParseCommand(&Str, TEXT("MEM")))
+        {
+            // object memory by class or by object, optionally filtered by CLASS=, PACKAGE= and INSIDE=
+            NOT_DECOMPILED(0x0002a4c1);
+        }
+        else if (ParseCommand(&Str, TEXT("VFHASH")))
+        {
+            Ar.Logf(TEXT("Class VfHashes:"));
+            for (INT i = 0; i < GObjObjects.Num(); i++)
+            {
+                UClass* Class = Cast<UClass>(GObjObjects[i]);
+                if (!Class)
+                    continue;
+                Ar.Logf(TEXT("%s:"), Class->GetName());
+                for (INT j = 0; j < FUNC_HASH_BUCKETS; j++)
+                {
+                    INT c = 0;
+                    for (UStruct* Hash = Class->FuncHash[j]; Hash; Hash = Hash->HashNext)
+                        c++;
+                    Ar.Logf(TEXT("   %i: %i"), j, c);
+                }
+            }
+        }
+        else if (ParseCommand(&Str, TEXT("LINKERS")))
+        {
+            Ar.Logf(TEXT("Linkers:"));
+            for (INT i = 0; i < GObjLoaders.Num(); i++)
+            {
+                ULinkerLoad* Linker = GObjLoaders[i];
+                INT NameSize = 0;
+                for (INT j = 0; j < Linker->NameMap.Num(); j++)
+                    if (Linker->NameMap[j] != NAME_None)
+                        NameSize += appStrlen(*Linker->NameMap[j]) + 13;
+                // sizes are the xbox's: 28 bytes per import, 40 per export
+                Ar.Logf(TEXT("%s (%s): Names=%i (%iK/%iK) Imports=%i (%iK) Exports=%i (%iK) Gen=%i Lazy=%i"),
+                    *Linker->Filename, Linker->LinkerRoot->GetFullName(), Linker->NameMap.Num(),
+                    Linker->NameMap.Num() * 4 / 1024, NameSize / 1024, Linker->ImportMap.Num(),
+                    Linker->ImportMap.Num() * 28 / 1024, Linker->ExportMap.Num(), Linker->ExportMap.Num() * 40 / 1024,
+                    Linker->Summary.Generations.Num(), Linker->LazyLoaders.Num());
+            }
+        }
+        else
+        {
+            return 0;
+        }
+    }
+    else if (ParseCommand(&Str, TEXT("GTIME")))
+    {
+        GLog->Logf(TEXT("GTime = %f"), GTime);
+    }
+    else if (ParseCommand(&Str, TEXT("VERSION")))
+    {
+        Ar.Logf(TEXT("%s, Engine version %d, compiled %s"), *GBuildLabel, ENGINE_VERSION, TEXT("Jan 25 2005"));
+    }
+    else
+    {
+        return 0;
+    }
+    return 1;
 }

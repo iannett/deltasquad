@@ -19,6 +19,12 @@ AInternetLink::AInternetLink()
 
 // ---------------------------------------------------------------------------------------------- udp links
 
+void AUdpLink::PostScriptDestroyed()
+{
+    if (Socket != INVALID_SOCKET)
+        close(Socket);
+}
+
 // 0x00230d7f
 void AUdpLink::execBindPort(FFrame& Stack, RESULT_DECL)
 {
@@ -107,4 +113,14 @@ void AUdpLink::execBindPort(FFrame& Stack, RESULT_DECL)
     close(Socket);
     Socket = 0;
     *static_cast<DWORD*>(Result) = 0;
+}
+
+// ---------------------------------------------------------------------------------------------- tcp links
+
+void ATcpLink::PostScriptDestroyed()
+{
+    if (Socket != INVALID_SOCKET)
+        close(Socket);
+    if (RemoteSocket != INVALID_SOCKET)
+        close(RemoteSocket);
 }

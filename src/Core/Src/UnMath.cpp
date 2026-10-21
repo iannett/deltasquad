@@ -65,6 +65,28 @@ FMatrix FCoords::Matrix() const
     return R;
 }
 
+FMatrix FMatrix::TransposeAdjoint() const
+{
+    FMatrix TA;
+    TA.M[0][0] = M[1][1] * M[2][2] - M[2][1] * M[1][2];
+    TA.M[0][1] = M[2][0] * M[1][2] - M[1][0] * M[2][2];
+    TA.M[0][2] = M[2][1] * M[1][0] - M[2][0] * M[1][1];
+    TA.M[0][3] = 0.f;
+    TA.M[1][0] = M[2][1] * M[0][2] - M[0][1] * M[2][2];
+    TA.M[1][1] = M[0][0] * M[2][2] - M[2][0] * M[0][2];
+    TA.M[1][2] = M[2][0] * M[0][1] - M[2][1] * M[0][0];
+    TA.M[1][3] = 0.f;
+    TA.M[2][0] = M[0][1] * M[1][2] - M[0][2] * M[1][1];
+    TA.M[2][1] = M[1][0] * M[0][2] - M[0][0] * M[1][2];
+    TA.M[2][2] = M[1][1] * M[0][0] - M[1][0] * M[0][1];
+    TA.M[2][3] = 0.f;
+    TA.M[3][0] = 0.f;
+    TA.M[3][1] = 0.f;
+    TA.M[3][2] = 0.f;
+    TA.M[3][3] = 1.f;
+    return TA;
+}
+
 // 0x00133d79. the inverse by cofactors.
 FMatrix FMatrix::Inverse() const
 {

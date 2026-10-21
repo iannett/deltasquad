@@ -12,6 +12,7 @@
 #include "UnKarma.h"
 #include "UnURL.h"
 #include "UnLevel.h"
+#include "UnTerrain.h"
 
 // the classes members point at, declared ahead
 class USound;
@@ -964,8 +965,8 @@ public:
     UStaticMesh* StaticMesh;
     AActor* Owner;
     AActor* Base;
-    FActorRenderDataPtr ActorRenderData;  // C++ only
-    FLightRenderDataPtr LightRenderData;  // C++ only
+    FActorRenderData* ActorRenderData;  // C++ only
+    FLightRenderData* LightRenderData;  // C++ only
     INT RenderRevision;  // C++ only
     BYTE StaticFilterState;  // C++ only
     TArrayNoInit<FBatchReference> StaticSectionBatches;  // C++ only
@@ -1115,8 +1116,8 @@ public:
     FRotator RelativeRotation;
     ASquadMarker* SquadMarker;
     FLOAT HUDMarkerIconZOffset;
-    TArrayNoInit<FProjectorRenderInfoPtr> Projectors;  // C++ only
-    TArrayNoInit<FStaticMeshProjectorRenderInfoPtr> StaticMeshProjectors;  // C++ only
+    TArrayNoInit<FProjectorRenderInfo*> Projectors;  // C++ only
+    TArrayNoInit<FStaticMeshProjectorRenderInfo*> StaticMeshProjectors;  // C++ only
     UMaterial* Texture;
     UStaticMeshInstance* StaticMeshInstance;
     UModel* Brush;
@@ -4167,6 +4168,8 @@ public:
     DECLARE_FUNCTION(execKUpdateConstraintParams)
     DECLARE_FUNCTION(execKGetConstraintForce)
     DECLARE_FUNCTION(execKGetConstraintTorque)
+
+#include "CppText/AKConstraint.h"
 };
 
 class AKAngularJoint : public AKConstraint
@@ -4225,7 +4228,7 @@ class UKarmaParamsCollision : public UObject
 {
     DECLARE_CLASS(UKarmaParamsCollision, UObject, 0x0, UObject)
 public:
-    INT KarmaData;
+    McdModel* KarmaData;
     FLOAT KScale;
     FVector KScale3D;
     FLOAT KFriction;
@@ -6097,18 +6100,18 @@ public:
     TArrayNoInit<FNormalPair> FaceNormals;  // C++ only
     FVector ToWorld[4];  // C++ only
     FVector ToHeightmap[4];  // C++ only
-    TArrayNoInit<INT> SelectedVertices;  // C++ only
+    TArrayNoInit<FSelectedTerrainVertex> SelectedVertices;  // C++ only
     INT ShowGrid;  // C++ only
     TArrayNoInit<INT> QuadVisibilityBitmap;
     TArrayNoInit<INT> EdgeTurnBitmap;
     TArrayNoInit<UMaterial*> QuadDomMaterialBitmap;
-    TArrayNoInit<INT> RenderCombinations;  // C++ only
-    TArrayNoInit<INT> VertexStreams;  // C++ only
+    TArrayNoInit<FTerrainRenderCombination> RenderCombinations;  // C++ only
+    TArrayNoInit<FTerrainVertexStream> VertexStreams;  // C++ only
     TArrayNoInit<FColor> VertexColors;  // C++ only
     TArrayNoInit<FColor> PaintedColor;  // C++ only
     UTexture* CollapsedLayers;  // C++ only
     UTexture* OldTerrainMap;  // C++ only
-    TArrayNoInit<BYTE> OldHeightmap;  // C++ only
+    TArrayNoInit<_WORD> OldHeightmap;  // C++ only
 
 #include "CppText/ATerrainInfo.h"
 };
@@ -6946,6 +6949,8 @@ public:
 class UStaticMeshInstance : public UObject
 {
     DECLARE_CLASS(UStaticMeshInstance, UObject, 0x80, UObject)
+public:
+#include "CppText/UStaticMeshInstance.h"
 };
 
 // 88 bytes on the xbox
@@ -6960,6 +6965,8 @@ public:
 class UTerrainSector : public UObject
 {
     DECLARE_CLASS(UTerrainSector, UObject, 0x0, UObject)
+public:
+#include "CppText/UTerrainSector.h"
 };
 
 // 108 bytes on the xbox

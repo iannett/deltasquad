@@ -125,12 +125,46 @@ struct FBox
     FVector GetCenter() const { return FVector((Min.X + Max.X) * 0.5f, (Min.Y + Max.Y) * 0.5f, (Min.Z + Max.Z) * 0.5f); }
     // half the size on each axis
     FVector GetExtent() const { return FVector((Max.X - Min.X) * 0.5f, (Max.Y - Min.Y) * 0.5f, (Max.Z - Min.Z) * 0.5f); }
+    // 0x000435b6. grows the box to hold Other.
+    FBox& operator+=(const FVector& Other)
+    {
+        if (IsValid)
+        {
+            Min = FVector(Min.X < Other.X ? Min.X : Other.X, Min.Y < Other.Y ? Min.Y : Other.Y, Min.Z < Other.Z ? Min.Z : Other.Z);
+            Max = FVector(Max.X > Other.X ? Max.X : Other.X, Max.Y > Other.Y ? Max.Y : Other.Y, Max.Z > Other.Z ? Max.Z : Other.Z);
+        }
+        else
+        {
+            Min = Max = Other;
+            IsValid = 1;
+        }
+        return *this;
+    }
+    // 0x00038536. when either box is empty this becomes Other, even an empty Other.
+    FBox& operator+=(const FBox& Other)
+    {
+        if (IsValid && Other.IsValid)
+        {
+            Min = FVector(Min.X <= Other.Min.X ? Min.X : Other.Min.X, Min.Y <= Other.Min.Y ? Min.Y : Other.Min.Y, Min.Z <= Other.Min.Z ? Min.Z : Other.Min.Z);
+            Max = FVector(Max.X < Other.Max.X ? Other.Max.X : Max.X, Max.Y < Other.Max.Y ? Other.Max.Y : Max.Y, Max.Z < Other.Max.Z ? Other.Max.Z : Max.Z);
+        }
+        else
+        {
+            *this = Other;
+        }
+        return *this;
+    }
 };
 
 // the xbox copies vectors, planes and boxes as raw bytes
 inline FArchive& operator<<(FArchive& Ar, FVector& V)
 {
     return Ar << V.X << V.Y << V.Z;
+}
+
+inline FArchive& operator<<(FArchive& Ar, FRotator& R)
+{
+    return Ar << R.Pitch << R.Yaw << R.Roll;
 }
 
 inline FArchive& operator<<(FArchive& Ar, FPlane& P)
@@ -229,6 +263,19 @@ struct FMatrix
     FMatrix Inverse() const;
     // 0x00135e47
     FRotator Rotator() const;
+    // 0x00134396. the cofactors of the 3x3 part, transposed; transforms normals.
+    FMatrix TransposeAdjoint() const;
+    FLOAT Determinant() const
+    {
+        return M[0][0] * (M[1][1] * (M[2][2] * M[3][3] - M[2][3] * M[3][2]) - M[2][1] * (M[1][2] * M[3][3] - M[1][3] * M[3][2])
+                   + M[3][1] * (M[1][2] * M[2][3] - M[1][3] * M[2][2]))
+            - M[1][0] * (M[0][1] * (M[2][2] * M[3][3] - M[2][3] * M[3][2]) - M[2][1] * (M[0][2] * M[3][3] - M[0][3] * M[3][2])
+                   + M[3][1] * (M[0][2] * M[2][3] - M[0][3] * M[2][2]))
+            + M[2][0] * (M[0][1] * (M[1][2] * M[3][3] - M[1][3] * M[3][2]) - M[1][1] * (M[0][2] * M[3][3] - M[0][3] * M[3][2])
+                   + M[3][1] * (M[0][2] * M[1][3] - M[0][3] * M[1][2]))
+            - M[3][0] * (M[0][1] * (M[1][2] * M[2][3] - M[1][3] * M[2][2]) - M[1][1] * (M[0][2] * M[2][3] - M[0][3] * M[2][2])
+                   + M[2][1] * (M[0][2] * M[1][3] - M[0][3] * M[1][2]));
+    }
 
     // this transform followed by Other
     FMatrix operator*(const FMatrix& Other) const;
@@ -238,6 +285,13 @@ struct FMatrix
         return FVector(V.X * M[0][0] + V.Y * M[1][0] + V.Z * M[2][0] + M[3][0],
                        V.X * M[0][1] + V.Y * M[1][1] + V.Z * M[2][1] + M[3][1],
                        V.X * M[0][2] + V.Y * M[1][2] + V.Z * M[2][2] + M[3][2]);
+    }
+    // a direction: the vector as a row with w 0
+    FVector TransformNormal(const FVector& V) const
+    {
+        return FVector(V.X * M[0][0] + V.Y * M[1][0] + V.Z * M[2][0],
+                       V.X * M[0][1] + V.Y * M[1][1] + V.Z * M[2][1],
+                       V.X * M[0][2] + V.Y * M[1][2] + V.Z * M[2][2]);
     }
 };
 

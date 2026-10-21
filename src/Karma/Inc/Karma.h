@@ -146,10 +146,11 @@ struct McdFramework
 {
     INT               GeometryTypeCount;
     INT               RegisteredTypes;
-    INT               Unknown8;
+    // every model made with this framework, in a circular list
+    struct McdModel*  Models;
     // every geometry made with this framework, in a circular list
     struct McdGeometry* Geometries;
-    INT               Unknown10;
+    INT               ModelCount;
     INT               GeometryCount;
     McdGeometryType*  Types;
     McdFrameworkHook* Hooks;
@@ -158,14 +159,17 @@ struct McdFramework
     INT               Unknown28[6];
     INT               Unknown40;
     MePool            ModelPool;
-    MePool            Unknown60;
-    FLOAT             Unknown7C;
+    MePool            InstancePool;
+    // how far each new model's box reaches past its geometry
+    FLOAT             DefaultPadding;
     FLOAT             Scale;
     INT*              Unknown84;
-    INT*              Unknown88;
+    // what a collision query asks for: the most contacts, then whether face normals come first
+    INT*              DefaultRequest;
     const char*       Version;
 };
 
+const char*   McdGetVersion();
 McdFramework* McdInit(INT GeometryTypeMaxCount, INT ModelCount, INT Unknown3, FLOAT Scale);
 void McdGeometryRegisterType(McdFramework* Framework, SWORD TypeId, const char* Name, void (*Destroy)(void*),
     void (*GetAABB)(void*, void*, void*), void (*GetBSphere)(void*, void*, void*), void (*MaximumPoint)(void*, void*, void*),
@@ -173,6 +177,8 @@ void McdGeometryRegisterType(McdFramework* Framework, SWORD TypeId, const char* 
 void McdFrameworkSetTypeFunction(McdFramework* Framework, INT TypeId, void (*Fn)());
 void McdFrameworkSetInteraction(McdFramework* Framework, INT TypeA, INT TypeB, const McdInteraction* Interaction);
 void McdFrameworkAddHook(McdFramework* Framework, void (*Fn)());
+// 0x0018cc40
+INT* McdFrameworkGetDefaultRequestPtr(McdFramework* Framework);
 
 // the geometry types the game registers
 void McdNullRegisterType(McdFramework* Framework);
@@ -196,6 +202,7 @@ struct MeUnknown1C
 };
 
 MeUnknown1C* MeUnknown1CCreate(INT Max);
+void         MeUnknown1CDestroy(MeUnknown1C* Array);
 
 // ---------------------------------------------------------------------------------------------- files
 
@@ -668,3 +675,319 @@ enum EMeXMLNodeType
 };
 
 INT MeAssetDBXMLReadKarma(MeXMLElement* Element, void* Context);
+
+// ---------------------------------------------------------------------------------------------- math
+
+// 0x0018c8f0. Out is A followed by B, for transforms whose last column is 0, 0, 0, 1.
+void MeMatrix4TMCompose(FLOAT* Out, const FLOAT* A, const FLOAT* B);
+
+// ---------------------------------------------------------------------------------------------- dictionaries
+
+// a red-black tree of keys and data, in the layout of kazlib's dict
+struct MeDictNode
+{
+    MeDictNode* Left;
+    MeDictNode* Right;
+    MeDictNode* Parent;
+    INT         Color;
+    const void* Key;
+    void*       Data;
+};
+
+struct MeDict
+{
+    // the sentinel every leaf points at
+    MeDictNode  Nil;
+    DWORD       NodeCount;
+    DWORD       MaxCount;
+    INT         (*Compare)(const void* A, const void* B);
+    MeDictNode* (*AllocNode)(void* Context);
+    void        (*FreeNode)(MeDictNode* Node, void* Context);
+    void*       Context;
+    UBOOL       AllowDupes;
+};
+
+void MeDictInit(MeDict* Dict, DWORD MaxCount, INT (*Compare)(const void* A, const void* B));
+void MeDictAllowDupes(MeDict* Dict);
+// 0x00184e90. orders keys by their value.
+INT  MeDictCompareKeys(const void* A, const void* B);
+
+// a block of memory that grows as needed
+struct MeChunk
+{
+    void* Unknown0;
+    INT   Unknown4;
+    INT   Unknown8;
+    INT   Alignment;
+    UBOOL Unknown10;
+    INT   Unknown14;
+};
+
+void MeChunkInit(MeChunk* Chunk, INT Alignment);
+
+// ---------------------------------------------------------------------------------------------- dynamics
+
+// how two touching surfaces behave
+struct MdtContactParams
+{
+    // 0 no friction, 1 friction in one direction, 2 in both
+    INT   Type;
+    // 0 box friction, 1 friction scaled by the normal force
+    INT   PrimaryFrictionModel;
+    INT   SecondaryFrictionModel;
+    // 4 is set while the contact is soft
+    DWORD Options;
+    FLOAT Restitution;
+    FLOAT VelocityThreshold;
+    FLOAT Softness;
+    FLOAT Unknown1C;
+    FLOAT PrimaryFriction;
+    FLOAT PrimarySlip;
+    FLOAT Unknown28;
+    FLOAT SecondaryFriction;
+    FLOAT SecondarySlip;
+    FLOAT Unknown34;
+    FLOAT Unknown38;
+    FLOAT Unknown3C;
+    INT   Unknown40;
+    INT   Unknown44;
+};
+
+void MdtContactParamsReset(MdtContactParams* Params);
+void MdtContactParamsSetType(MdtContactParams* Params, INT Type);
+void MdtContactParamsSetFrictionModel(MdtContactParams* Params, INT Model);
+void MdtContactParamsSetSoftness(MdtContactParams* Params, FLOAT Softness);
+void MdtContactParamsSetFriction(MdtContactParams* Params, FLOAT Friction);
+void MdtContactParamsSetPrimarySlip(MdtContactParams* Params, FLOAT Slip);
+
+typedef void (*MdtBodyCB)(void* Body);
+
+// the dynamics of a level. its bodies and constraints come from fixed pools.
+struct MdtWorld
+{
+    MeDict      Unknown0;
+    MeDict      Unknown34;
+    MeDict      Unknown68;
+    MeChunk     Unknown9C;
+    INT         MaxBodies;
+    INT         UnknownB8;
+    INT         UnknownBC;
+    MePool      BodyPool;
+    MeChunk     UnknownDC;
+    INT         MaxConstraints;
+    INT         UnknownF8;
+    MePool      ConstraintPool;
+    INT         Unknown118[7];
+    MeChunk     Unknown134;
+    MeChunk     Unknown14C;
+    FLOAT       Gravity[3];
+    INT         Unknown170;
+    INT         Unknown174;
+    INT         Unknown178;
+    FLOAT       LengthScale;
+    FLOAT       MassScale;
+    // mass over length cubed
+    FLOAT       DensityScale;
+    FLOAT       Unknown188;
+    FLOAT       Unknown18C;
+    UBOOL       AutoDisable;
+    FLOAT       AutoDisableVelocityThreshold;
+    FLOAT       AutoDisableAngularVelocityThreshold;
+    FLOAT       AutoDisableAccelerationThreshold;
+    FLOAT       AutoDisableAngularAccelerationThreshold;
+    FLOAT       AutoDisableAliveWindow;
+    INT         Unknown1A8;
+    INT         Unknown1AC;
+    FLOAT       Unknown1B0;
+    FLOAT       Unknown1B4;
+    FLOAT       Unknown1B8;
+    FLOAT       Unknown1BC;
+    FLOAT       Unknown1C0;
+    FLOAT       Unknown1C4;
+    INT         Unknown1C8;
+    MdtBodyCB   BodyEnableCB;
+    MdtBodyCB   BodyDisableCB;
+    MdtBodyCB   Unknown1D4;
+    const char* Unknown1D8;
+    INT         Unknown1DC;
+    FLOAT       Epsilon;
+    FLOAT       Unknown1E4;
+    INT         Unknown1E8;
+    FLOAT       Unknown1EC;
+    INT         Unknown1F0[2];
+    INT         Unknown1F8;
+    INT         Unknown1FC;
+    INT         Unknown200;
+    INT         Unknown204;
+    INT         Unknown208;
+    INT         Unknown20C;
+    INT         Unknown210;
+    INT         Unknown214;
+    INT         Unknown218[4];
+    void        (*Unknown228)(void* Unknown1, void* Bodies, INT Count);
+    UBOOL       Unknown22C;
+    INT         Unknown230;
+};
+
+MdtWorld* MdtWorldCreate(INT MaxBodies, INT MaxConstraints, FLOAT LengthScale, FLOAT MassScale);
+void MdtWorldSetEpsilon(MdtWorld* World, FLOAT Epsilon);
+void MdtWorldSetAutoDisable(MdtWorld* World, UBOOL AutoDisable);
+void MdtWorldSetAutoDisableVelocityThreshold(MdtWorld* World, FLOAT Threshold);
+void MdtWorldSetAutoDisableAngularVelocityThreshold(MdtWorld* World, FLOAT Threshold);
+void MdtWorldSetAutoDisableAccelerationThreshold(MdtWorld* World, FLOAT Threshold);
+void MdtWorldSetAutoDisableAngularAccelerationThreshold(MdtWorld* World, FLOAT Threshold);
+void MdtWorldSetAutoDisableAliveWindow(MdtWorld* World, FLOAT Time);
+void MdtWorldSetUnknown22C(MdtWorld* World, UBOOL Value);
+
+// ---------------------------------------------------------------------------------------------- models
+
+// a geometry placed in the world, with the box around it. an aggregate's parts get child instances.
+struct McdGeometryInstance
+{
+    McdGeometry*         Geometry;
+    FLOAT*               TM;
+    FLOAT                Min[3];
+    FLOAT                Max[3];
+    INT                  Unknown20;
+    McdGeometryInstance* Prev;
+    McdGeometryInstance* Next;
+    McdGeometryInstance* Parent;
+    McdGeometryInstance* Child;
+};
+
+void McdGeometryInstanceReset(McdGeometryInstance* Instance);
+void McdGeometryInstanceSetGeometry(McdGeometryInstance* Instance, McdGeometry* Geometry);
+void McdGeometryInstanceSetTransformPtr(McdGeometryInstance* Instance, FLOAT* TM);
+void McdGeometryInstanceUpdateAABB(McdGeometryInstance* Instance, void* Unknown1, void* Unknown2);
+void McdGeometryInstanceGetAABB(McdGeometryInstance* Instance, FLOAT* Min, FLOAT* Max);
+
+// something that collides
+struct McdModel
+{
+    McdFramework*       Framework;
+    McdModel*           Prev;
+    McdModel*           Next;
+    INT                 UnknownC;
+    INT                 Unknown10;
+    INT                 Unknown14;
+    FLOAT               Padding;
+    INT                 Unknown1C;
+    _WORD               Unknown20;
+    INT                 Unknown24;
+    INT                 Unknown28;
+    void                (*Unknown2C)(McdModel* Model);
+    // when set, the instance's transform is RelTM followed by BodyTM
+    FLOAT*              RelTM;
+    FLOAT*              BodyTM;
+    INT                 Unknown38;
+    INT                 Unknown3C;
+    McdGeometryInstance Instance;
+    void*               UserData;
+};
+
+McdModel* McdModelCreate(McdGeometry* Geometry);
+void      McdModelSetTransformPtr(McdModel* Model, FLOAT* TM);
+void      McdModelSetUserData(McdModel* Model, void* UserData);
+void      McdModelUpdate(McdModel* Model);
+void      McdModelGetAABB(McdModel* Model, FLOAT* Min, FLOAT* Max);
+
+void McdGeometryIncrementReferenceCount(McdGeometry* Geometry);
+void McdGeometryDecrementReferenceCount(McdGeometry* Geometry);
+
+// geometry made of others, each with its own transform
+struct McdAggregateElement
+{
+    FLOAT        TM[16];
+    McdGeometry* Geometry;
+};
+
+struct McdAggregate
+{
+    McdGeometry          Base;
+    McdAggregateElement* Elements;
+    INT                  Unknown14;
+    INT                  ElementCount;
+};
+
+INT          McdAggregateGetElementCount(McdAggregate* Aggregate);
+McdGeometry* McdAggregateGetElementGeometry(McdAggregate* Aggregate, INT Index);
+
+// triangles a callback hands out for whatever a model's box touches
+typedef INT (*McdTriangleListGenerator)(void* Pair, void* Triangles, FLOAT* Position, FLOAT Radius, INT MaxTriangles);
+
+struct McdTriangleList
+{
+    McdGeometry              Base;
+    FLOAT                    Center[3];
+    FLOAT                    Extent[3];
+    INT                      MaxTriangles;
+    void*                    UserData;
+    McdTriangleListGenerator Generator;
+    void*                    Unknown34;
+};
+
+McdTriangleList* McdTriangleListCreate(McdFramework* Framework, const FLOAT* Min, const FLOAT* Max, INT MaxTriangles,
+    McdTriangleListGenerator Generator);
+void McdTriangleListSetUserData(McdTriangleList* List, void* UserData);
+
+// ---------------------------------------------------------------------------------------------- bridge
+
+// buffers the bridge collides with (name invented)
+struct MstBridgeBuffer
+{
+    void*  Data;
+    INT    Unknown4;
+    INT    Max;
+};
+
+struct MstBridgeBuffers
+{
+    INT              Unknown0;
+    // a slot for each pair of geometry types
+    INT*             PairTable;
+    McdFramework*    Framework;
+    INT              TypeCount;
+    void*            Unknown10;
+    void*            Unknown14;
+    INT              Unknown18;
+    INT              Unknown1C;
+    void*            Unknown20;
+    INT              Unknown24;
+    INT              Unknown28;
+    void*            Unknown2C;
+    INT              Unknown30;
+    INT              Unknown34;
+    MstBridgeBuffer* Unknown38;
+    INT              Unknown3C;
+    INT              Unknown40;
+    INT              Unknown44[3];
+};
+
+// what happens between two materials. the callback names follow Karma's bridge but their order is a guess.
+struct MstMaterialPair
+{
+    MdtContactParams Params;
+    INT              (*IntersectCB)(void* Unknown1, void* Unknown2, void* Unknown3);
+    INT              (*PerContactCB)(void* Unknown1, void* Unknown2);
+    void*            PerPairCB;
+};
+
+// turns collisions into contacts for the dynamics
+struct MstBridge
+{
+    INT               MaxMaterials;
+    INT               MaterialCount;
+    // one for each pair of materials
+    MstMaterialPair*  Pairs;
+    MeUnknown1C*      Unknown0C;
+    MstBridgeBuffers* Buffers;
+    void*             Unknown14;
+    INT               Unknown18;
+};
+
+MstBridge*        MstBridgeCreate(McdFramework* Framework, INT MaxMaterials);
+void              MstBridgeSetUnknown0C(MstBridge* Bridge, INT Max);
+MdtContactParams* MstBridgeGetContactParams(MstBridge* Bridge, DWORD Material1, DWORD Material2);
+void              MstBridgeSetIntersectCB(MstBridge* Bridge, DWORD Material1, DWORD Material2,
+    INT (*Fn)(void* Unknown1, void* Unknown2, void* Unknown3));
+void              MstBridgeSetPerContactCB(MstBridge* Bridge, DWORD Material1, DWORD Material2, INT (*Fn)(void* Unknown1, void* Unknown2));
