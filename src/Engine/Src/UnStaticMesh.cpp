@@ -74,16 +74,52 @@ UBOOL UStaticMesh::PointCheck(FCheckResult& Result, AActor* Owner, const FVector
     return 1;
 }
 
+void UConvexVolume::Serialize(FArchive& Ar)
+{
+    UPrimitive::Serialize(Ar);
+    Ar << Faces << Unknown5C << Unknown64;
+}
+
 UBOOL UFluidSurfacePrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
 {
     NOT_DECOMPILED(0x000a220b);
     return 1;
 }
 
+// the owner is assumed to be a projector; the xbox dereferences the failed cast too
 UBOOL UProjectorPrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
 {
-    NOT_DECOMPILED(0x00076d18);
-    return 1;
+    AProjector* Projector = Cast<AProjector>(Owner);
+
+    for (INT i = 0; i < 6; i++)
+    {
+        const FPlane& Plane = Projector->FrustumPlanes[i];
+        const FLOAT PushOut = fabsf(Extent.Z * Plane.Z) + fabsf(Extent.Y * Plane.Y) + fabsf(Extent.X * Plane.X);
+        if ((Location | Plane) - Plane.W < -PushOut)
+            return 1;
+    }
+
+    // the projector's box grown by the extent, as six inward facing planes
+    const FBox Box = Projector->Box;
+    const FPlane BoxPlanes[6] =
+    {
+        FPlane(0.f, 0.f, 1.f, Box.Min.Z - Extent.Z),
+        FPlane(0.f, 0.f, -1.f, -(Extent.Z + Box.Max.Z)),
+        FPlane(1.f, 0.f, 0.f, Box.Min.X - Extent.X),
+        FPlane(-1.f, 0.f, 0.f, -(Extent.X + Box.Max.X)),
+        FPlane(0.f, 1.f, 0.f, Box.Min.Y - Extent.Y),
+        FPlane(0.f, -1.f, 0.f, -(Extent.Y + Box.Max.Y)),
+    };
+    for (INT i = 0; i < 6; i++)
+    {
+        if ((Location | BoxPlanes[i]) - BoxPlanes[i].W < 0.f)
+            return 1;
+    }
+
+    Result.Actor = Projector;
+    Result.Normal = Projector->Rotation.Vector();
+    Result.Location = Location;
+    return 0;
 }
 
 UBOOL UTerrainPrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
@@ -94,14 +130,12 @@ UBOOL UTerrainPrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const F
 
 FBox UFluidSurfacePrimitive::GetCollisionBoundingBox(const AActor* Owner) const
 {
-    NOT_DECOMPILED(0x000a2329);
-    return FBox{};
+    return Info->FluidBoundingBox.TransformBy(Owner->ToWorld());
 }
 
 FBox UProjectorPrimitive::GetCollisionBoundingBox(const AActor* Owner) const
 {
-    NOT_DECOMPILED(0x000763dc);
-    return FBox{};
+    return static_cast<const AProjector*>(Owner)->Box;
 }
 
 // ---------------------------------------------------------------------------------------------- old formats

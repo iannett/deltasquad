@@ -57,3 +57,6 @@ extern FOutputDevice*      GLogDetail;
 extern UBOOL               GIsCriticalError;
 
 #define appErrorf(...) GError->Logf(__VA_ARGS__)
+
+// 0x00035205. formats into a shared buffer and throws it as a const TCHAR*; the load functions catch it.
+[[noreturn]] void appThrowf(const TCHAR* Fmt, ...);

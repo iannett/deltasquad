@@ -16,3 +16,7 @@
     }
     // 0x00070cad. CT's name.
     virtual UBOOL LocalPlayerController() { return 0; }
+    // 0x000df614. as the actor's, on the pawn's animation.
+    void StartAnimPoll() override;
+    // 0x000dee6f
+    UBOOL CheckAnimFinished(INT Channel) override;

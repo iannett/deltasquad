@@ -93,22 +93,10 @@ void AActor::execSetDrawType(FFrame& Stack, RESULT_DECL)
     NOT_DECOMPILED(0x000dfd3b);
 }
 
-// 0x0002b85f
-void AActor::execMove(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x0002b85f);
-}
-
 // 0x000e0ddf
 void AActor::execSetLocation(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x000e0ddf);
-}
-
-// 0x0002b8b6
-void AActor::execSetRotation(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x0002b8b6);
 }
 
 // 0x000e69ee
@@ -141,70 +129,16 @@ void AActor::execSetBase(FFrame& Stack, RESULT_DECL)
     NOT_DECOMPILED(0x000dfbf6);
 }
 
-// 0x000e1069
-void AActor::execSetOwner(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e1069);
-}
-
 // 0x000e9f2c
 void AActor::execGetMeshName(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x000e9f2c);
 }
 
-// 0x000e5587
-void AActor::execPlayAnim(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e5587);
-}
-
-// 0x000e89f7
-void AActor::execLoopAnim(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e89f7);
-}
-
-// 0x000df76e
-void AActor::execIsAnimating(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000df76e);
-}
-
-// 0x000df52f
-void AActor::execFinishAnim(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000df52f);
-}
-
-// 0x000e576f
-void AActor::execHasAnim(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e576f);
-}
-
-// 0x000df7c6
-void AActor::execStopAnimating(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000df7c6);
-}
-
-// 0x000e56f2
-void AActor::execIsPlayingAnim(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000e56f2);
-}
-
 // 0x000df8ab
 void AActor::execLinkMesh(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x000df8ab);
-}
-
-// 0x000df997
-void AActor::execLinkAnimToMesh(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000df997);
 }
 
 // 0x000e8b75
@@ -319,12 +253,6 @@ void AActor::execFinishInterpolation(FFrame& Stack, RESULT_DECL)
 void AActor::execSetPhysics(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x0011089a);
-}
-
-// 0x000dfad0
-void AActor::execOnlyAffectPawns(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000dfad0);
 }
 
 // 0x0007e3c5
@@ -883,18 +811,6 @@ void AController::execPickWallAdjust(FFrame& Stack, RESULT_DECL)
 void AController::execWaitForLanding(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x000ff5d4);
-}
-
-// 0x000ff539
-void AController::execAddController(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000ff539);
-}
-
-// 0x000ff574
-void AController::execRemoveController(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000ff574);
 }
 
 // 0x00101892
@@ -2271,12 +2187,6 @@ void APawn::execIsWounded(FFrame& Stack, RESULT_DECL)
     NOT_DECOMPILED(0x000ebce3);
 }
 
-// 0x000ebd1a
-void APawn::execUseWoundedAnims(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x000ebd1a);
-}
-
 // 0x000ebcb0
 void APawn::execIsLocallyControlled(FFrame& Stack, RESULT_DECL)
 {
@@ -2455,12 +2365,6 @@ void ASquadMarker::execCancelMarker(FFrame& Stack, RESULT_DECL)
 void ASquadMarker::execGetMarkerSpotLocation(FFrame& Stack, RESULT_DECL)
 {
     NOT_DECOMPILED(0x000e8939);
-}
-
-// 0x0002c110
-void ASquadMarker::execIsSetUpProperly(FFrame& Stack, RESULT_DECL)
-{
-    NOT_DECOMPILED(0x0002c110);
 }
 
 // 0x000f8542

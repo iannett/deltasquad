@@ -1,4 +1,5 @@
 #include <alloca.h>
+#include <cstdarg>
 #include <cstdio>
 
 #include "Core.h"
@@ -167,8 +168,15 @@ void UObject::ConditionalShutdownAfterError()
 {
     if (!(ObjectFlags & RF_ErrorShutdown))
     {
-        ObjectFlags |= RF_ErrorShutdown;
-        ShutdownAfterError();
+        try
+        {
+            ObjectFlags |= RF_ErrorShutdown;
+            ShutdownAfterError();
+        }
+        catch (...)
+        {
+            GLog->Logf(NAME_Exit, TEXT("Double fault in object ShutdownAfterError"));
+        }
     }
 }
 
@@ -808,13 +816,39 @@ void UObject::ProcessRegistrants()
 // 0x0002b5af
 UClass* UObject::StaticLoadClass(UClass* BaseClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, DWORD LoadFlags, UPackageMap* Sandbox)
 {
-    UClass* Class = static_cast<UClass*>(StaticLoadObject(UClass::StaticClass(), InOuter, InName, Filename, LoadFlags | LOAD_Throw, Sandbox));
-    if (Class && !Class->IsChildOf(BaseClass))
-        appThrowf(LocalizeError(TEXT("LoadClassMismatch"), TEXT("Core")), Class->GetFullName(), BaseClass->GetFullName());
-    return Class;
+    try
+    {
+        UClass* Class = static_cast<UClass*>(StaticLoadObject(UClass::StaticClass(), InOuter, InName, Filename, LoadFlags | LOAD_Throw, Sandbox));
+        if (Class && !Class->IsChildOf(BaseClass))
+            appThrowf(LocalizeError(TEXT("LoadClassMismatch"), TEXT("Core")), Class->GetFullName(), BaseClass->GetFullName());
+        return Class;
+    }
+    catch (const TCHAR* Error)
+    {
+        SafeLoadError(LoadFlags, Error, Error);
+        return nullptr;
+    }
 }
 
-// 0x0002b11b. the xbox caught load errors here; in the port appThrowf is fatal, so there is nothing to catch.
+// 0x00022f2e
+void SafeLoadError(DWORD LoadFlags, const TCHAR* Error, const TCHAR* Fmt, ...)
+{
+    TCHAR Message[4096];
+    va_list Args;
+    va_start(Args, Fmt);
+    vsnprintf(Message, sizeof(Message), Fmt, Args);
+    va_end(Args);
+    if (!(LoadFlags & LOAD_NoThrow))
+        GLog->Logf(NAME_Warning, TEXT("%s"), Message);
+    if (LoadFlags & LOAD_Throw)
+        appThrowf(TEXT("%s"), Error);
+    if (LoadFlags & LOAD_NoFail)
+        GError->Logf(TEXT("%s"), Message);
+    if (!(LoadFlags & LOAD_Unknown2))
+        GWarn->Logf(TEXT("%s"), Message);
+}
+
+// 0x0002b11b
 UObject* UObject::StaticLoadObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* InName, const TCHAR* Filename, DWORD LoadFlags, UPackageMap* Sandbox)
 {
     if (!InOuter && Filename)
@@ -827,56 +861,64 @@ UObject* UObject::StaticLoadObject(UClass* ObjectClass, UObject* InOuter, const 
 
     BeginLoad();
     Result = nullptr;
-
-    UObject* TopOuter = InOuter;
-    while (TopOuter && TopOuter->GetOuter())
-        TopOuter = TopOuter->GetOuter();
-
-    if (!(LoadFlags & LOAD_NoFiles))
+    try
     {
-        // inside a nested load, the newest loader of a flagged package gets the first try
-        if (InOuter && !(LoadFlags & LOAD_Verify) && GObjBeginLoadCount > 1)
+        UObject* TopOuter = InOuter;
+        while (TopOuter && TopOuter->GetOuter())
+            TopOuter = TopOuter->GetOuter();
+
+        if (!(LoadFlags & LOAD_NoFiles))
         {
-            for (INT i = GObjLoaders.Num() - 1; i >= 0; i--)
+            // inside a nested load, the newest loader of a flagged package gets the first try
+            if (InOuter && !(LoadFlags & LOAD_Verify) && GObjBeginLoadCount > 1)
             {
-                ULinkerLoad* Linker = GetLoader(i);
-                if (Linker->ArUnknown16)
+                for (INT i = GObjLoaders.Num() - 1; i >= 0; i--)
                 {
+                    ULinkerLoad* Linker = GetLoader(i);
+                    if (Linker->ArUnknown16)
+                    {
+                        Result = Linker->Create(ObjectClass, FName(InName, FNAME_Add), InOuter, LoadFlags, 0);
+                        break;
+                    }
+                }
+            }
+
+            if (!Result)
+            {
+                if (ULinkerLoad* Linker = GetPackageLinker(TopOuter, Filename, LoadFlags | LOAD_AllowDll, Sandbox, nullptr))
+                {
+                    const INT LoadedCount = GObjLoaded.Num();
                     Result = Linker->Create(ObjectClass, FName(InName, FNAME_Add), InOuter, LoadFlags, 0);
-                    break;
+                    if (Result && !(LoadFlags & LOAD_Verify))
+                    {
+                        if (GObjBeginLoadCount == 1 && GObjLoaded.Num() > LoadedCount)
+                            GLog->Logf(NAME_Warning, TEXT("Dynamic load %s"), Result->GetPathName());
+                        if (Linker->ArUnknown16)
+                            Linker->LoadAllObjects();
+                    }
                 }
             }
         }
 
         if (!Result)
         {
-            if (ULinkerLoad* Linker = GetPackageLinker(TopOuter, Filename, LoadFlags | LOAD_AllowDll, Sandbox, nullptr))
-            {
-                const INT LoadedCount = GObjLoaded.Num();
-                Result = Linker->Create(ObjectClass, FName(InName, FNAME_Add), InOuter, LoadFlags, 0);
-                if (Result && !(LoadFlags & LOAD_Verify))
-                {
-                    if (GObjBeginLoadCount == 1 && GObjLoaded.Num() > LoadedCount)
-                        GLog->Logf(NAME_Warning, TEXT("Dynamic load %s"), Result->GetPathName());
-                    if (Linker->ArUnknown16)
-                        Linker->LoadAllObjects();
-                }
-            }
+            Result = StaticFindObject(ObjectClass, InOuter, InName);
+            if (!Result && !(LoadFlags & LOAD_NoThrow))
+                appThrowf(LocalizeError(TEXT("ObjectNotFound"), TEXT("Core")), ObjectClass->GetName(), InOuter ? InOuter->GetPathName() : TEXT("None"), InName);
         }
-    }
 
-    if (!Result)
+        EndLoad();
+    }
+    catch (const TCHAR* Error)
     {
-        Result = StaticFindObject(ObjectClass, InOuter, InName);
-        if (!Result && !(LoadFlags & LOAD_NoThrow))
-            appThrowf(LocalizeError(TEXT("ObjectNotFound"), TEXT("Core")), ObjectClass->GetName(), InOuter ? InOuter->GetPathName() : TEXT("None"), InName);
+        EndLoad();
+        SafeLoadError(LoadFlags, Error, LocalizeError(TEXT("FailedLoadObject"), TEXT("Core")), ObjectClass->GetName(),
+            InOuter ? InOuter->GetPathName() : TEXT("None"), InName, Error);
     }
-
-    EndLoad();
     return Result;
 }
 
-// 0x0002b3a3. the xbox catches load errors here and reports them as FailedLoad; appThrowf is fatal in the port.
+// 0x0002b3a3. errors are reported as FailedLoadPackage, and passed on unless the flags ask for quiet.
 UPackage* UObject::LoadPackage(UObject* InOuter, const TCHAR* Filename, DWORD LoadFlags)
 {
     UPackage* Result = nullptr;
@@ -887,31 +929,39 @@ UPackage* UObject::LoadPackage(UObject* InOuter, const TCHAR* Filename, DWORD Lo
     else if (Filename && *Filename)
         Context = Filename;
     BeginLoad(Context);
-
-    if (!(LoadFlags & (LOAD_NoThrow | LOAD_Quiet)))
-        LoadFlags |= LOAD_Throw;
-
-    if (ULinkerLoad* Linker = GetPackageLinker(InOuter, Filename, LoadFlags, nullptr, nullptr))
+    try
     {
-        if (Filename && *Filename)
-            Result = static_cast<UPackage*>(StaticFindObject(UPackage::StaticClass(), nullptr, Filename));
-        if (!Result && Linker->LinkerRoot && Linker->LinkerRoot->IsA(UPackage::StaticClass()))
-            Result = static_cast<UPackage*>(Linker->LinkerRoot);
-        // a package with bDirty set is not loaded again
-        if (Result && !Result->GetOutermostPackage()->bDirty && !(LoadFlags & LOAD_Verify))
-            Linker->LoadAllObjects();
-    }
-    else if (!(LoadFlags & LOAD_Verify))
-    {
-        if (InOuter)
-            Result = InOuter->IsA(UPackage::StaticClass()) ? static_cast<UPackage*>(InOuter) : nullptr;
-        else
-            Result = CreatePackage(nullptr, Filename);
-    }
+        if (!(LoadFlags & (LOAD_NoThrow | LOAD_Quiet)))
+            LoadFlags |= LOAD_Throw;
 
-    EndLoad();
-    if ((LoadFlags & LOAD_Quiet) && Result)
-        Result->GetOutermostPackage()->bDirty = 1;
+        if (ULinkerLoad* Linker = GetPackageLinker(InOuter, Filename, LoadFlags, nullptr, nullptr))
+        {
+            if (Filename && *Filename)
+                Result = static_cast<UPackage*>(StaticFindObject(UPackage::StaticClass(), nullptr, Filename));
+            if (!Result && Linker->LinkerRoot && Linker->LinkerRoot->IsA(UPackage::StaticClass()))
+                Result = static_cast<UPackage*>(Linker->LinkerRoot);
+            // a package with bDirty set is not loaded again
+            if (Result && !Result->GetOutermostPackage()->bDirty && !(LoadFlags & LOAD_Verify))
+                Linker->LoadAllObjects();
+        }
+        else if (!(LoadFlags & LOAD_Verify))
+        {
+            if (InOuter)
+                Result = InOuter->IsA(UPackage::StaticClass()) ? static_cast<UPackage*>(InOuter) : nullptr;
+            else
+                Result = CreatePackage(nullptr, Filename);
+        }
+
+        EndLoad();
+        if ((LoadFlags & LOAD_Quiet) && Result)
+            Result->GetOutermostPackage()->bDirty = 1;
+    }
+    catch (const TCHAR* Error)
+    {
+        EndLoad();
+        SafeLoadError(LoadFlags, Error, LocalizeError(TEXT("FailedLoadPackage"), TEXT("Core")), Error);
+        Result = nullptr;
+    }
     return Result;
 }
 
@@ -1121,13 +1171,15 @@ UBOOL UObject::GotoLabel(FName Label)
             if (State->LabelTableOffset == 0xFFFF || !State->Script.Num())
                 continue;
 
-            for (FLabelEntry* Entry = reinterpret_cast<FLabelEntry*>(&State->Script[State->LabelTableOffset]);
-                 Entry->Name != NAME_None; Entry++)
+            // entries are a 4 byte name index and a code offset (see ReadScriptName)
+            for (const BYTE* Entry = &State->Script[State->LabelTableOffset]; ReadScriptName(Entry) != NAME_None; Entry += 8)
             {
-                if (Entry->Name == Label)
+                if (ReadScriptName(Entry) == Label)
                 {
+                    INT iCode;
+                    memcpy(&iCode, Entry + 4, sizeof(iCode));
                     StateFrame->Node = State;
-                    StateFrame->Code = &State->Script[Entry->iCode];
+                    StateFrame->Code = &State->Script[iCode];
                     return 1;
                 }
             }
@@ -1540,35 +1592,43 @@ void UObject::EndLoad()
 {
     if (GObjBeginLoadCount == 1 && GObjLoaded.Num())
     {
-        // preloading can create more exports, so repeat until a pass loads nothing
-        INT Done = 0;
-        for (;;)
+        // an error while finishing the load is fatal
+        try
         {
-            INT Count = 0;
-            for (INT i = 0; i < GObjLoaders.Num(); i++)
+            // preloading can create more exports, so repeat until a pass loads nothing
+            INT Done = 0;
+            for (;;)
             {
-                ULinkerLoad* Linker = GetLoader(i);
-                for (INT j = 0; j < Linker->ExportMap.Num(); j++)
+                INT Count = 0;
+                for (INT i = 0; i < GObjLoaders.Num(); i++)
                 {
-                    UObject* Object = Linker->ExportMap[j]._Object;
-                    if (Object && (Object->GetFlags() & RF_NeedLoad))
+                    ULinkerLoad* Linker = GetLoader(i);
+                    for (INT j = 0; j < Linker->ExportMap.Num(); j++)
                     {
-                        GWarn->StatusUpdatef(Done + Count, GObjLoaded.Num() + 32, nullptr);
-                        Count++;
-                        Linker->Preload(Object);
+                        UObject* Object = Linker->ExportMap[j]._Object;
+                        if (Object && (Object->GetFlags() & RF_NeedLoad))
+                        {
+                            GWarn->StatusUpdatef(Done + Count, GObjLoaded.Num() + 32, nullptr);
+                            Count++;
+                            Linker->Preload(Object);
+                        }
                     }
                 }
+                if (!Count)
+                    break;
+                Done += Count;
             }
-            if (!Count)
-                break;
-            Done += Count;
+
+            for (INT i = 0; i < GObjLoaded.Num(); i++)
+                GObjLoaded[i]->ConditionalPostLoad();
+
+            GObjLoaded.Empty();
+            GImportCount = 0;
         }
-
-        for (INT i = 0; i < GObjLoaded.Num(); i++)
-            GObjLoaded[i]->ConditionalPostLoad();
-
-        GObjLoaded.Empty();
-        GImportCount = 0;
+        catch (const TCHAR* Error)
+        {
+            GError->Logf(Error);
+        }
     }
 
     if (--GObjBeginLoadCount == 0)

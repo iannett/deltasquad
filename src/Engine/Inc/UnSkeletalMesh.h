@@ -2,6 +2,7 @@
 
 #include "UnRenderResource.h"
 
+class FLevelSceneNode;
 class UMeshAnimation;
 class USkeletalMesh;
 
@@ -79,7 +80,10 @@ struct FMeshBone
     FLOAT   YSize;
     FLOAT   ZSize;
     INT     ParentIndex;
+    // after USkeletalMesh::PostLoad: every bone below this one, which follow it in the array
     INT     NumChildren;
+    // set by USkeletalMesh::PostLoad: how many parents the bone has
+    INT     Depth;
 
     // 0x0004273e, the joint part 0x000426eb
     friend FArchive& operator<<(FArchive& Ar, FMeshBone& B)
@@ -421,23 +425,29 @@ struct FMeshAnimSeq
 {
     // 0x000392f8
     FMeshAnimSeq()
-        : Unknown0C(0), NumFrames(0), Rate(30.f), Unknown18(0), Unknown1C(0.f), Unknown20(0), Unknown2C(0), Unknown30(1.f)
+        : Unknown0C(0), NumFrames(0), Rate(30.f), RateJitter(0.f), MinTweenTime(0.f), bRandomStart(0), Unknown2C(0), RandomWeight(1.f)
     {
     }
 
     void Serialize(FArchive& Ar);
+    // 0x0007bdba. notifies saved as a function name become AnimNotify_Script objects.
+    void UpdateOldNotifies(UObject* Outer);
 
     FName                   Name;
     TArray<FName>           Groups;
     INT                     Unknown0C;
     INT                     NumFrames;
     FLOAT                   Rate;
-    INT                     Unknown18;
-    FLOAT                   Unknown1C;
-    BYTE                    Unknown20;
+    // how far the play rate wanders at random, as a fraction (name invented)
+    FLOAT                   RateJitter;
+    // the shortest tween into this sequence (name invented)
+    FLOAT                   MinTweenTime;
+    // starts at a random frame (name invented)
+    BYTE                    bRandomStart;
     TArray<FMeshAnimNotify> Notifys;
     INT                     Unknown2C;
-    FLOAT                   Unknown30;
+    // how likely this sequence is picked from its group (name invented)
+    FLOAT                   RandomWeight;
 };
 
 // a sequence with the bone tracks that play it
@@ -452,10 +462,68 @@ public:
         return Ar;
     }
 
-    // never serialized
-    INT                 Unknown34[7];
+    // set by UMeshAnimation::PostLoad: the root bone's move and turn from the first key to the last (names invented)
+    FVector             RootTranslation;
+    FQuat               RootRotation;
+    // nonzero skips the root motion setup
     INT                 Unknown50;
+    // bit 0: the root bone moves or turns during the sequence
     INT                 Unknown54;
     FLOAT               Unknown58;
     TArray<AnalogTrack> Tracks;
+    UMeshAnimation*     Owner;
+};
+
+// a request to play a sequence on a channel, as the anim natives build it
+struct FPlayAnim
+{
+    // 0x00038bce
+    FPlayAnim()
+        : Sequence(NAME_None), bLoop(0), Bone(NAME_None), Channel(0), BlendAlpha(1.f), Rate(1.f), Frame(-1.f)
+    {
+    }
+
+    FName Sequence;
+    BYTE  bLoop;
+    // set on channels only: no notifies, end events or replication (name invented)
+    BYTE  bNoEvents;
+    // the bone the channel starts at; none means the root
+    FName Bone;
+    INT   Channel;
+    FLOAT BlendAlpha;
+    // how fast the channel's alpha moves to BlendAlpha; 0 jumps (names invented)
+    FLOAT BlendRate;
+    FLOAT Rate;
+    // where to start; a negative frame keeps the current one. a channel keeps its current frame here.
+    FLOAT Frame;
+};
+
+// a sequence playing on part of the skeleton. frames run from 0 to 1 over the sequence.
+struct FAnimChannel : public FPlayAnim
+{
+    // names invented
+    FLOAT               RateOffset;
+    // the frame of the last key; a sequence that doesn't loop stops there
+    FLOAT               LastFrame;
+    FLOAT               TweenRate;
+    FLOAT               TweenAlpha;
+    FLOAT               StartFrame;
+    FLOAT               StartTweenAlpha;
+    FLOAT               Alpha;
+    // the bones it animates: StartBone and its children up to EndBone
+    INT                 StartBone;
+    INT                 EndBone;
+    const FMeshAnimSeq* AnimSeq;
+};
+
+// the sequences whose names differ only in trailing digits, picked from at random
+struct FMeshMultiAnim
+{
+    // 0x00042ecd
+    FMeshAnimSeq* SelectAnim() const;
+
+    // names invented
+    FName                 Name;
+    TArray<FMeshAnimSeq*> Anims;
+    FLOAT                 TotalWeight;
 };

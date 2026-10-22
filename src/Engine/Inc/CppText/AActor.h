@@ -19,6 +19,37 @@
     virtual UBOOL PlayerControlled() { return 0; }
     // 0x00116acc
     virtual void performPhysics(FLOAT DeltaSeconds);
+    // 0x00114ea1
+    virtual void physFalling(FLOAT DeltaTime, INT Iterations);
+    // 0x00112c63. follows the mesh's root bone; 0 when there is no root motion.
+    virtual UBOOL physRootMotion(FLOAT DeltaTime);
+    // 0x000871bc
+    virtual void physKarma(FLOAT DeltaTime);
+    // 0x00116259
+    void physProjectile(FLOAT DeltaTime, INT Iterations);
+    // 0x001129d0
+    void physTrailer(FLOAT DeltaTime);
+    // 0x0008d209
+    void physKarmaRagDoll(FLOAT DeltaTime);
+    // 0x00113a69
+    void physicsRotation(FLOAT DeltaTime);
+    // 0x00110f65. turns one angle towards Desired by at most DeltaRate.
+    INT fixedTurn(INT Current, INT Desired, INT DeltaRate);
+    // 0x0011349c
+    void eventEndedRotation()
+    {
+        if (IsProbing(FName(NAME_EndedRotation)))
+            ProcessEvent(FindFunctionChecked(FName(NAME_EndedRotation)), nullptr);
+    }
+    // 0x00113424
+    void eventPostTouch(AActor* Other)
+    {
+        if (IsProbing(FName(NAME_PostTouch)))
+        {
+            struct { AActor* Other; } Parms{Other};
+            ProcessEvent(FindFunctionChecked(FName(NAME_PostTouch)), &Parms);
+        }
+    }
     // 0x0002ff90. the player controller at the top of the owner chain.
     virtual APlayerController* GetTopPlayerController();
     // 0x000df6f2. the latent half of Sleep: counts LatentFloat down.
@@ -69,6 +100,8 @@
     UBOOL IsEncroacher();
     // 0x0002f064. scales by DrawScale and DrawScale3D about PrePivot, rotates and moves to Location.
     virtual FMatrix LocalToWorld() const;
+    // 0x0002e7e1. coordinates that move a local point into the world: UnitCoords * Location * Rotation.
+    virtual FCoords ToWorld() const;
     // 0x0002f358. the inverse of LocalToWorld.
     virtual FMatrix WorldToLocal() const;
     // 0x00105313. whether Other is this actor, one of its bases, or shares a joined tag with one.
@@ -101,6 +134,41 @@
             ProcessEvent(FindFunctionChecked(FName(NAME_UnTouch)), &Parms);
         }
     }
+    // 0x0010b52d
+    void eventBaseChange()
+    {
+        if (IsProbing(FName(NAME_BaseChange)))
+            ProcessEvent(FindFunctionChecked(FName(NAME_BaseChange)), nullptr);
+    }
+    // 0x0010b597
+    void eventAttach(AActor* Other)
+    {
+        if (IsProbing(FName(NAME_Attach)))
+        {
+            struct { AActor* Other; } Parms{Other};
+            ProcessEvent(FindFunctionChecked(FName(NAME_Attach)), &Parms);
+        }
+    }
+    // 0x0010b60f
+    void eventDetach(AActor* Other)
+    {
+        if (IsProbing(FName(NAME_Detach)))
+        {
+            struct { AActor* Other; } Parms{Other};
+            ProcessEvent(FindFunctionChecked(FName(NAME_Detach)), &Parms);
+        }
+    }
+    // 0x0010b4b5
+    void eventBump(AActor* Other)
+    {
+        if (IsProbing(FName(NAME_Bump)))
+        {
+            struct { AActor* Other; } Parms{Other};
+            ProcessEvent(FindFunctionChecked(FName(NAME_Bump)), &Parms);
+        }
+    }
+    // 0x0012c054
+    virtual void NotifyBumpEx(AActor* Other) { eventBump(Other); }
     // 0x00129787
     UBOOL eventEncroachingOn(AActor* Other)
     {
@@ -129,6 +197,32 @@
     virtual void Unknown14C();
     // 0x0010b687. CT's name. plays SimAnim[Channel] on the mesh instance.
     void PlayReplicatedAnim(INT Channel);
+    // 0x00108ef0. packs a channel into SimAnim[Index]; with bCheckChanged only channels below 3 in a net game, and
+    // a change marks the actor dirty.
+    void ReplicateAnim(INT Index, INT Channel, const FAnimChannel& Anim, UBOOL bCheckChanged);
+    // 0x000e899e
+    virtual void PlayAnim(const FPlayAnim& Anim);
+    // 0x000f04ae
+    virtual void NotifyAnimEnd(INT Channel) { eventAnimEnd(Channel); }
+    // 0x000df58f. FinishAnim waits unless the channel is already done; a looping channel stops looping first.
+    virtual void StartAnimPoll();
+    // 0x000dee26
+    virtual UBOOL CheckAnimFinished(INT Channel);
+    // 0x0010523d. only for actors drawn as meshes.
+    UBOOL IsAnimating(INT Channel);
+    // 0x000deece
+    void StopAnimating(UBOOL ClearAllButBase);
+    // 0x001052a6
+    UBOOL IsPlayingAnim(const FName& Sequence, const FName& Bone);
+    void eventAnimEnd(INT Channel)
+    {
+        if (IsProbing(FName(NAME_AnimEnd)))
+        {
+            struct { INT Channel; } Parms{Channel};
+            ProcessEvent(FindFunctionChecked(FName(NAME_AnimEnd)), &Parms);
+        }
+    }
+    DECLARE_FUNCTION(execPollFinishAnim)
     // 0x0010c9c0
     virtual void SetBase(AActor* NewBase, const FVector& NewFloor, UBOOL bNotifyActor);
     // 0x00110e8e. bases the actor on what is below it.
@@ -141,6 +235,12 @@
     void SetCollision(UBOOL NewCollideActors, UBOOL NewBlockActors, UBOOL NewBlockPlayers);
     // 0x0010bf4f. also takes an anti portal actor out of its zones' lists.
     void ClearRenderData();
+    // 0x00109371. the rotation relative to the base, for actors attached to one that is not world geometry.
+    void UpdateRelativeRotation();
+    // 0x000e0d4c
+    UBOOL Move(const FVector& Delta);
+    // 0x000e0e56
+    UBOOL SetRotation(const FRotator& NewRotation);
 
     // 0x00129697
     void eventZoneChange(AZoneInfo* NewZone)

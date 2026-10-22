@@ -147,6 +147,8 @@ class UFunction : public UStruct
 public:
     void Serialize(FArchive& Ar) override;
     void Bind() override;
+    // 0x00070cad. an overriding function lays out its own parameters and locals from offset 0.
+    UStruct* GetInheritanceSuper() override { return nullptr; }
 
     DWORD  FunctionFlags;
     _WORD  iNative;
@@ -441,13 +443,6 @@ public:
     UBOOL AttemptedBind;
     DWORD PackageFlags; // copied from the package file by the linker
     UBOOL bDirty;
-};
-
-// one entry of a state's label table, stored in its script
-struct FLabelEntry
-{
-    FName Name;
-    INT   iCode;
 };
 
 // a block of text owned by an object, such as a class's script source

@@ -177,7 +177,7 @@ McdModel* McdModelCreate(McdGeometry* Geometry)
     Framework->ModelCount++;
     Model->RelTM = nullptr;
     Model->BodyTM = nullptr;
-    Model->Unknown24 = 0;
+    Model->Body = nullptr;
     Model->Unknown28 = 0;
     Model->UnknownC = 0;
     Model->Unknown1C = -1;
@@ -226,6 +226,24 @@ void McdModelSetUserData(McdModel* Model, void* UserData)
 void McdModelGetAABB(McdModel* Model, FLOAT* Min, FLOAT* Max)
 {
     McdGeometryInstanceGetAABB(&Model->Instance, Min, Max);
+}
+
+// 0x00188130, through the shared getter at 0x00184cf0
+FLOAT* McdModelGetTransformPtr(McdModel* Model)
+{
+    return Model->Instance.TM;
+}
+
+// 0x001881e0, through the shared getter at 0x00165900
+McdGeometry* McdModelGetGeometry(McdModel* Model)
+{
+    return Model->Instance.Geometry;
+}
+
+// 0x00188700. the dynamics body the model follows, if any.
+void* McdModelGetBody(McdModel* Model)
+{
+    return Model->Body;
 }
 
 // 0x001882c0. moves the model to its body and recomputes its padded box.

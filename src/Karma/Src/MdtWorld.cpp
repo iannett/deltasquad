@@ -21,7 +21,7 @@ namespace
     {
         const FLOAT Epsilon = 0.01f / World->MassScale;
         World->Unknown1E4 = 0.2f;
-        World->Unknown188 = 0.2f;
+        World->Gamma = 0.2f;
         World->Unknown18C = 0.001f;
         World->AutoDisableAngularVelocityThreshold = 0.001f;
         World->AutoDisableAliveWindow = 0.2f;
@@ -80,8 +80,8 @@ MdtWorld* MdtWorldCreate(INT MaxBodies, INT MaxConstraints, FLOAT LengthScale, F
     MePools.Init(&World->ConstraintPool, MaxConstraints, MdtConstraintSize, 0);
     MeDictInit(&World->Unknown0, 1000000, MeDictCompareKeys);
     MeDictAllowDupes(&World->Unknown0);
-    MeDictInit(&World->Unknown68, 1000000, MeDictCompareKeys);
-    MeDictAllowDupes(&World->Unknown68);
+    MeDictInit(&World->EnabledBodies, 1000000, MeDictCompareKeys);
+    MeDictAllowDupes(&World->EnabledBodies);
     MeDictInit(&World->Unknown34, 1000000, MeDictCompareKeys);
     MeDictAllowDupes(&World->Unknown34);
     MeChunkInit(&World->Unknown14C, 0);
@@ -134,6 +134,42 @@ void MdtWorldSetAutoDisableAngularAccelerationThreshold(MdtWorld* World, FLOAT T
 void MdtWorldSetAutoDisableAliveWindow(MdtWorld* World, FLOAT Time)
 {
     World->AutoDisableAliveWindow = Time;
+}
+
+// 0x00192460
+void MdtWorldSetGamma(MdtWorld* World, FLOAT Gamma)
+{
+    World->Unknown1E4 = Gamma;
+    World->Gamma = Gamma;
+}
+
+// 0x00186970. room for every body in its own partition. port: the pointer arrays come first so they stay aligned.
+MdtPartitionOutput* MdtPartitionOutputCreateInChunk(MeChunk* Chunk, INT MaxBodies, INT MaxConstraints)
+{
+    const INT Size = static_cast<INT>(sizeof(MdtPartitionOutput)
+        + MaxBodies * (sizeof(void*) + 4 * sizeof(INT) + sizeof(MdtPartitionInfo)) + MaxConstraints * sizeof(void*));
+    MdtPartitionOutput* Output = static_cast<MdtPartitionOutput*>(MeChunkGetMem(Chunk, Size));
+    BYTE* Next = reinterpret_cast<BYTE*>(Output + 1);
+    Output->Bodies = reinterpret_cast<void**>(Next);
+    Next += MaxBodies * sizeof(void*);
+    Output->Constraints = reinterpret_cast<void**>(Next);
+    Next += MaxConstraints * sizeof(void*);
+    Output->BodiesStart = reinterpret_cast<INT*>(Next);
+    Next += MaxBodies * sizeof(INT);
+    Output->BodiesSize = reinterpret_cast<INT*>(Next);
+    Next += MaxBodies * sizeof(INT);
+    Output->ConstraintsStart = reinterpret_cast<INT*>(Next);
+    Next += MaxBodies * sizeof(INT);
+    Output->ConstraintsSize = reinterpret_cast<INT*>(Next);
+    Next += MaxBodies * sizeof(INT);
+    Output->Info = reinterpret_cast<MdtPartitionInfo*>(Next);
+    Output->MaxPartitions = MaxBodies;
+    Output->MaxBodies = MaxBodies;
+    Output->MaxConstraints = MaxConstraints;
+    Output->NumPartitions = 0;
+    Output->TotalBodies = 0;
+    Output->TotalConstraints = 0;
+    return Output;
 }
 
 // 0x00192540

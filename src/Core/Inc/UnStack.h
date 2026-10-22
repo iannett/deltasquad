@@ -230,6 +230,7 @@ struct FFrame : public FOutputDevice
 #define P_GET_INT(Var)           INT Var = 0; Stack.Step(Stack.Object, &Var);
 #define P_GET_INT_OPTX(Var, D)   INT Var = D; Stack.Step(Stack.Object, &Var);
 #define P_GET_FLOAT(Var)         FLOAT Var = 0.f; Stack.Step(Stack.Object, &Var);
+#define P_GET_FLOAT_OPTX(Var, D) FLOAT Var = D; Stack.Step(Stack.Object, &Var);
 #define P_GET_NAME(Var)          FName Var(NAME_None); Stack.Step(Stack.Object, &Var);
 #define P_GET_NAME_OPTX(Var, D)  FName Var(D); Stack.Step(Stack.Object, &Var);
 #define P_GET_STR(Var)           FString Var; Stack.Step(Stack.Object, &Var);

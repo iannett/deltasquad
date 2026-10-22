@@ -203,6 +203,9 @@ struct MeUnknown1C
 
 MeUnknown1C* MeUnknown1CCreate(INT Max);
 void         MeUnknown1CDestroy(MeUnknown1C* Array);
+void         MeUnknown1CReset(MeUnknown1C* Array);
+INT          MeUnknown1CCount10(MeUnknown1C* Array);
+INT          MeUnknown1CCount14(MeUnknown1C* Array);
 
 // ---------------------------------------------------------------------------------------------- files
 
@@ -709,21 +712,27 @@ struct MeDict
 
 void MeDictInit(MeDict* Dict, DWORD MaxCount, INT (*Compare)(const void* A, const void* B));
 void MeDictAllowDupes(MeDict* Dict);
+MeDictNode* MeDictFirst(MeDict* Dict);
+MeDictNode* MeDictNext(MeDict* Dict, MeDictNode* Node);
 // 0x00184e90. orders keys by their value.
 INT  MeDictCompareKeys(const void* A, const void* B);
 
 // a block of memory that grows as needed
 struct MeChunk
 {
-    void* Unknown0;
-    INT   Unknown4;
-    INT   Unknown8;
+    void* Data;
+    INT   Size;
+    // the largest size asked for
+    INT   MaxSize;
     INT   Alignment;
-    UBOOL Unknown10;
-    INT   Unknown14;
+    // 2 frees the memory each time it is put back
+    INT   Unknown10;
+    UBOOL InUse;
 };
 
-void MeChunkInit(MeChunk* Chunk, INT Alignment);
+void  MeChunkInit(MeChunk* Chunk, INT Alignment);
+void* MeChunkGetMem(MeChunk* Chunk, INT Size);
+void  MeChunkPutMem(MeChunk* Chunk, void* Mem);
 
 // ---------------------------------------------------------------------------------------------- dynamics
 
@@ -767,7 +776,8 @@ struct MdtWorld
 {
     MeDict      Unknown0;
     MeDict      Unknown34;
-    MeDict      Unknown68;
+    // the bodies that are enabled
+    MeDict      EnabledBodies;
     MeChunk     Unknown9C;
     INT         MaxBodies;
     INT         UnknownB8;
@@ -788,7 +798,7 @@ struct MdtWorld
     FLOAT       MassScale;
     // mass over length cubed
     FLOAT       DensityScale;
-    FLOAT       Unknown188;
+    FLOAT       Gamma;
     FLOAT       Unknown18C;
     UBOOL       AutoDisable;
     FLOAT       AutoDisableVelocityThreshold;
@@ -838,6 +848,38 @@ void MdtWorldSetAutoDisableAccelerationThreshold(MdtWorld* World, FLOAT Threshol
 void MdtWorldSetAutoDisableAngularAccelerationThreshold(MdtWorld* World, FLOAT Threshold);
 void MdtWorldSetAutoDisableAliveWindow(MdtWorld* World, FLOAT Time);
 void MdtWorldSetUnknown22C(MdtWorld* World, UBOOL Value);
+void MdtWorldSetGamma(MdtWorld* World, FLOAT Gamma);
+
+// the bodies and constraints of a world split into groups that move independently
+struct MdtPartitionInfo
+{
+    INT Unknown0;
+    INT Unknown4;
+    INT Unknown8;
+};
+
+struct MdtPartitionOutput
+{
+    void**            Constraints;
+    INT*              ConstraintsStart;
+    INT*              ConstraintsSize;
+    INT               TotalConstraints;
+    INT               MaxConstraints;
+    void**            Bodies;
+    INT*              BodiesStart;
+    INT*              BodiesSize;
+    INT               TotalBodies;
+    INT               MaxBodies;
+    MdtPartitionInfo* Info;
+    INT               NumPartitions;
+    INT               MaxPartitions;
+    // the info of every partition added up
+    INT               Unknown34;
+    INT               Unknown38;
+    INT               Unknown3C;
+};
+
+MdtPartitionOutput* MdtPartitionOutputCreateInChunk(MeChunk* Chunk, INT MaxBodies, INT MaxConstraints);
 
 // ---------------------------------------------------------------------------------------------- models
 
@@ -873,7 +915,8 @@ struct McdModel
     FLOAT               Padding;
     INT                 Unknown1C;
     _WORD               Unknown20;
-    INT                 Unknown24;
+    // the dynamics body the model follows
+    void*               Body;
     INT                 Unknown28;
     void                (*Unknown2C)(McdModel* Model);
     // when set, the instance's transform is RelTM followed by BodyTM
@@ -889,6 +932,9 @@ McdModel* McdModelCreate(McdGeometry* Geometry);
 void      McdModelSetTransformPtr(McdModel* Model, FLOAT* TM);
 void      McdModelSetUserData(McdModel* Model, void* UserData);
 void      McdModelUpdate(McdModel* Model);
+FLOAT*       McdModelGetTransformPtr(McdModel* Model);
+McdGeometry* McdModelGetGeometry(McdModel* Model);
+void*        McdModelGetBody(McdModel* Model);
 void      McdModelGetAABB(McdModel* Model, FLOAT* Min, FLOAT* Max);
 
 void McdGeometryIncrementReferenceCount(McdGeometry* Geometry);

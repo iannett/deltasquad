@@ -1665,6 +1665,8 @@ class UAnimNotify : public UObject
     DECLARE_CLASS(UAnimNotify, UObject, 0x0, UObject)
 public:
     INT Revision;
+
+#include "CppText/UAnimNotify.h"
 };
 
 class UAnimNotify_AnimLoopEnd : public UAnimNotify
@@ -1672,6 +1674,8 @@ class UAnimNotify_AnimLoopEnd : public UAnimNotify
     DECLARE_CLASS(UAnimNotify_AnimLoopEnd, UAnimNotify, 0x0, UObject)
 public:
     FLOAT LoopStart;
+
+#include "CppText/UAnimNotify_AnimLoopEnd.h"
 };
 
 class UAnimNotify_BreakJoint : public UAnimNotify
@@ -1681,6 +1685,8 @@ public:
     BITFIELD : 0;
     BITFIELD DestroyChildren : 1;
     FName Bone;
+
+#include "CppText/UAnimNotify_BreakJoint.h"
 };
 
 class UAnimNotify_CreateProjectile : public UAnimNotify
@@ -1693,6 +1699,8 @@ public:
     FRotator OffsetRotation;
     FVector DrawScale3D;
     FLOAT LifeSpan;
+
+#include "CppText/UAnimNotify_CreateProjectile.h"
 };
 
 class UAnimNotify_DestroyEffect : public UAnimNotify
@@ -1701,6 +1709,8 @@ class UAnimNotify_DestroyEffect : public UAnimNotify
 public:
     FName DestroyTag;
     BITFIELD bExpireParticles : 1;
+
+#include "CppText/UAnimNotify_DestroyEffect.h"
 };
 
 class UAnimNotify_Effect : public UAnimNotify
@@ -1716,6 +1726,8 @@ public:
     FLOAT DrawScale;
     FVector DrawScale3D;
     AActor* LastSpawnedEffect;
+
+#include "CppText/UAnimNotify_Effect.h"
 };
 
 class UAnimNotify_Footstep : public UAnimNotify
@@ -1724,6 +1736,8 @@ class UAnimNotify_Footstep : public UAnimNotify
 public:
     USound* DefaultSound;
     BYTE TypeOfWalk;
+
+#include "CppText/UAnimNotify_Footstep.h"
 };
 
 class UAnimNotify_GoRagdoll : public UAnimNotify
@@ -1737,18 +1751,24 @@ public:
     FLOAT VelocityMagnitude;
     FName Bone;
     BITFIELD PriorityRagdoll : 1;
+
+#include "CppText/UAnimNotify_GoRagdoll.h"
 };
 
 class UAnimNotify_HolsterAttachment : public UAnimNotify
 {
     DECLARE_CLASS(UAnimNotify_HolsterAttachment, UAnimNotify, 0x0, UObject)
 public:
+
+#include "CppText/UAnimNotify_HolsterAttachment.h"
 };
 
 class UAnimNotify_LoadAttachment : public UAnimNotify
 {
     DECLARE_CLASS(UAnimNotify_LoadAttachment, UAnimNotify, 0x0, UObject)
 public:
+
+#include "CppText/UAnimNotify_LoadAttachment.h"
 };
 
 class UAnimNotify_MatSubAction : public UAnimNotify
@@ -1756,6 +1776,8 @@ class UAnimNotify_MatSubAction : public UAnimNotify
     DECLARE_CLASS(UAnimNotify_MatSubAction, UAnimNotify, 0x0, UObject)
 public:
     UMatSubAction* SubAction;
+
+#include "CppText/UAnimNotify_MatSubAction.h"
 };
 
 class UAnimNotify_MeleeHit : public UAnimNotify
@@ -1764,6 +1786,8 @@ class UAnimNotify_MeleeHit : public UAnimNotify
 public:
     FName BoneName;
     FVector Offset;
+
+#include "CppText/UAnimNotify_MeleeHit.h"
 };
 
 class UAnimNotify_ReleaseGrenade : public UAnimNotify
@@ -1774,6 +1798,8 @@ public:
     FVector ReleaseDirection;
     FLOAT ReleaseSpeed;
     BITFIELD UseFlatTrajectory : 1;
+
+#include "CppText/UAnimNotify_ReleaseGrenade.h"
 };
 
 class UAnimNotify_Script : public UAnimNotify
@@ -1781,12 +1807,16 @@ class UAnimNotify_Script : public UAnimNotify
     DECLARE_CLASS(UAnimNotify_Script, UAnimNotify, 0x0, UObject)
 public:
     FName NotifyName;
+
+#include "CppText/UAnimNotify_Script.h"
 };
 
 class UAnimNotify_Scripted : public UAnimNotify
 {
     DECLARE_CLASS(UAnimNotify_Scripted, UAnimNotify, 0x0, UObject)
 public:
+
+#include "CppText/UAnimNotify_Scripted.h"
 };
 
 class UAnimNotify_Sound : public UAnimNotify
@@ -1794,6 +1824,8 @@ class UAnimNotify_Sound : public UAnimNotify
     DECLARE_CLASS(UAnimNotify_Sound, UAnimNotify, 0x0, UObject)
 public:
     USound* Sound;
+
+#include "CppText/UAnimNotify_Sound.h"
 };
 
 class UAnimNotify_SoundCue : public UAnimNotify
@@ -1803,12 +1835,16 @@ public:
     alignas(4) BYTE Cue;
     FLOAT MinInterval;
     FName EnumName;
+
+#include "CppText/UAnimNotify_SoundCue.h"
 };
 
 class UAnimNotify_ThrowScav : public UAnimNotify
 {
     DECLARE_CLASS(UAnimNotify_ThrowScav, UAnimNotify, 0x0, UObject)
 public:
+
+#include "CppText/UAnimNotify_ThrowScav.h"
 };
 
 class UAnimNotify_ToggleFlashlight : public UAnimNotify
@@ -1817,12 +1853,16 @@ class UAnimNotify_ToggleFlashlight : public UAnimNotify
 public:
     BITFIELD : 0;
     BITFIELD TurnLightOn : 1;
+
+#include "CppText/UAnimNotify_ToggleFlashlight.h"
 };
 
 class UAnimNotify_TurretFire : public UAnimNotify
 {
     DECLARE_CLASS(UAnimNotify_TurretFire, UAnimNotify, 0x0, UObject)
 public:
+
+#include "CppText/UAnimNotify_TurretFire.h"
 };
 
 class AProp : public AActor
@@ -5885,6 +5925,8 @@ public:
     DECLARE_FUNCTION(execGetMarkerSpotLocation)
     DECLARE_FUNCTION(execIsSetUpProperly)
     DECLARE_FUNCTION(execUnderwayCallback)
+
+#include "CppText/ASquadMarker.h"
 };
 
 class ASquadMarkerSpot : public ANavigationPoint
@@ -6695,6 +6737,8 @@ public:
 class UConvexVolume : public UPrimitive
 {
     DECLARE_CLASS(UConvexVolume, UPrimitive, 0x0, UObject)
+public:
+#include "CppText/UConvexVolume.h"
 };
 
 // 96 bytes on the xbox
@@ -6841,6 +6885,8 @@ public:
 class ULodMeshInstance : public UMeshInstance
 {
     DECLARE_CLASS(ULodMeshInstance, UMeshInstance, 0x8, UObject)
+public:
+#include "CppText/ULodMeshInstance.h"
 };
 
 // 68 bytes on the xbox
@@ -6929,6 +6975,8 @@ public:
 class USkeletalMeshInstance : public ULodMeshInstance
 {
     DECLARE_CLASS(USkeletalMeshInstance, ULodMeshInstance, 0x8, UObject)
+public:
+#include "CppText/USkeletalMeshInstance.h"
 };
 
 // 52 bytes on the xbox

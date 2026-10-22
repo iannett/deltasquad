@@ -113,6 +113,17 @@ void FOutputDevice::Logf(const TCHAR* Fmt, ...)
     Serialize(Buffer, NAME_Log);
 }
 
+void appThrowf(const TCHAR* Fmt, ...)
+{
+    // 0x00451318
+    static TCHAR TempStr[4096];
+    va_list Args;
+    va_start(Args, Fmt);
+    vsnprintf(TempStr, sizeof(TempStr), Fmt, Args);
+    va_end(Args);
+    throw static_cast<const TCHAR*>(TempStr);
+}
+
 // 0x00035b8d
 void FOutputDevice::Logf(EName Event, const TCHAR* Fmt, ...)
 {

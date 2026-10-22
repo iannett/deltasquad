@@ -49,15 +49,84 @@ INT MeDictCompareKeys(const void* A, const void* B)
     return KeyA > KeyB;
 }
 
+// 0x00185670. the node with the smallest key, or null.
+MeDictNode* MeDictFirst(MeDict* Dict)
+{
+    MeDictNode* Nil = &Dict->Nil;
+    MeDictNode* Node = Nil->Left;
+    if (Node != Nil)
+    {
+        for (MeDictNode* Left = Node->Left; Left != Nil; Left = Left->Left)
+            Node = Left;
+    }
+    return Node == Nil ? nullptr : Node;
+}
+
+// 0x001856a0. the node after Node, or null.
+MeDictNode* MeDictNext(MeDict* Dict, MeDictNode* Node)
+{
+    MeDictNode* Nil = &Dict->Nil;
+    if (Node->Right != Nil)
+    {
+        Node = Node->Right;
+        for (MeDictNode* Left = Node->Left; Left != Nil; Left = Left->Left)
+            Node = Left;
+        return Node;
+    }
+    MeDictNode* Parent = Node->Parent;
+    while (Parent != Nil && Node == Parent->Right)
+    {
+        Node = Parent;
+        Parent = Node->Parent;
+    }
+    return Parent == Nil ? nullptr : Parent;
+}
+
 // 0x0018f4a0
 void MeChunkInit(MeChunk* Chunk, INT Alignment)
 {
     if (static_cast<DWORD>(Alignment) < 4)
         Alignment = 4;
     Chunk->Alignment = Alignment;
-    Chunk->Unknown14 = 0;
-    Chunk->Unknown8 = 0;
-    Chunk->Unknown0 = nullptr;
-    Chunk->Unknown4 = 0;
+    Chunk->InUse = 0;
+    Chunk->MaxSize = 0;
+    Chunk->Data = nullptr;
+    Chunk->Size = 0;
     Chunk->Unknown10 = 1;
+}
+
+// 0x0018f500. the chunk's memory, reallocated when it is smaller than Size.
+void* MeChunkGetMem(MeChunk* Chunk, INT Size)
+{
+    if (Chunk->Size < Size)
+    {
+        if (Chunk->Data)
+        {
+            MeMemory.DestroyAligned(Chunk->Data);
+            Chunk->Data = nullptr;
+            Chunk->Size = 0;
+        }
+        Chunk->Data = MeMemory.CreateAligned(Size, Chunk->Alignment);
+        Chunk->Size = Size;
+        Chunk->InUse = 1;
+        if (Chunk->MaxSize < Size)
+            Chunk->MaxSize = Size;
+        return Chunk->Data;
+    }
+    Chunk->InUse = 1;
+    return Chunk->Data;
+}
+
+// 0x0018f560
+void MeChunkPutMem(MeChunk* Chunk, void* Mem)
+{
+    if (!Chunk->InUse)
+        return;
+    if (Chunk->Unknown10 == 2)
+    {
+        MeMemory.DestroyAligned(Mem);
+        Chunk->Data = nullptr;
+        Chunk->Size = 0;
+    }
+    Chunk->InUse = 0;
 }

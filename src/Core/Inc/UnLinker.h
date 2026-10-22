@@ -271,3 +271,5 @@ UBOOL appFindPackageFile(const TCHAR* In, const FGuid* Guid, TCHAR* Out);
 
 // finds or opens the linker for a package
 ULinkerLoad* GetPackageLinker(UObject* InOuter, const TCHAR* InFilename, DWORD LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid);
+// 0x00022f2e. reports a caught load error as the flags ask: a warning, passing Error on, or a fatal error.
+void SafeLoadError(DWORD LoadFlags, const TCHAR* Error, const TCHAR* Fmt, ...);

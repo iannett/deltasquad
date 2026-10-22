@@ -71,6 +71,51 @@ void AActor::ClearRenderData()
     }
 }
 
+void AActor::UpdateRelativeRotation()
+{
+    if (!Base || Base->bWorldGeometry || AttachmentBone != NAME_None)
+        return;
+    const FMatrix BaseMatrix = FRotationTranslationMatrix(Base->Rotation, FVector(0.f, 0.f, 0.f));
+    FMatrix InvBase;
+    for (INT i = 0; i < 4; i++)
+        for (INT j = 0; j < 4; j++)
+            InvBase.M[i][j] = BaseMatrix.M[j][i];
+    RelativeRotation = (FRotationTranslationMatrix(Rotation, FVector(0.f, 0.f, 0.f)) * InvBase).Rotator();
+}
+
+UBOOL AActor::Move(const FVector& Delta)
+{
+    FCheckResult Hit(1.f);
+    return XLevel->MoveActor(this, Delta, Rotation, Hit);
+}
+
+// the xbox builds the coordinates one rotation axis at a time; the rotation matrix gives the same axes
+FCoords AActor::ToWorld() const
+{
+    const FMatrix M = FRotationTranslationMatrix(Rotation, FVector(0.f, 0.f, 0.f));
+    const FVector Origin(-(M.M[0][0] * Location.X + M.M[0][1] * Location.Y + M.M[0][2] * Location.Z),
+        -(M.M[1][0] * Location.X + M.M[1][1] * Location.Y + M.M[1][2] * Location.Z),
+        -(M.M[2][0] * Location.X + M.M[2][1] * Location.Y + M.M[2][2] * Location.Z));
+    return FCoords(Origin, FVector(M.M[0][0], M.M[1][0], M.M[2][0]), FVector(M.M[0][1], M.M[1][1], M.M[2][1]),
+        FVector(M.M[0][2], M.M[1][2], M.M[2][2]));
+}
+
+UBOOL AActor::SetRotation(const FRotator& NewRotation)
+{
+    if (NewRotation == Rotation)
+        return 1;
+    FCheckResult Hit(1.f);
+    return XLevel->MoveActor(this, FVector(0.f, 0.f, 0.f), NewRotation, Hit);
+}
+
+void APawn::NotifyBumpEx(AActor* Other)
+{
+    // the xbox posts an AI stimulus and asks the controller's NotifyBump first
+    if (Controller)
+        NOT_DECOMPILED(0x0012c069);
+    eventBump(Other);
+}
+
 UPrimitive* ABrush::GetPrimitive()
 {
     if (Brush)
@@ -80,20 +125,35 @@ UPrimitive* ABrush::GetPrimitive()
 
 UPrimitive* AFluidSurfaceInfo::GetPrimitive()
 {
-    NOT_DECOMPILED(0x000a2409);
-    return nullptr;
+    if (!Primitive)
+    {
+        Primitive = static_cast<UFluidSurfacePrimitive*>(
+            StaticConstructObject(UFluidSurfacePrimitive::StaticClass(), GetOuter(), NAME_None, 0, nullptr, GError));
+        Primitive->Info = this;
+    }
+    return Primitive;
+}
+
+namespace
+{
+    // 0x00461d20. one primitive shared by every projector.
+    UPrimitive* GProjectorPrimitive;
 }
 
 UPrimitive* AProjector::GetPrimitive()
 {
-    NOT_DECOMPILED(0x000779f8);
-    return nullptr;
+    if (!GProjectorPrimitive)
+        GProjectorPrimitive = static_cast<UPrimitive*>(StaticConstructObject(UProjectorPrimitive::StaticClass(), ANY_PACKAGE, NAME_None, 0, nullptr, GError));
+    return GProjectorPrimitive;
 }
 
 UPrimitive* ATerrainInfo::GetPrimitive()
 {
-    NOT_DECOMPILED(0x00070064);
-    return nullptr;
+    if (!Sectors.Num())
+        return AActor::GetPrimitive();
+    if (!Primitive)
+        Primitive = new(this) UTerrainPrimitive(this);
+    return Primitive;
 }
 
 FLOAT UPawnAudioTable::Unknown431EC0[193];
@@ -437,8 +497,14 @@ APawn* APawn::GetPlayerPawn() const
 
 UBOOL APawn::ShouldTrace(AActor* SourceActor, DWORD TraceFlags)
 {
-    NOT_DECOMPILED(0x000eb755);
-    return 0;
+    if ((!bShadowCast && (TraceFlags & 0x100)) || (bOnlyAffectPawns && SourceActor && !SourceActor->IsAPawn()))
+        return 0;
+    if (TraceFlags & 0x8000)
+        return bAcceptsProjectors;
+    if ((TraceFlags & 0x2000) && StaticMesh && DrawType == 8)
+        return 1;
+    // pawns need trace flag 1
+    return TraceFlags & 0x1;
 }
 
 void APawn::PostScriptDestroyed()
@@ -446,16 +512,17 @@ void APawn::PostScriptDestroyed()
     NOT_DECOMPILED(0x00179c7f);
 }
 
+// movers need trace flag 2
 UBOOL AMover::ShouldTrace(AActor* SourceActor, DWORD TraceFlags)
 {
-    NOT_DECOMPILED(0x0011b54e);
-    return 0;
+    return TraceFlags & 0x2;
 }
 
 UBOOL AProjector::ShouldTrace(AActor* SourceActor, DWORD TraceFlags)
 {
-    NOT_DECOMPILED(0x000764ad);
-    return 0;
+    if (TraceFlags & 0x4000)
+        return 1;
+    return AActor::ShouldTrace(SourceActor, TraceFlags);
 }
 
 void AProjector::Attach()
@@ -473,8 +540,9 @@ void AProjector::execAttachProjector(FFrame& Stack, RESULT_DECL)
 
 UBOOL ATurret::ShouldTrace(AActor* SourceActor, DWORD TraceFlags)
 {
-    NOT_DECOMPILED(0x0010559e);
-    return 0;
+    if (TraceFlags & 0x10000)
+        return 1;
+    return APawn::ShouldTrace(SourceActor, TraceFlags);
 }
 
 void AActor::SetVolumes()
@@ -495,12 +563,260 @@ void AActor::Unknown14C()
 
 void AActor::PlayReplicatedAnim(INT Channel)
 {
-    NOT_DECOMPILED(0x0010b687);
+    if (!Mesh)
+        return;
+    const FAnimRep& Rep = SimAnim[Channel];
+    FName Bone = NAME_None;
+    if (USkeletalMesh* SkelMesh = Cast<USkeletalMesh>(Mesh))
+    {
+        if (Rep.Bone < SkelMesh->RefSkeleton.Num())
+            Bone = SkelMesh->RefSkeleton[Rep.Bone].Name;
+    }
+    Mesh->MeshGetInstance(this);
+    FPlayAnim Anim;
+    Anim.Sequence = Rep.AnimSequence;
+    Anim.bLoop = Rep.Priority >> 7;
+    Anim.Bone = Bone;
+    Anim.Channel = Rep.Priority & 0x7f;
+    Anim.Rate = (Rep.RateScale - 124.f) * (1.f / 31.f);
+    Anim.Frame = (Rep.AnimFrame - 127.f) * (1.f / 127.f);
+    MeshInstance->PlayAnim(Anim);
 }
 
+void AActor::ReplicateAnim(INT Index, INT Channel, const FAnimChannel& Anim, UBOOL bCheckChanged)
+{
+    // NM_Standalone is 0
+    if (Index >= 6 || (bCheckChanged && (!bReplicateAnimations || Level->NetMode == 0 || Anim.Channel >= 3)))
+        return;
+    FName Sequence = NAME_None;
+    if (ULodMeshInstance* Instance = Cast<ULodMeshInstance>(MeshInstance))
+    {
+        if (const FMeshAnimSeq* Seq = Instance->GetSequence(Channel))
+            Sequence = Seq->Name;
+    }
+    // the rate is kept in -4..4 and the frame in -1..1, each as a byte
+    FAnimRep Rep;
+    Rep.AnimSequence = Sequence;
+    Rep.Bone = static_cast<BYTE>(Anim.StartBone);
+    Rep.Priority = (Anim.bLoop ? 0x80 : 0) | static_cast<BYTE>(Anim.Channel);
+    const FLOAT Rate = Anim.LastFrame == 0.f ? 124.f : (Clamp(Anim.Rate, -4.f, 4.f) + 4.f) * 31.f;
+    Rep.RateScale = static_cast<BYTE>(static_cast<INT>(Rate));
+    Rep.AnimFrame = static_cast<BYTE>(static_cast<INT>((Clamp(Anim.Frame, -1.f, 1.f) + 1.f) * 127.f));
+    if (bCheckChanged)
+    {
+        const FAnimRep& Old = SimAnim[Index];
+        if (Old.AnimSequence == Rep.AnimSequence && Old.Bone == Rep.Bone && Old.Priority == Rep.Priority && Old.RateScale == Rep.RateScale)
+            return;
+        bNetDirty = 1;
+    }
+    SimAnim[Index] = Rep;
+}
+
+void AActor::PlayAnim(const FPlayAnim& Anim)
+{
+    if (!Mesh)
+    {
+        if (!bHidden)
+            GLog->Logf(TEXT("%s playanim with no mesh!"), GetName());
+        return;
+    }
+    Mesh->MeshGetInstance(this);
+    MeshInstance->PlayAnim(Anim);
+}
+
+void APawn::NotifyAnimEnd(INT Channel)
+{
+    if (Controller && Controller->IsProbing(FName(NAME_AnimEnd)))
+        Controller->AActor::NotifyAnimEnd(Channel);
+    else
+        AActor::NotifyAnimEnd(Channel);
+}
+
+void AActor::StartAnimPoll()
+{
+    if (!Mesh)
+        return;
+    Mesh->MeshGetInstance(this);
+    const INT Channel = static_cast<INT>(LatentFloat);
+    if (MeshInstance->IsAnimLooping(Channel))
+        MeshInstance->AnimStopLooping(Channel);
+    // EPOLL_FinishAnim
+    if (IsAnimating(Channel) && !MeshInstance->IsAnimPastLastFrame(Channel))
+        GetStateFrame()->LatentAction = EPOLL_FinishAnim;
+}
+
+UBOOL AActor::CheckAnimFinished(INT Channel)
+{
+    if (Mesh)
+    {
+        Mesh->MeshGetInstance(this);
+        if (IsAnimating(Channel) && !MeshInstance->IsAnimPastLastFrame(Channel))
+            return 0;
+    }
+    return 1;
+}
+
+void AController::StartAnimPoll()
+{
+    if (!Pawn || !Pawn->Mesh)
+        return;
+    Pawn->Mesh->MeshGetInstance(this);
+    const INT Channel = static_cast<INT>(LatentFloat);
+    if (Pawn->MeshInstance->IsAnimLooping(Channel))
+        Pawn->MeshInstance->AnimStopLooping(Channel);
+    if (IsAnimating(Channel) && !Pawn->MeshInstance->IsAnimPastLastFrame(Channel))
+        GetStateFrame()->LatentAction = EPOLL_FinishAnim;
+}
+
+UBOOL AController::CheckAnimFinished(INT Channel)
+{
+    if (Pawn && Pawn->Mesh)
+    {
+        Pawn->Mesh->MeshGetInstance(this);
+        if (IsAnimating(Channel) && !Pawn->MeshInstance->IsAnimPastLastFrame(Channel))
+            return 0;
+    }
+    return 1;
+}
+
+UBOOL AActor::IsAnimating(INT Channel)
+{
+    // DT_Mesh
+    if (DrawType != 2 || !Mesh)
+        return 0;
+    Mesh->MeshGetInstance(this);
+    return MeshInstance->IsAnimating(Channel);
+}
+
+void AActor::StopAnimating(UBOOL ClearAllButBase)
+{
+    if (!Mesh)
+        return;
+    Mesh->MeshGetInstance(this);
+    if (MeshInstance)
+        MeshInstance->StopAnimating(ClearAllButBase);
+}
+
+UBOOL AActor::IsPlayingAnim(const FName& Sequence, const FName& Bone)
+{
+    if (!Mesh)
+        return 0;
+    Mesh->MeshGetInstance(this);
+    return MeshInstance->IsPlayingAnim(Sequence, Bone);
+}
+
+// 0x000e5587
+void AActor::execPlayAnim(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_NAME(Sequence);
+    P_GET_NAME_OPTX(Bone, NAME_None);
+    P_GET_FLOAT_OPTX(Rate, 1.f);
+    P_GET_FLOAT_OPTX(StartFrame, -1.f);
+    P_GET_INT_OPTX(Channel, 0);
+    P_FINISH;
+    FPlayAnim Anim;
+    Anim.Sequence = Sequence;
+    Anim.Bone = Bone;
+    Anim.Channel = Channel;
+    Anim.Rate = Rate;
+    Anim.Frame = StartFrame;
+    PlayAnim(Anim);
+}
+
+// 0x000e89f7
+void AActor::execLoopAnim(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_NAME(Sequence);
+    P_GET_NAME_OPTX(Bone, NAME_None);
+    P_GET_FLOAT_OPTX(Rate, 1.f);
+    P_GET_FLOAT_OPTX(StartFrame, -1.f);
+    P_GET_INT_OPTX(Channel, 0);
+    P_FINISH;
+    FPlayAnim Anim;
+    Anim.Sequence = Sequence;
+    Anim.bLoop = 1;
+    Anim.Bone = Bone;
+    Anim.Channel = Channel;
+    Anim.Rate = Rate;
+    Anim.Frame = StartFrame;
+    PlayAnim(Anim);
+}
+
+// 0x000df76e
+void AActor::execIsAnimating(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_INT_OPTX(Channel, 0);
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = IsAnimating(Channel);
+}
+
+// 0x000df52f
+void AActor::execFinishAnim(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_INT_OPTX(Channel, 0);
+    P_FINISH;
+    LatentFloat = static_cast<FLOAT>(Channel);
+    StartAnimPoll();
+}
+
+// 0x000df737
+void AActor::execPollFinishAnim(FFrame& Stack, RESULT_DECL)
+{
+    if (CheckAnimFinished(static_cast<INT>(LatentFloat)))
+        GetStateFrame()->LatentAction = 0;
+}
+IMPLEMENT_FUNCTION(AActor, EPOLL_FinishAnim, execPollFinishAnim)
+
+// 0x000df7c6
+void AActor::execStopAnimating(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_UBOOL_OPTX(ClearAllButBase, 0);
+    P_FINISH;
+    StopAnimating(ClearAllButBase);
+}
+
+// 0x000e56f2
+void AActor::execIsPlayingAnim(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_NAME(Sequence);
+    P_GET_NAME_OPTX(Bone, NAME_None);
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = IsPlayingAnim(Sequence, Bone);
+}
+
+// world geometry bases don't track what stands on them
 void AActor::SetBase(AActor* NewBase, const FVector& NewFloor, UBOOL bNotifyActor)
 {
-    NOT_DECOMPILED(0x0010c9c0);
+    for (AActor* A = NewBase; A; A = A->Base)
+        if (A == this)
+            return;
+
+    if (NewBase != Base)
+    {
+        if (Base && !Base->bWorldGeometry)
+        {
+            Base->Attached.RemoveItem(this);
+            Base->eventDetach(this);
+        }
+        Base = NewBase;
+        // ROLE_Authority
+        if (Base && !Base->bWorldGeometry && AttachmentBone == NAME_None && !bOnlyDrawIfAttached && Role == 4)
+        {
+            RelativeLocation = Location - Base->Location;
+            UpdateRelativeRotation();
+        }
+        if (Base && !Base->bWorldGeometry)
+        {
+            Base->Attached.AddItem(this);
+            Base->eventAttach(this);
+        }
+        if (bNotifyActor)
+            eventBaseChange();
+    }
+
+    // NM_Client
+    if ((!Base || Base->bWorldGeometry) && Level->NetMode != 3)
+        AttachmentBone = NAME_None;
 }
 
 void AActor::FindBase()
@@ -834,7 +1150,7 @@ UBOOL AActor::Tick(FLOAT DeltaSeconds, ELevelTick TickType)
     {
         TickSpecial(DeltaSeconds);
         if (MeshInstance)
-            NOT_DECOMPILED(0x00132a9f);
+            MeshInstance->UpdateAttachments();
     }
     return 1;
 }
@@ -872,7 +1188,7 @@ void AActor::ProcessState(FLOAT DeltaSeconds)
 void AActor::UpdateAnimation(FLOAT DeltaSeconds)
 {
     if (Mesh)
-        NOT_DECOMPILED(0x00105279);
+        Mesh->MeshGetInstance(this)->UpdateAnimation(DeltaSeconds);
 }
 
 void AActor::TickAuthoritative(FLOAT DeltaSeconds)
@@ -898,7 +1214,165 @@ void AActor::TickAuthoritative(FLOAT DeltaSeconds)
 
 void AActor::performPhysics(FLOAT DeltaSeconds)
 {
-    NOT_DECOMPILED(0x00116acc);
+    // rotating actors nobody has seen for a second stop
+    if (Physics == 5 && !bInterpolating && Level->TimeSeconds - LastRenderTime > 1.f)
+        return;
+
+    switch (Physics)
+    {
+    case 2:
+        physFalling(DeltaSeconds, 0);
+        break;
+    case 5:
+        break;
+    case 6:
+        physProjectile(DeltaSeconds, 0);
+        break;
+    case 10:
+        physTrailer(DeltaSeconds);
+        break;
+    case 13:
+        physKarma(DeltaSeconds);
+        break;
+    case 14:
+        physKarmaRagDoll(DeltaSeconds);
+        break;
+    default:
+        physRootMotion(DeltaSeconds);
+        break;
+    }
+
+    if (!RotationRate.IsZero() && !bInterpolating)
+        physicsRotation(DeltaSeconds);
+
+    if (PendingTouch)
+    {
+        PendingTouch->eventPostTouch(this);
+        AActor* Other = PendingTouch;
+        PendingTouch = Other->PendingTouch;
+        Other->PendingTouch = nullptr;
+    }
+}
+
+void AActor::physFalling(FLOAT DeltaTime, INT Iterations)
+{
+    NOT_DECOMPILED(0x00114ea1);
+}
+
+UBOOL AActor::physRootMotion(FLOAT DeltaTime)
+{
+    FMatrix Root;
+    if (!MeshInstance || !MeshInstance->GetMoveCoords(&Root, 1))
+        return 0;
+    SetRotation(Root.Rotator());
+    moveSmooth(FVector(Root.M[3][0], Root.M[3][1], Root.M[3][2]) - Location);
+    return 1;
+}
+
+void AActor::physKarma(FLOAT DeltaTime)
+{
+    NOT_DECOMPILED(0x000871bc);
+}
+
+void AActor::physProjectile(FLOAT DeltaTime, INT Iterations)
+{
+    NOT_DECOMPILED(0x00116259);
+}
+
+void AActor::physTrailer(FLOAT DeltaTime)
+{
+    NOT_DECOMPILED(0x001129d0);
+}
+
+void AActor::physKarmaRagDoll(FLOAT DeltaTime)
+{
+    NOT_DECOMPILED(0x0008d209);
+}
+
+void AActor::physicsRotation(FLOAT DeltaTime)
+{
+    if (!bRotateToDesired && !bFixedRotationDir)
+        return;
+    if (bRotateToDesired && Rotation == DesiredRotation)
+        return;
+
+    FRotator NewRotation = Rotation;
+    const FRotator DeltaRotation = RotationRate * DeltaTime;
+    if (DeltaRotation.Yaw && (!bRotateToDesired || DesiredRotation.Yaw != NewRotation.Yaw))
+        NewRotation.Yaw = fixedTurn(NewRotation.Yaw, DesiredRotation.Yaw, DeltaRotation.Yaw);
+    if (DeltaRotation.Pitch && (!bRotateToDesired || DesiredRotation.Pitch != NewRotation.Pitch))
+        NewRotation.Pitch = fixedTurn(NewRotation.Pitch, DesiredRotation.Pitch, DeltaRotation.Pitch);
+    if (DeltaRotation.Roll && (!bRotateToDesired || DesiredRotation.Roll != NewRotation.Roll))
+        NewRotation.Roll = fixedTurn(NewRotation.Roll, DesiredRotation.Roll, DeltaRotation.Roll);
+
+    if (NewRotation != Rotation)
+    {
+        FCheckResult Hit(1.f);
+        XLevel->MoveActor(this, FVector(0.f, 0.f, 0.f), NewRotation, Hit);
+    }
+    if (bRotateToDesired && Rotation == DesiredRotation)
+        eventEndedRotation();
+}
+
+// a fixed direction turns one way (towards Desired only when rotating to it); otherwise it takes the short way
+INT AActor::fixedTurn(INT Current, INT Desired, INT DeltaRate)
+{
+    if (DeltaRate == 0)
+        return Current & 0xffff;
+    Current &= 0xffff;
+    Desired &= 0xffff;
+
+    INT Result = Current;
+    if (bFixedRotationDir)
+    {
+        if (!bRotateToDesired)
+            Result = Current + DeltaRate;
+        else if (DeltaRate > 0)
+        {
+            const INT Delta = (Current > Desired ? Desired + 0x10000 : Desired) - Current;
+            Result = Current + (DeltaRate <= Delta ? DeltaRate : Delta);
+        }
+        else
+        {
+            const INT Delta = Desired - (Current < Desired ? Current + 0x10000 : Current);
+            Result = Current + (DeltaRate >= Delta ? DeltaRate : Delta);
+        }
+    }
+    else if (bRotateToDesired)
+    {
+        const INT Rate = Abs(DeltaRate);
+        if (Current > Desired)
+        {
+            if (Current - Desired < 0x8000)
+                Result = Current - Min(Current - Desired, Rate);
+            else
+                Result = Current + Min(Desired - Current + 0x10000, Rate);
+        }
+        else
+        {
+            if (Desired - Current < 0x8000)
+                Result = Current + Min(Desired - Current, Rate);
+            else
+                Result = Current - Min(Current - Desired + 0x10000, Rate);
+        }
+    }
+    return Result & 0xffff;
+}
+
+void APawn::physFalling(FLOAT DeltaTime, INT Iterations)
+{
+    NOT_DECOMPILED(0x0011a057);
+}
+
+UBOOL APawn::physRootMotion(FLOAT DeltaTime)
+{
+    NOT_DECOMPILED(0x00112cfd);
+    return 0;
+}
+
+void AKConstraint::physKarma(FLOAT DeltaTime)
+{
+    NOT_DECOMPILED(0x00086d0f);
 }
 
 APlayerController* AActor::GetTopPlayerController()
@@ -1031,10 +1505,114 @@ void AActor::execSetCollision(FFrame& Stack, RESULT_DECL)
     SetCollision(NewCollideActors, NewBlockActors, NewBlockPlayers);
 }
 
+void AActor::execMove(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_STRUCT(FVector, Delta);
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = Move(Delta);
+}
+
+void AActor::execSetRotation(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_STRUCT(FRotator, NewRotation);
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = SetRotation(NewRotation);
+}
+
+// pushes the controller onto the level's list
+void AController::execAddController(FFrame& Stack, RESULT_DECL)
+{
+    P_FINISH;
+    nextController = Level->ControllerList;
+    Level->ControllerList = this;
+}
+
+void AController::execRemoveController(FFrame& Stack, RESULT_DECL)
+{
+    P_FINISH;
+    if (Level->ControllerList == this)
+    {
+        Level->ControllerList = nextController;
+        return;
+    }
+    for (AController* C = Level->ControllerList; C; C = C->nextController)
+    {
+        if (C->nextController == this)
+        {
+            C->nextController = nextController;
+            return;
+        }
+    }
+}
+
+void AActor::execSetOwner(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_OBJECT(AActor, NewOwner);
+    P_FINISH;
+    SetOwner(NewOwner);
+}
+
+UBOOL ASquadMarker::IsSetUpProperly()
+{
+    if (!Anchor)
+        return 0;
+    for (INT i = 0; i < Anchor->NavPts.Num(); i++)
+    {
+        if (!Anchor->NavPts[i])
+            Anchor->NavPts.Remove(i--);
+    }
+    return Anchor->NavPtLocs.Num() <= Anchor->NavPts.Num();
+}
+
+void ASquadMarker::execIsSetUpProperly(FFrame& Stack, RESULT_DECL)
+{
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = IsSetUpProperly();
+}
+
+void APawn::execUseWoundedAnims(FFrame& Stack, RESULT_DECL)
+{
+    P_FINISH;
+    *static_cast<DWORD*>(Result) = UseWoundedAnims();
+}
+
+// takes the actor out of the collision hash while the flag changes
+void AActor::execOnlyAffectPawns(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_UBOOL(B);
+    P_FINISH;
+    if (bCollideActors && B != bOnlyAffectPawns)
+    {
+        SetCollision(0, bBlockActors, bBlockPlayers);
+        bOnlyAffectPawns = B;
+        SetCollision(1, bBlockActors, bBlockPlayers);
+    }
+}
+
 void AActor::execDestroy(FFrame& Stack, RESULT_DECL)
 {
     P_FINISH;
     *static_cast<DWORD*>(Result) = XLevel->DestroyActor(this);
+}
+
+void AActor::execLinkAnimToMesh(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_OBJECT(UMeshAnimation, Anim);
+    P_GET_OBJECT(UMesh, TargetMesh);
+    P_FINISH;
+    if (Anim && TargetMesh && TargetMesh->IsA(USkeletalMesh::StaticClass()))
+        static_cast<USkeletalMesh*>(TargetMesh)->AddSkelAnim(Anim, 0);
+}
+
+// 0x000e576f
+void AActor::execHasAnim(FFrame& Stack, RESULT_DECL)
+{
+    P_GET_NAME(Sequence);
+    P_FINISH;
+    if (Mesh)
+        *static_cast<DWORD*>(Result) = Mesh->GetAnimNamed(Sequence, 1) != nullptr;
+    else
+        Stack.Logf(TEXT("HasAnim: No mesh"));
 }
 
 void AActor::execConsoleCommand(FFrame& Stack, RESULT_DECL)

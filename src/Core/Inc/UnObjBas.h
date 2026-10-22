@@ -118,9 +118,6 @@ private:
         RF_Public | RF_Standalone | RF_Transient | RF_Native, TClass::InternalConstructor, \
         static_cast<UClass::FStaticConstructor>(&TClass::StaticConstructor));
 
-// logs an error and unwinds, like appErrorf but recoverable in the original
-#define appThrowf(...) GError->Logf(__VA_ARGS__)
-
 // looks up Section.Key in Package.int
 const TCHAR* Localize(const TCHAR* Section, const TCHAR* Key, const TCHAR* Package, const TCHAR* LangExt = nullptr, UBOOL Optional = 0);
 

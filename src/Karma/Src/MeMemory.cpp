@@ -153,3 +153,25 @@ void MeUnknown1CDestroy(MeUnknown1C* Array)
     MeMemory.Destroy(Array->Data);
     MeMemory.Destroy(Array);
 }
+
+// 0x0018a8f0
+void MeUnknown1CReset(MeUnknown1C* Array)
+{
+    Array->Unknown8 = 0;
+    Array->UnknownC = 0;
+    Array->Unknown10 = Array->Max;
+    Array->Unknown14 = Array->Max;
+    Array->Unknown18 = Array->Max;
+}
+
+// 0x0018a930
+INT MeUnknown1CCount10(MeUnknown1C* Array)
+{
+    return Array->Unknown14 - Array->Unknown10;
+}
+
+// 0x0018a940
+INT MeUnknown1CCount14(MeUnknown1C* Array)
+{
+    return Array->Unknown18 - Array->Unknown14;
+}

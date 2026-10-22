@@ -65,12 +65,14 @@ namespace
         McdFramework* Framework;
         MeAssetDB*      AssetDB;
         MeAssetFactory* AssetFactory;
-        INT           Unknown15018[2];
+        INT           Unknown15018;
+        // the length of the current karma step
+        FLOAT         TimeStep;
         // debug drawing flags toggled by KDRAW
         DWORD         Unknown15020;
-        // toggled by KSTEP and cleared after each level tick
+        // steps the world this tick. toggled by KSTEP, set by each tick that is not stopped and cleared after it.
         UBOOL         Unknown15024;
-        // toggled by KSTOP
+        // toggled by KSTOP; each karma tick sets it to whether the level is not players only
         UBOOL         Unknown15028;
         // set by KSAFETIME
         UBOOL         Unknown1502C;
@@ -524,12 +526,98 @@ void KInitLevelKarma(ULevel* Level)
     MdtContactParamsSetFriction(Params, 10.f);
 }
 
-// 0x00090a71. steps the level's karma world.
+namespace
+{
+    // 0x000905e9. refreshes the triangles a ragdoll collides with; the name is from its log lines.
+    void KUpdateRagdollTrilist(AActor* Actor)
+    {
+        NOT_DECOMPILED(0x000905e9);
+    }
+
+    // 0x0008fa66. collides the listed actors with each other and the level (name invented).
+    void KUpdateContacts(TArray<AActor*>& Actors, ULevel* Level)
+    {
+        if (!Level->Hash)
+            return;
+        FMemMark Mark(GMem);
+        // the xbox also builds a TMap here that only the actor loop uses
+        MeUnknown1CReset(KGData->Unknown15054);
+        if (Actors.Num())
+            NOT_DECOMPILED(0x0008fac3);
+        Mark.Pop();
+        if (MeUnknown1CCount14(KGData->Unknown15054) + MeUnknown1CCount10(KGData->Unknown15054) > 0)
+            NOT_DECOMPILED(0x00084631);
+    }
+
+    // 0x00081efa. called after each partition is built; Karma's MdtAutoDisableLastPartition does the same.
+    void KAutoDisableLastPartition(MdtPartitionOutput* Output, void* Params)
+    {
+        NOT_DECOMPILED(0x00081efa);
+    }
+
+    // 0x0007d90a. splits the enabled bodies into partitions of bodies joined by constraints; the name is from its
+    // error messages. the xbox passes Output in ESI.
+    void KBuildPartitions(MeDict* Bodies, void (*EndCB)(MdtPartitionOutput* Output, void* Params), void* Params,
+        MdtPartitionOutput* Output)
+    {
+        Output->NumPartitions = 0;
+        Output->TotalBodies = 0;
+        Output->TotalConstraints = 0;
+        Output->Unknown38 = 0;
+        Output->Unknown3C = 0;
+        Output->Unknown34 = 0;
+        // 0x0007d8e9 skips bodies that are already in a partition
+        if (MeDictFirst(Bodies))
+            NOT_DECOMPILED(0x0007d970);
+    }
+
+    // 0x00089d21. steps the world's dynamics by TimeStep (name invented).
+    void KWorldStep(MdtWorld* World, FLOAT TimeStep, ULevel* Level)
+    {
+        MdtPartitionOutput* Partitions = MdtPartitionOutputCreateInChunk(&World->Unknown14C, World->UnknownB8, World->UnknownF8);
+        KBuildPartitions(&World->EnabledBodies, KAutoDisableLastPartition, &World->AutoDisable, Partitions);
+        // each partition's step, and the postKarmaStep and DestroyActor passes over the actors it collects
+        if (Partitions->NumPartitions > 0)
+            NOT_DECOMPILED(0x00089d88);
+        MeChunkPutMem(&World->Unknown14C, Partitions);
+        // clears each enabled body's forces
+        if (MeDictFirst(&World->EnabledBodies))
+            NOT_DECOMPILED(0x0008a4c5);
+    }
+}
+
+// 0x00090a71. steps the level's karma world, twice when the frame is long.
 void KTickLevelKarma(ULevel* Level, FLOAT DeltaSeconds)
 {
     if (!KGData || !Level->KarmaWorld)
         return;
-    NOT_DECOMPILED(0x00090a71);
+
+    INT Steps = 1;
+    if (Level->GetLevelInfo())
+        KGData->Unknown15028 = !Level->GetLevelInfo()->bPlayersOnly;
+    FLOAT Time = 0.03f;
+    if (KGData->Unknown15028)
+    {
+        KGData->Unknown15024 = 1;
+        Time = Level->GetLevelInfo()->KarmaTimeScale * DeltaSeconds;
+    }
+    if (KSettings.DoDoubleTickTimestep <= Time)
+        Steps = 2;
+
+    const FLOAT StepTime = Time / Steps;
+    for (; Steps; Steps--)
+    {
+        const FLOAT TimeStep = KSettings.MaxTimestep >= StepTime ? StepTime : KSettings.MaxTimestep;
+        const FLOAT Gamma = KSettings.GammaPerSec * TimeStep;
+        const FLOAT Capped = KSettings.GammaMax > Gamma ? Gamma : KSettings.GammaMax;
+        MdtWorldSetGamma(Level->KarmaWorld, KSettings.GammaMin > Capped ? KSettings.GammaMin : Capped);
+        KGData->TimeStep = TimeStep;
+        for (INT i = 0; i < Level->Unknown1138.Num(); i++)
+            KUpdateRagdollTrilist(Level->Unknown1138[i]);
+        KUpdateContacts(Level->Unknown1148, Level);
+        if (KGData->Unknown15024)
+            KWorldStep(Level->KarmaWorld, TimeStep, Level);
+    }
 }
 
 // ULevel::Tick clears this inline once its actors have ticked
@@ -621,6 +709,18 @@ void KSetActorListed(AActor* Actor, UBOOL bListed)
     INT Index = 0;
     if (!List.FindItem(Actor, Index))
         List.AddItem(Actor);
+}
+
+// 0x0008ca26. builds the ragdoll bodies of an actor whose karma params are UKarmaParamsSkel, once.
+void KInitSkeletonKarma(USkeletalMeshInstance* Instance)
+{
+    if (!KGData)
+        return;
+    AActor* Actor = Instance->GetActor();
+    if (!Actor || !Actor->XLevel)
+        return;
+    if (Cast<UKarmaParamsSkel>(Actor->KParams))
+        NOT_DECOMPILED(0x0008ca26);
 }
 
 // 0x00091192. sets up the karma parts of an actor in a level with karma.

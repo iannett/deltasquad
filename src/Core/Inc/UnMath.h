@@ -123,6 +123,8 @@ struct FBox
     }
     // 0x00076548
     FVector GetCenter() const { return FVector((Min.X + Max.X) * 0.5f, (Min.Y + Max.Y) * 0.5f, (Min.Z + Max.Z) * 0.5f); }
+    // 0x000643ab. the box around the eight corners moved into Coords.
+    FBox TransformBy(const struct FCoords& Coords) const;
     // half the size on each axis
     FVector GetExtent() const { return FVector((Max.X - Min.X) * 0.5f, (Max.Y - Min.Y) * 0.5f, (Max.Z - Min.Z) * 0.5f); }
     // 0x000435b6. grows the box to hold Other.
@@ -239,6 +241,19 @@ struct FCoords
     // 0x00134538. the matrix that moves a point into these coordinates.
     FMatrix Matrix() const;
 };
+
+inline FBox FBox::TransformBy(const FCoords& Coords) const
+{
+    FBox Result{};
+    for (INT X = 0; X < 2; X++)
+        for (INT Y = 0; Y < 2; Y++)
+            for (INT Z = 0; Z < 2; Z++)
+            {
+                const FVector P = FVector(X ? Max.X : Min.X, Y ? Max.Y : Min.Y, Z ? Max.Z : Min.Z) - Coords.Origin;
+                Result += FVector(P | Coords.XAxis, P | Coords.YAxis, P | Coords.ZAxis);
+            }
+    return Result;
+}
 
 // a scale with an optional shear
 struct FScale

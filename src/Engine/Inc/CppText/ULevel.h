@@ -153,7 +153,8 @@
     struct KLevelFactory*       KarmaFactory;
     // collides with the level's own triangles
     struct McdModel*            KarmaLevelModel;
-    TArray<INT>                 Unknown1138;
+    // the ragdolls whose triangle lists karma refreshes each step
+    TArray<AActor*>             Unknown1138;
     TArray<INT>                 Unknown1140;
     // actors with bBlockKarma that collide, kept by KSetActorListed (0x0008946f)
     TArray<AActor*>             Unknown1148;

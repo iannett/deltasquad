@@ -26,7 +26,8 @@ enum ELevelTick
 // the latent actions a state frame can wait in; each is the index of the native that polls it
 enum EPollSlotType
 {
-    EPOLL_Sleep = 384,
+    EPOLL_Sleep      = 384,
+    EPOLL_FinishAnim = 385,
 };
 
 // the net code's callbacks into a level or pending level

@@ -1,5 +1,6 @@
 #include "EngineClasses.h"
 #include "UnEngineGlobals.h"
+#include "Karma.h"
 
 void KInitActorKarma(AActor* Actor);
 void KInitLevelKarma(ULevel* Level);
@@ -522,11 +523,284 @@ UBOOL ULevel::IsDedicatedServer()
     return 0;
 }
 
-UBOOL ULevel::MoveActor(AActor* Actor, const FVector& Delta, const FRotator& NewRotation, FCheckResult& Hit, UBOOL Test,
-    UBOOL IgnorePawns, UBOOL bIgnoreBases, UBOOL bNoFail, DWORD Unknown)
+namespace
 {
-    NOT_DECOMPILED(0x0012a005);
-    return 0;
+    // whether Other is Actor or one of its bases
+    UBOOL IsBaseChainOf(const AActor* Actor, const AActor* Other)
+    {
+        for (const AActor* A = Actor; A; A = A->Base)
+            if (A == Other)
+                return 1;
+        return 0;
+    }
+
+    // a vector in the frame of a rotation, and back out of one
+    FVector WorldToLocal(const FVector& V, const FRotator& R)
+    {
+        const FMatrix M = FRotationTranslationMatrix(R, FVector(0.f, 0.f, 0.f));
+        return FVector(V.X * M.M[0][0] + V.Y * M.M[0][1] + V.Z * M.M[0][2], V.X * M.M[1][0] + V.Y * M.M[1][1] + V.Z * M.M[1][2],
+            V.X * M.M[2][0] + V.Y * M.M[2][1] + V.Z * M.M[2][2]);
+    }
+    FVector LocalToWorld(const FVector& V, const FRotator& R)
+    {
+        const FMatrix M = FRotationTranslationMatrix(R, FVector(0.f, 0.f, 0.f));
+        return FVector(V.X * M.M[0][0] + V.Y * M.M[1][0] + V.Z * M.M[2][0], V.X * M.M[0][1] + V.Y * M.M[1][1] + V.Z * M.M[2][1],
+            V.X * M.M[0][2] + V.Y * M.M[1][2] + V.Z * M.M[2][2]);
+    }
+}
+
+// moves an actor, stopping at the first thing that blocks it, and drags its attached actors along.
+// returns whether it moved at all.
+UBOOL ULevel::MoveActor(AActor* Actor, const FVector& Delta, const FRotator& NewRotation, FCheckResult& Hit, UBOOL Test,
+    UBOOL IgnorePawns, UBOOL bIgnoreBases, UBOOL bNoFail, DWORD ExtraNodeFlags)
+{
+    if (Actor->bStatic || !Actor->bMovable)
+        return 0;
+
+    // actors with nothing attached that only turn, or that don't collide, just move
+    const UBOOL bNoAttached = Actor->Attached.Num() == 0;
+    UBOOL bSimple = bNoAttached;
+    if (Delta.IsZero())
+    {
+        if (Actor->Rotation == NewRotation)
+            return 1;
+        if (bNoAttached && Actor->GetPrimitive()->UseCylinderCollision(Actor))
+        {
+            Actor->Rotation = NewRotation;
+            if (Test)
+                return 1;
+            Actor->UpdateRelativeRotation();
+            Actor->ClearRenderData();
+            return 1;
+        }
+    }
+    if (bSimple && !Actor->bCollideActors && !Actor->bCollideWorld)
+    {
+        Actor->Location = Actor->Location + Delta;
+        if (Actor->Base && Actor->AttachmentBone == NAME_None)
+            Actor->RelativeLocation = Actor->Location - Actor->Base->Location;
+        if (!Test)
+            Actor->ClearRenderData();
+        if (Actor->Rotation == NewRotation)
+            return 1;
+        Actor->Rotation = NewRotation;
+        if (Test)
+            return 1;
+        Actor->UpdateRelativeRotation();
+        return 1;
+    }
+
+    FMemMark Mark(GMem);
+    Hit = FCheckResult(1.f);
+
+    // trace a little further than the move so the actor stops short of what it hits
+    FLOAT DeltaSize = 0.f;
+    FVector DeltaDir = Delta;
+    if (fabsf(Delta.X) >= 0.0001f || fabsf(Delta.Y) >= 0.0001f || fabsf(Delta.Z) >= 0.0001f)
+    {
+        DeltaSize = Delta.Size();
+        DeltaDir = Delta * (1.f / DeltaSize);
+    }
+    const FVector TestAdjust = DeltaDir * 2.f;
+    const FVector TestDelta = Delta + TestAdjust;
+
+    UBOOL bHitSomething = 0;
+    FCheckResult* FirstHit = nullptr;
+    UBOOL bTouchNotify = 1;
+    if (Actor->bCollideActors || Actor->bCollideWorld)
+    {
+        if (!(Actor->bCollideActors && Actor->IsEncroacher()) && DeltaSize != 0.f)
+        {
+            bTouchNotify = 0;
+            DWORD TraceFlags = 0;
+            if (Actor->bCollideActors)
+                TraceFlags = (IgnorePawns ? 0 : 0x1) | 0x18;
+            if (Actor->bCollideWorld)
+                TraceFlags |= 0x86;
+            ALevelInfo* Info = Actor->bCollideWorld ? GetLevelInfo() : nullptr;
+            const FVector Extent(Actor->CollisionRadius, Actor->CollisionRadius, Actor->CollisionHeight);
+            FirstHit = MultiLineCheck(GMem, Actor->Location + TestDelta, Actor->Location, Extent, Info, TraceFlags | ExtraNodeFlags, Actor);
+            if (Actor->bCollideWorld || Actor->bBlockActors || Actor->bBlockPlayers)
+            {
+                for (FCheckResult* Test2 = FirstHit; Test2; Test2 = Test2->GetNext())
+                {
+                    if ((bIgnoreBases && IsBaseChainOf(Actor, Test2->Actor)) || IsBaseChainOf(Test2->Actor, Actor))
+                        continue;
+                    bHitSomething = 1;
+                    if (Actor->IsBlockedBy(Test2->Actor))
+                    {
+                        Hit = *Test2;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // stop at the hit
+    FVector FinalDelta = Delta;
+    if (Hit.Time < 1.f && !bNoFail)
+    {
+        const FLOAT DistanceToHit = (DeltaSize + 2.f) * Hit.Time;
+        if (DistanceToHit > 2.f)
+        {
+            FinalDelta = TestDelta * Hit.Time - TestAdjust;
+            Hit.Time = (DistanceToHit - 2.f) / DeltaSize;
+        }
+        else
+        {
+            FinalDelta = FVector(0.f, 0.f, 0.f);
+            Hit.Time = 0.f;
+        }
+    }
+
+    // an encroacher fails the move if it would push into something that won't move
+    if (!Test && !bNoFail && Actor->bCollideActors && Actor->IsEncroacher()
+        && CheckEncroachment(Actor, Actor->Location + FinalDelta, NewRotation, bTouchNotify))
+    {
+        Mark.Pop();
+        return 0;
+    }
+    if (Actor->bCollideActors && Hash)
+        Hash->RemoveActor(Actor);
+
+    Actor->Location = Actor->Location + FinalDelta;
+    const FRotator OldRotation = Actor->Rotation;
+    Actor->Rotation = NewRotation;
+
+    if (!Test && Actor->Attached.Num() > 0)
+    {
+        FRotator RotationDelta(0, 0, 0);
+        if (Actor->Rotation != OldRotation)
+            RotationDelta = FRotator((Actor->Rotation.Pitch & 0xfffc) - (OldRotation.Pitch & 0xfffc),
+                (Actor->Rotation.Yaw & 0xfffc) - (OldRotation.Yaw & 0xfffc), (Actor->Rotation.Roll & 0xfffc) - (OldRotation.Roll & 0xfffc));
+
+        for (INT i = 0; i < Actor->Attached.Num(); i++)
+        {
+            AActor* Other = Actor->Attached[i];
+            if (!Other)
+                continue;
+            FCheckResult AttachHit(1.f);
+            if (Other->AttachmentBone == NAME_None)
+            {
+                FRotator OtherRotation = Other->Rotation + RotationDelta;
+                FVector OffsetDelta(0.f, 0.f, 0.f);
+                if (Actor->Rotation != OldRotation)
+                {
+                    // pawns turn their controller too, and keep their roll unless they crawl
+                    APawn* Pawn = Other->IsAPawn() ? Cast<APawn>(Other) : nullptr;
+                    if (Pawn)
+                    {
+                        INT ControllerRoll = 0;
+                        if (Pawn->Controller)
+                        {
+                            ControllerRoll = Pawn->Controller->Rotation.Roll;
+                            Pawn->Controller->Rotation = Pawn->Controller->Rotation + RotationDelta;
+                        }
+                        if (!Pawn->bCrawler)
+                        {
+                            OtherRotation.Roll = Other->Rotation.Roll;
+                            if (Pawn->Controller)
+                                Pawn->Controller->Rotation.Roll = ControllerRoll;
+                        }
+                    }
+                    // the attached actor's offset turns with the base
+                    const FVector Offset = Other->RelativeLocation;
+                    OffsetDelta = LocalToWorld(WorldToLocal(Offset, OldRotation), Actor->Rotation) - Offset;
+                }
+                MoveActor(Other, OffsetDelta + FinalDelta, OtherRotation, AttachHit, 0, 0, 1, 0, 0);
+            }
+
+            if (!bNoFail && Other->IsBlockedBy(Actor))
+            {
+                // an attached actor that ends up inside its base can stop the base's move
+                FCheckResult Test2(1.f);
+                UBOOL bOverlap;
+                if (Other->Brush && Other->IsAVolume())
+                {
+                    const FVector Extent(Actor->CollisionRadius, Actor->CollisionRadius, Actor->CollisionHeight);
+                    bOverlap = !Other->GetPrimitive()->PointCheck(Test2, Other, Actor->Location, Extent, 0);
+                }
+                else
+                {
+                    const FVector Extent(Other->CollisionRadius, Other->CollisionRadius, Other->CollisionHeight);
+                    bOverlap = !Actor->GetPrimitive()->PointCheck(Test2, Actor, Other->Location, Extent, 0);
+                }
+                if (bOverlap && Actor->eventEncroachingOn(Other))
+                {
+                    Actor->Location = Actor->Location - FinalDelta;
+                    Actor->Rotation = OldRotation;
+                    if (Actor->bCollideActors && Hash)
+                        Hash->AddActor(Actor);
+                    for (INT j = 0; j < Actor->Attached.Num(); j++)
+                        if (Actor->Attached[j])
+                            MoveActor(Actor->Attached[j], FinalDelta * -1.f, Actor->Attached[j]->Rotation, AttachHit, 0, 0, 1, 0, 0);
+                    Mark.Pop();
+                    return 0;
+                }
+            }
+        }
+        if (!InTick && Actor->MeshInstance)
+            Actor->MeshInstance->UpdateAttachments();
+    }
+
+    if (!Test && !Actor->bOnlyDrawIfAttached)
+    {
+        if (Actor->Base && Actor->AttachmentBone == NAME_None)
+            Actor->RelativeLocation = Actor->Location - Actor->Base->Location;
+        if (Actor->Rotation != OldRotation)
+            Actor->UpdateRelativeRotation();
+    }
+
+    if (Actor->bCollideActors && Hash)
+        Hash->AddActor(Actor);
+
+    // a karma model that isn't driven by a body follows the actor
+    if (McdModel* Model = Actor->getKModel())
+    {
+        if (!McdModelGetBody(Model) && !Actor->bStatic
+            && (!Actor->IsAPawn() || NewRotation.Pitch != OldRotation.Pitch || NewRotation.Roll != OldRotation.Roll))
+        {
+            KU2METransform(McdModelGetTransformPtr(Model), Actor->Location, Actor->Rotation);
+            if (static_cast<BYTE>(McdModelGetGeometry(Model)->TypeId))
+                McdModelUpdate(Model);
+        }
+    }
+
+    if (!Test)
+    {
+        AActor* HitActor = Hit.Actor;
+        if (HitActor && !HitActor->bWorldGeometry && !IsBaseChainOf(Actor, HitActor))
+        {
+            HitActor->NotifyBumpEx(Actor);
+            Actor->NotifyBumpEx(Hit.Actor);
+        }
+
+        // touch what was passed through on the way
+        if (bHitSomething || !Actor->bBlockActors || !Actor->bBlockPlayers)
+        {
+            for (FCheckResult* Test2 = FirstHit; Test2 && Test2->Time < Hit.Time; Test2 = Test2->GetNext())
+            {
+                if ((!bIgnoreBases || !Actor->IsJoinedTo(Test2->Actor)) && !Actor->IsBlockedBy(Test2->Actor) && Actor != Test2->Actor)
+                    Actor->BeginTouch(Test2->Actor);
+            }
+        }
+
+        // untouch what it no longer overlaps
+        for (INT i = 0; i < Actor->Touching.Num();)
+        {
+            if (Actor->Touching[i] && !Actor->IsOverlapping(Actor->Touching[i]))
+                Actor->EndTouch(Actor->Touching[i], 0);
+            else
+                i++;
+        }
+    }
+
+    Actor->SetZone(Test, 0);
+    Mark.Pop();
+    if (!Test)
+        Actor->ClearRenderData();
+    return Hit.Time > 0.f;
 }
 
 UBOOL ULevel::FarMoveActor(AActor* Actor, const FVector& DestLocation, UBOOL Test, UBOOL bNoCheck, UBOOL bAttachedMove)
