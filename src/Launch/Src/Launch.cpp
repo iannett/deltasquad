@@ -39,7 +39,23 @@ int main(int argc, char** argv)
     GEngine = static_cast<UEngine*>(UObject::StaticConstructObject(EngineClass));
     GLog->Logf(TEXT("Initializing Engine"));
     GEngine->Init();
+    GLog->Logf(TEXT("Starting Engine"));
 
-    UObject::StaticExit();
+    // 0x00014b7f, the main loop
+    GLog->Logf(TEXT("Entering Loop"));
+    GIsRunning = 1;
+    DOUBLE OldTime = appSeconds();
+    while (GIsRunning && !GIsRequestingExit)
+    {
+        const DOUBLE NewTime = appSeconds();
+        GEngine->Tick(static_cast<FLOAT>(NewTime - OldTime));
+        OldTime = NewTime;
+    }
+    GIsRunning = 0;
+
+    GLog->Logf(TEXT("Exiting Loop"));
+    appPreExit();
+    appExit();
+    GIsStarted = 0;
     return 0;
 }

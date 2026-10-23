@@ -32,6 +32,10 @@ public:
         Unknown8.Empty();
     }
 
+    // 0x00199134. GRAPH and BARGRAPH.
+    UBOOL Exec(const TCHAR* Cmd, FOutputDevice& Ar);
+
+    // set hides the line graph
     INT                                  Unknown0;
     INT                                  Unknown4;
     TMap<FString, INT>                   Unknown8;
@@ -46,6 +50,7 @@ public:
     FLOAT                                Unknown40;
     BYTE                                 Unknown44;
     TArray<INT>                          Unknown48;
+    // set shows the bar graph
     INT                                  Unknown50;
     TArray<INT>                          Unknown54;
     TMap<FString, FStatGraphUnknown5C>   Unknown5C;
@@ -79,12 +84,9 @@ struct FMemBudget
     INT UnknownC;
 };
 
-// memory and frame stats for the on-screen display. only the memory budgets are decompiled so far.
-class FEngineStats
+// the memory budgets inside FEngineStats; its real name is not known
+struct FEngineMemStats
 {
-public:
-    // 0x00169cb3
-    void Init() { InitMemBudgets(); }
     // 0x00168b27. splits the xbox's 64 MB between the budgets.
     void InitMemBudgets();
     // 0x00168a57
@@ -102,8 +104,65 @@ public:
     INT        Unknown1B0;
 };
 
+// memory and frame stats for the on-screen display
+class FEngineStats
+{
+public:
+    // 0x00169cb3
+    void Init() { Unknown1598.InitMemBudgets(); }
+
+    // shown stats, toggled by STAT MEM, MAIN, FPS, PAWNS, HIGH and NET
+    BYTE            Unknown0;
+    BYTE            Unknown1;
+    BYTE            Unknown2;
+    BYTE            Unknown3;
+    BYTE            Unknown4;
+    BYTE            Unknown5;
+    // toggled by TVSAFEZONE
+    BYTE            Unknown6;
+    // the stat records the constructor (0x0016936e) builds from +0x8 are not added yet
+    FEngineMemStats Unknown1598;
+};
+
+// an element of FRenderUnknown's first array; its fields are not known yet
+struct FRenderUnknownEntry
+{
+    INT    Unknown0;
+    INT    Unknown4;
+    INT    Unknown8;
+    DOUBLE UnknownC;
+    INT    Unknown14;
+};
+
+// a render-side cache with 64 slots, reset whenever the level or its detail mode changes. its class and its
+// virtual functions are not known yet; the xbox gives it a vtable at 0x003dcbac.
+class FRenderUnknown
+{
+public:
+    // 0x00136bce
+    void Reset()
+    {
+        Unknown704 = 0.0;
+        Unknown710 = 0;
+        Unknown714 = 0;
+        Unknown70C = 0.f;
+        memset(Unknown4, 0, sizeof(Unknown4));
+        memset(Unknown604, 0, sizeof(Unknown604));
+    }
+
+    FRenderUnknownEntry Unknown4[64];
+    INT                 Unknown604[64];
+    DOUBLE              Unknown704;
+    FLOAT               Unknown70C;
+    INT                 Unknown710;
+    INT                 Unknown714;
+};
+
+// 0x004a9508
 // 0x004a9508
 extern FEngineStats        GEngineStats;
+// 0x004aacb0
+extern FRenderUnknown      GRenderUnknown;
 // 0x00462100
 extern FMemStack           GEngineMem;
 // 0x00462120

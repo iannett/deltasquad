@@ -82,3 +82,125 @@ void FMemCache::CreateNewFreeSpace(BYTE* Start, BYTE* End, FCacheItem* Prev, FCa
 void FMemCache::CheckState()
 {
 }
+
+void FMemCache::Tick()
+{
+    Unknown8 = 0;
+    UnknownC = 0;
+    Unknown10 = 0;
+    Unknown100FC[2] = 0;
+    Unknown100FC[1] = 0;
+    Unknown100FC[0] = 0;
+    Unknown10028[51] = 0;
+    Unknown10028[50] = 0;
+    for (FCacheItem* Item = FirstItem; Item != LastItem; Item = Item->LinearNext)
+    {
+        if (Item->Id && Item->Time < Time)
+            Item->Cost -= Item->Cost >> 5;
+    }
+    Time++;
+}
+
+void FMemCache::Unhash(QWORD Id)
+{
+    for (FCacheItem** HashPtr = &HashItems[GHash(static_cast<DWORD>(Id))]; *HashPtr; HashPtr = &(*HashPtr)->HashNext)
+    {
+        if ((*HashPtr)->Id == Id)
+        {
+            *HashPtr = (*HashPtr)->HashNext;
+            return;
+        }
+    }
+    GError->Logf(TEXT("Unhashed item"));
+}
+
+FMemCache::FCacheItem* FMemCache::MergeWithNext(FCacheItem* Item)
+{
+    FCacheItem* Next = Item->LinearNext;
+    Item->LinearNext = Next->LinearNext;
+    Item->LinearNext->LinearPrev = Item;
+    Next->LinearNext = UnusedItems;
+    UnusedItems = Next;
+    return Item;
+}
+
+FMemCache::FCacheItem* FMemCache::FlushItem(FCacheItem* Item, UBOOL IgnoreLocked)
+{
+    if (Item->Cost < 0x1000000)
+    {
+        FCacheItem* Prev = Item->LinearPrev;
+        Item->Id = 0;
+        Item->Cost = 0;
+        if (Prev && !Prev->Id && Item->Segment == Prev->Segment)
+            Item = MergeWithNext(Prev);
+        FCacheItem* Next = Item->LinearNext;
+        if (Next && !Next->Id && Item->Segment == Next->Segment)
+            Item = MergeWithNext(Item);
+    }
+    else if (!IgnoreLocked)
+    {
+        GError->Logf(TEXT("Flushed locked cache object %08X.%08X"), static_cast<DWORD>(Item->Id >> 32), static_cast<DWORD>(Item->Id));
+    }
+    return Item->LinearNext;
+}
+
+void FMemCache::Flush(QWORD Id, DWORD Mask, UBOOL IgnoreLocked)
+{
+    Unknown8 = 0;
+    UnknownC = 0;
+    Unknown10 = 0;
+    if (!Initialized)
+        return;
+    if (!Id)
+        Mask = 0;
+    if (Mask == ~0u)
+    {
+        for (FCacheItem** HashPtr = &HashItems[GHash(static_cast<DWORD>(Id))]; *HashPtr; HashPtr = &(*HashPtr)->HashNext)
+        {
+            if ((*HashPtr)->Id == Id)
+            {
+                FCacheItem* Item = *HashPtr;
+                *HashPtr = Item->HashNext;
+                FlushItem(Item, IgnoreLocked);
+                return;
+            }
+        }
+    }
+    else
+    {
+        // the mask only covers the low 32 bits of the ids
+        for (FCacheItem* Item = FirstItem; Item; )
+        {
+            if (Item->Id && (static_cast<DWORD>(Item->Id) & Mask) == (static_cast<DWORD>(Id) & Mask))
+            {
+                if (Item->Cost < 0x1000000)
+                    Unhash(Item->Id);
+                Item = FlushItem(Item, IgnoreLocked);
+            }
+            else
+            {
+                Item = Item->LinearNext;
+            }
+        }
+        // the xbox then walks the list again with its checks compiled out
+    }
+}
+
+UBOOL FMemCache::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+    if (!ParseCommand(&Cmd, TEXT("DUMPCACHE")))
+        return 0;
+    for (FCacheItem* Item = FirstItem; Item != LastItem; Item = Item->LinearNext)
+    {
+        const TCHAR* State;
+        if (Item->Cost >= 0x1000000)
+            State = TEXT("Locked");
+        else if (!Item->Id)
+            State = TEXT("Empty");
+        else
+            State = Time - Item->Time < 1 ? TEXT("Fresh") : TEXT("Stale");
+        Ar.Logf(TEXT("%02X [%i]: %s"), static_cast<INT>(static_cast<signed char>(Item->Id)),
+            static_cast<INT>(Item->LinearNext->Data - Item->Data), State);
+    }
+    return 1;
+}

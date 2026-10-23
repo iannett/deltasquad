@@ -59,6 +59,7 @@ enum EClassFlags : DWORD
     CLASS_Localized     = 0x00000020, // has localized properties
     CLASS_RuntimeStatic = 0x00000080,
     CLASS_PerObjectConfig = 0x00000400, // config is kept per object instead of per class
+    CLASS_NativeReplication = 0x00000800, // replication is done in C++
     CLASS_IsAUProperty  = 0x00008000,
     CLASS_IsAUObjectProperty = 0x00010000,
     CLASS_IsAUBoolProperty = 0x00020000,
@@ -146,6 +147,8 @@ class UFunction : public UStruct
 public:
     void Serialize(FArchive& Ar) override;
     void Bind() override;
+    // 0x00070cad. an overriding function lays out its own parameters and locals from offset 0.
+    UStruct* GetInheritanceSuper() override { return nullptr; }
 
     DWORD  FunctionFlags;
     _WORD  iNative;
@@ -209,6 +212,7 @@ enum { FUNC_HASH_BUCKETS = 128 };
 
 // UState::StateFlags
 enum { STATE_Auto = 0x00000002 }; // the state GotoState('Auto') picks
+enum { STATE_Simulated = 0x00000004 }; // the state code also runs on simulated proxies
 
 // one entry of a class's native function table. tables end with a null Name.
 struct FNativeEntry
@@ -439,13 +443,6 @@ public:
     UBOOL AttemptedBind;
     DWORD PackageFlags; // copied from the package file by the linker
     UBOOL bDirty;
-};
-
-// one entry of a state's label table, stored in its script
-struct FLabelEntry
-{
-    FName Name;
-    INT   iCode;
 };
 
 // a block of text owned by an object, such as a class's script source

@@ -5,20 +5,20 @@
 // 0x000ab6c2
 FArchive& operator<<(FArchive& Ar, FBspNode& N)
 {
-    Ar << N.Plane << N.Unknown10 << N.Unknown47;
-    Ar << AR_INDEX(N.Unknown18) << AR_INDEX(N.Unknown1C) << AR_INDEX(N.Unknown20) << AR_INDEX(N.Unknown24) << AR_INDEX(N.Unknown28);
-    Ar << AR_INDEX(N.Unknown3C) << AR_INDEX(N.Unknown40);
+    Ar << N.Plane << N.ZoneMask << N.NodeFlags;
+    Ar << AR_INDEX(N.iVertPool) << AR_INDEX(N.iSurf) << AR_INDEX(N.iChild[0]) << AR_INDEX(N.iChild[1]) << AR_INDEX(N.iPlane);
+    Ar << AR_INDEX(N.iCollisionBound) << AR_INDEX(N.iRenderBound);
     Ar << N.Unknown2C;
     if (Ar.Ver() < 135)
     {
         FPlane Unused(0.f, 0.f, 0.f, 0.f);
         Ar << Unused;
     }
-    Ar << N.Unknown44 << N.Unknown45 << N.Unknown46 << N.Unknown48 << N.Unknown4C;
+    Ar << N.iZone[0] << N.iZone[1] << N.NumVertices << N.iLeaf[0] << N.iLeaf[1];
 
     if (Ar.Ver() < 92)
     {
-        N.Unknown50 = N.Unknown54 = N.Unknown58 = INDEX_NONE;
+        N.iSection = N.iFirstVertex = N.iLightMap = INDEX_NONE;
     }
     else if (Ar.Ver() < 101)
     {
@@ -27,27 +27,27 @@ FArchive& operator<<(FArchive& Ar, FBspNode& N)
         if (Ar.Ver() >= 93)
             Ar << Unused;
         Ar << Unused;
-        N.Unknown50 = N.Unknown54 = N.Unknown58 = INDEX_NONE;
+        N.iSection = N.iFirstVertex = N.iLightMap = INDEX_NONE;
     }
     else
     {
-        Ar << N.Unknown50 << N.Unknown54 << N.Unknown58;
+        Ar << N.iSection << N.iFirstVertex << N.iLightMap;
         if (Ar.IsLoading() && Ar.Ver() < 108)
-            N.Unknown58 = INDEX_NONE;
+            N.iLightMap = INDEX_NONE;
     }
 
     if (!Ar.IsSaving() && !Ar.IsLoading())
         N.Unknown5C.CountBytes(Ar);
     if (Ar.IsLoading())
-        N.Unknown47 &= 0x1f;
+        N.NodeFlags &= 0x1f;
     return Ar;
 }
 
 // 0x000ab204
 FArchive& operator<<(FArchive& Ar, FBspSurf& S)
 {
-    Ar << S.Unknown0 << S.Unknown4;
-    Ar << AR_INDEX(S.Unknown8) << AR_INDEX(S.UnknownC) << AR_INDEX(S.Unknown10) << AR_INDEX(S.Unknown14);
+    Ar << S.Material << S.PolyFlags;
+    Ar << AR_INDEX(S.pBase) << AR_INDEX(S.vNormal) << AR_INDEX(S.vTextureU) << AR_INDEX(S.vTextureV);
     if (Ar.Ver() < 101)
     {
         INT Unused = INDEX_NONE;
@@ -117,9 +117,9 @@ void FPoly::Serialize(FArchive& Ar)
 // 0x000ae870
 FArchive& operator<<(FArchive& Ar, FBspSection& S)
 {
-    Ar << S.VertexStream << S.Unknown1C << S.Unknown18 << S.Unknown20 << S.Unknown24;
+    Ar << S.VertexStream << S.Material << S.NumNodes << S.PolyFlags << S.iLightMapTexture;
     if (Ar.Ver() < 107 && Ar.IsLoading())
-        S.Unknown24 = INDEX_NONE;
+        S.iLightMapTexture = INDEX_NONE;
     return Ar;
 }
 
@@ -137,9 +137,9 @@ FArchive& operator<<(FArchive& Ar, FModelUnknown30& U)
 // 0x000ade7f
 FArchive& operator<<(FArchive& Ar, FLightMap& L)
 {
-    Ar << AR_INDEX(L.Unknown14) << AR_INDEX(L.Unknown18) << AR_INDEX(L.Unknown1C) << AR_INDEX(L.Unknown20);
-    Ar << AR_INDEX(L.Unknown24) << AR_INDEX(L.Unknown28) << AR_INDEX(L.Unknown2C);
-    Ar << L.Unknown30 << L.Unknown70 << L.Unknown7C << L.Unknown88;
+    Ar << AR_INDEX(L.iTexture) << AR_INDEX(L.Unknown18) << AR_INDEX(L.Unknown1C) << AR_INDEX(L.OffsetX);
+    Ar << AR_INDEX(L.OffsetY) << AR_INDEX(L.Unknown28) << AR_INDEX(L.Unknown2C);
+    Ar << L.WorldToLightMap << L.Unknown70 << L.Unknown7C << L.Unknown88;
     if (Ar.Ver() >= 107)
     {
         Ar << L.Unknown94;
@@ -232,7 +232,7 @@ void UModel::Serialize(FArchive& Ar)
     Super::Serialize(Ar);
     // transactions leave the geometry alone
     if (!Ar.IsTrans())
-        Ar << Unknown70 << Unknown7C << Nodes << Surfs << Unknown64;
+        Ar << Vectors << Points << Nodes << Surfs << Verts;
     Ar << UnknownE0 << NumZones;
     for (INT i = 0; i < NumZones; i++)
         Ar << Zones[i];
@@ -290,6 +290,182 @@ void UModel::Serialize(FArchive& Ar)
     }
     if (Ar.Ver() >= 110)
         Ar << LightMapTextures;
+}
+
+void UModel::ClearRenderData(URenderDevice* RenDev)
+{
+    if (Sections.Num() == 0)
+        return;
+    if (RenDev)
+        NOT_DECOMPILED(0x000ae025);
+    for (INT i = 0; i < Nodes.Num(); i++)
+    {
+        Nodes[i].iSection = INDEX_NONE;
+        Nodes[i].iFirstVertex = INDEX_NONE;
+    }
+    Sections.Empty();
+}
+
+void UModel::BuildRenderData()
+{
+    ClearRenderData(nullptr);
+    for (INT iNode = 0; iNode < Nodes.Num(); iNode++)
+    {
+        FBspNode& Node = Nodes[iNode];
+        FBspSurf& Surf = Surfs[Node.iSurf];
+        FLightMap* LightMap = Node.iLightMap != INDEX_NONE ? &LightMaps[Node.iLightMap] : nullptr;
+        UMaterial* Material = Surf.Material;
+        if (!Material)
+            Material = static_cast<UMaterial*>(UMaterial::StaticClass()->GetDefaultObject())->DefaultMaterial;
+        const DWORD PolyFlags = Surf.PolyFlags & 0x2400100;
+        const INT iLightMapTexture = LightMap ? LightMap->iTexture : INDEX_NONE;
+        if (Node.NumVertices == 0)
+            continue;
+
+        // a section with the same state and room for the vertices, else a new one
+        FBspSection* Section = nullptr;
+        for (INT i = 0; i < Sections.Num(); i++)
+        {
+            FBspSection& Other = Sections[i];
+            if (Other.Material == Material && Other.PolyFlags == PolyFlags && Other.iLightMapTexture == iLightMapTexture
+                && Other.VertexStream.Vertices.Num() + Node.NumVertices < 0xffff)
+            {
+                Section = &Other;
+                break;
+            }
+        }
+        if (!Section)
+        {
+            Section = new (&Sections[Sections.Add()]) FBspSection;
+            Section->Material = Material;
+            Section->PolyFlags = PolyFlags;
+            Section->iLightMapTexture = iLightMapTexture;
+        }
+        Node.iSection = static_cast<INT>(Section - &Sections[0]);
+
+        TArray<FBspVertex>& Vertices = Section->VertexStream.Vertices;
+        Vertices.AddZeroed(Node.NumVertices);
+        Node.iFirstVertex = Vertices.Num() - Node.NumVertices;
+
+        const FMatrix M = FCoords(Points[Surf.pBase], Vectors[Surf.vTextureU], Vectors[Surf.vTextureV], Vectors[Surf.vNormal]).Matrix();
+        const FLOAT InvUSize = 1.f / static_cast<FLOAT>(Material->MaterialUSize());
+        const FLOAT InvVSize = 1.f / static_cast<FLOAT>(Material->MaterialVSize());
+        FLOAT SumU = 0.f;
+        FLOAT SumV = 0.f;
+        for (INT i = 0; i < Node.NumVertices; i++)
+        {
+            FBspVertex& Vertex = Vertices[Node.iFirstVertex + i];
+            const FVector P = Points[Verts[Node.iVertPool + i].pVertex];
+            Vertex.Position = P;
+            Vertex.U = InvUSize * (M.M[2][0] * P.Z + M.M[1][0] * P.Y + M.M[0][0] * P.X + M.M[3][0]);
+            Vertex.V = InvVSize * (M.M[2][1] * P.Z + M.M[1][1] * P.Y + M.M[0][1] * P.X + M.M[3][1]);
+            SumU += Vertex.U;
+            SumV += Vertex.V;
+            if (LightMap)
+            {
+                // light map textures are 512 texels square
+                const FMatrix& L = LightMap->WorldToLightMap;
+                Vertex.U2 = (static_cast<FLOAT>(LightMap->OffsetX) + (L.M[2][0] * P.Z + L.M[1][0] * P.Y + P.X * L.M[0][0] + L.M[3][0])) * (1.f / 512.f);
+                Vertex.V2 = (static_cast<FLOAT>(LightMap->OffsetY) + (L.M[0][1] * P.X + L.M[2][1] * P.Z + L.M[1][1] * P.Y + L.M[3][1])) * (1.f / 512.f);
+            }
+            Vertex.Normal = FPackedNormal(Node.Plane.X, Node.Plane.Y, Node.Plane.Z);
+        }
+
+        // shift the texture coordinates by whole tiles so the node's average sits near 0
+        const FLOAT OffsetU = static_cast<FLOAT>(appRound(SumU / Node.NumVertices));
+        const FLOAT OffsetV = static_cast<FLOAT>(appRound(SumV / Node.NumVertices));
+        for (INT i = 0; i < Node.NumVertices; i++)
+        {
+            Vertices[Node.iFirstVertex + i].U -= OffsetU;
+            Vertices[Node.iFirstVertex + i].V -= OffsetV;
+        }
+        Section->NumNodes++;
+        Section->VertexStream.Revision++;
+    }
+}
+
+FPointRegion UModel::PointRegion(AZoneInfo* Zone, const FVector& Location) const
+{
+    FPointRegion Result{ Zone, INDEX_NONE, 0 };
+    if (Nodes.Num())
+    {
+        INT iNode = 0;
+        INT iParent;
+        INT IsFront;
+        do
+        {
+            iParent = iNode;
+            const FPlane& Plane = Nodes[iNode].Plane;
+            IsFront = (Plane.Z * Location.Z + Plane.Y * Location.Y + Plane.X * Location.X) - Plane.W >= 0.f;
+            iNode = Nodes[iNode].iChild[IsFront];
+        } while (iNode != INDEX_NONE);
+        Result.iLeaf = Nodes[iParent].iLeaf[IsFront];
+        Result.ZoneNumber = NumZones ? Nodes[iParent].iZone[IsFront] : 0;
+        Result.Zone = static_cast<AZoneInfo*>(Zones[Result.ZoneNumber].ZoneActor);
+        if (!Result.Zone)
+            Result.Zone = Zone;
+    }
+    return Result;
+}
+
+// 0x0017b9a0. the model's box turned with the owner.
+FBox UModel::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    if (!Owner)
+        return BoundingBox;
+    const FMatrix LocalToWorld = Owner->LocalToWorld();
+    FBox Box = FBox();
+    for (INT X = 0; X < 2; X++)
+        for (INT Y = 0; Y < 2; Y++)
+            for (INT Z = 0; Z < 2; Z++)
+            {
+                const FVector Corner(X ? BoundingBox.Max.X : BoundingBox.Min.X, Y ? BoundingBox.Max.Y : BoundingBox.Min.Y,
+                    Z ? BoundingBox.Max.Z : BoundingBox.Min.Z);
+                Box += LocalToWorld.TransformFVector(Corner);
+            }
+    return Box;
+}
+
+// returns 0 when the point or box is inside the model's solid space
+UBOOL UModel::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    Result.Normal = FVector(0, 0, 0);
+    Result.Location = Location;
+    Result.Primitive = this;
+    Result.Actor = Owner;
+    Result.Time = 0.f;
+    UBOOL Outside = UnknownD4;
+    if (Nodes.Num() == 0)
+        return Outside;
+
+    if (!Extent.IsZero())
+    {
+        // the box walk, through a check info set up by 0x0017bbab
+        NOT_DECOMPILED(0x0017bbf4);
+        return Outside;
+    }
+
+    // walk down the tree with the planes moved to where the owner is
+    const FMatrix ToWorld = Owner ? Owner->LocalToWorld() : FMatrix::Identity;
+    const FMatrix ToWorldTA = ToWorld.TransposeAdjoint();
+    const FLOAT Det = ToWorld.Determinant();
+    INT iNode = 0;
+    INT IsFront = 0;
+    INT iPrevNode;
+    do
+    {
+        const FBspNode& Node = Nodes[iNode];
+        FVector Normal = ToWorldTA.TransformNormal(Node.Plane).SafeNormal();
+        if (Det < 0.f)
+            Normal = Normal * -1.f;
+        const FVector Base = ToWorld.TransformFVector(Node.Plane * Node.Plane.W);
+        IsFront = ((Location | Normal) - (Base | Normal)) > 0.f;
+        Outside = Node.ChildOutside(IsFront, Outside);
+        iPrevNode = iNode;
+        iNode = Node.iChild[IsFront];
+    } while (iNode != INDEX_NONE);
+    Result.Item = IsFront + iPrevNode * 2;
+    return Outside;
 }
 
 // ---------------------------------------------------------------------------------------------- polys

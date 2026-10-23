@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstring>
 
 #include "Core.h"
@@ -36,6 +37,66 @@ McdGeometry* McdNullCreate(McdFramework* Framework)
     return Geometry;
 }
 
+// 0x00188050
+McdSphere* McdSphereCreate(McdFramework* Framework, FLOAT Radius)
+{
+    McdSphere* Sphere = static_cast<McdSphere*>(MeMemory.CreateAligned(sizeof(McdSphere), 0x10));
+    if (!Sphere)
+        return nullptr;
+    McdGeometryInit(&Sphere->Base, Framework, 1);
+    Sphere->Radius = Radius;
+    return Sphere;
+}
+
+// 0x00187c20. takes the full size along each axis.
+McdBox* McdBoxCreate(McdFramework* Framework, FLOAT X, FLOAT Y, FLOAT Z)
+{
+    McdBox* Box = static_cast<McdBox*>(MeMemory.CreateAligned(sizeof(McdBox), 0x10));
+    if (!Box)
+        return nullptr;
+    McdGeometryInit(&Box->Base, Framework, 2);
+    Box->Radii[0] = X * 0.5f;
+    Box->Radii[1] = Y * 0.5f;
+    Box->Radii[2] = Z * 0.5f;
+    Box->BoundRadius = sqrtf(Box->Radii[0] * Box->Radii[0] + Box->Radii[1] * Box->Radii[1] + Box->Radii[2] * Box->Radii[2]);
+    return Box;
+}
+
+// 0x00187390
+McdCylinder* McdCylinderCreate(McdFramework* Framework, FLOAT Radius, FLOAT Height)
+{
+    McdCylinder* Cylinder = static_cast<McdCylinder*>(MeMemory.CreateAligned(sizeof(McdCylinder), 0x10));
+    if (!Cylinder)
+        return nullptr;
+    McdGeometryInit(&Cylinder->Base, Framework, 4);
+    const FLOAT HalfHeight = Height * 0.5f;
+    Cylinder->Radius = Radius;
+    Cylinder->HalfHeight = HalfHeight;
+    Cylinder->BoundRadius = sqrtf(Radius * Radius + HalfHeight * HalfHeight);
+    return Cylinder;
+}
+
+// 0x0018b100. negative sizes become zero.
+McdSphyl* McdSphylCreate(McdFramework* Framework, FLOAT Radius, FLOAT Height)
+{
+    McdSphyl* Sphyl = static_cast<McdSphyl*>(MeMemory.CreateAligned(sizeof(McdSphyl), 0x10));
+    if (!Sphyl)
+        return nullptr;
+    McdGeometryInit(&Sphyl->Base, Framework, 5);
+    Sphyl->Radius = Radius < 0.f ? 0.f : Radius;
+    Sphyl->HalfHeight = (Height < 0.f ? 0.f : Height) * 0.5f;
+    return Sphyl;
+}
+
+// 0x001b3810
+McdGeometry* McdPlaneCreate(McdFramework* Framework)
+{
+    McdGeometry* Plane = static_cast<McdGeometry*>(MeMemory.CreateAligned(sizeof(McdGeometry), 0x10));
+    if (Plane)
+        McdGeometryInit(Plane, Framework, 3);
+    return Plane;
+}
+
 // ---------------------------------------------------------------------------------------------- hash tables
 
 namespace
@@ -72,11 +133,11 @@ namespace
 MeHash* MeHashCreate(INT Size)
 {
     MeHash* Hash = static_cast<MeHash*>(MeMemory.Create(sizeof(MeHash)));
-    Hash->Unknown4 = 0;
+    Hash->Count = 0;
     Hash->Hash = HashString;
     Hash->Compare = CompareStrings;
-    Hash->Unknown14 = 0;
     Hash->FreeData = nullptr;
+    Hash->FreeKey = nullptr;
     Hash->Unknown1C = 0;
     if (Size < 0x40000000 && Size != 0)
     {
@@ -107,9 +168,9 @@ void MeHashSetCompareFunction(MeHash* Hash, INT (*Fn)(const void*, const void*))
 }
 
 // 0x00188150
-void MeHashSetDataFreeFunction(MeHash* Hash, void (*Fn)(void*))
+void MeHashSetKeyFreeFunction(MeHash* Hash, void (*Fn)(void*))
 {
-    Hash->FreeData = Fn;
+    Hash->FreeKey = Fn;
 }
 
 // ---------------------------------------------------------------------------------------------- asset database
@@ -171,6 +232,17 @@ void MeAssetDBRemoveAsset(MeFAsset* Asset)
     Asset->Owner = nullptr;
 }
 
+// 0x0018e280
+MeFAsset* MeAssetDBLookupAsset(MeAssetDB* DB, const char* Id)
+{
+    for (MeAssetDBNode* Node = DB->Assets->Next; Node->Asset; Node = Node->Next)
+    {
+        if (!strcmp(Node->Asset->Id, Id))
+            return Node->Asset;
+    }
+    return nullptr;
+}
+
 // 0x00184cf0
 INT MeAssetDBGetAssetCount(MeAssetDB* DB)
 {
@@ -182,13 +254,131 @@ MeAssetFactory* MeAssetFactoryCreate(McdFramework* Framework)
 {
     MeAssetFactory* Factory = static_cast<MeAssetFactory*>(MeMemory.Create(sizeof(MeAssetFactory)));
     Factory->Framework = Framework;
-    Factory->Unknown4 = MeHashCreate(97);
-    Factory->Unknown8 = MeHashCreate(97);
-    MeHashSetCompareFunction(Factory->Unknown8, ComparePointers);
-    MeHashSetHashFunction(Factory->Unknown8, HashInt);
-    MeHashSetDataFreeFunction(Factory->Unknown4, MeMemory.Destroy);
+    Factory->GeometryByName = MeHashCreate(97);
+    Factory->NameByGeometry = MeHashCreate(97);
+    MeHashSetCompareFunction(Factory->NameByGeometry, ComparePointers);
+    MeHashSetHashFunction(Factory->NameByGeometry, HashInt);
+    MeHashSetKeyFreeFunction(Factory->GeometryByName, MeMemory.Destroy);
     Factory->NullGeometry = McdNullCreate(Framework);
     return Factory;
+}
+
+namespace
+{
+    // a new string of the parts joined by "::"
+    char* JoinNames(const char* A, const char* B, const char* C = nullptr)
+    {
+        const size_t Size = strlen(A) + strlen(B) + (C ? strlen(C) + 2 : 0) + 3;
+        char* Name = static_cast<char*>(MeMemory.Create(static_cast<INT>(Size)));
+        Name[0] = 0;
+        strcat(Name, A);
+        strcat(Name, "::");
+        strcat(Name, B);
+        if (C)
+        {
+            strcat(Name, "::");
+            strcat(Name, C);
+        }
+        return Name;
+    }
+}
+
+// 0x0018d940. geometry and primitives already made under the same names are shared.
+McdGeometry* McdGMCreateGeometry(MeAssetFactory* Factory, MeFGeometry* Geometry, const char* AssetId)
+{
+    const INT PrimitiveCount = Geometry->PrimitiveCount;
+    char* Name = JoinNames(AssetId, Geometry->Name);
+    if (McdGeometry* Existing = static_cast<McdGeometry*>(MeHashLookup(Name, Factory->GeometryByName)))
+    {
+        MeMemory.Destroy(Name);
+        return Existing;
+    }
+    McdAggregate* Aggregate = McdAggregateCreate(Factory->Framework, PrimitiveCount);
+    MeFAssetIterator It = Geometry->Primitives->Next;
+    while (MeFPrimitive* Primitive = static_cast<MeFPrimitive*>(MeFAssetIteratorGetNext(&It)))
+    {
+        char* PrimitiveName = JoinNames(AssetId, Geometry->Name, Primitive->Name);
+        McdGeometry* Made = static_cast<McdGeometry*>(MeHashLookup(PrimitiveName, Factory->GeometryByName));
+        if (Made)
+        {
+            MeMemory.Destroy(PrimitiveName);
+        }
+        else
+        {
+            McdFramework* Framework = Factory->Framework;
+            switch (Primitive->Type)
+            {
+            case 2:
+                Made = &McdBoxCreate(Framework, Primitive->Dims[0], Primitive->Dims[1], Primitive->Dims[2])->Base;
+                break;
+            case 1:
+                Made = &McdSphereCreate(Framework, Primitive->Dims[0])->Base;
+                break;
+            case 3:
+                Made = &McdCylinderCreate(Framework, Primitive->Dims[0], Primitive->Dims[1])->Base;
+                break;
+            case 4:
+                Made = &McdSphylCreate(Framework, Primitive->Dims[0], Primitive->Dims[1])->Base;
+                break;
+            case 5:
+                Made = McdPlaneCreate(Framework);
+                break;
+            case 6:
+                // a convex hull of the vertices
+                if (Primitive->VertexCount > 0)
+                    NOT_DECOMPILED(0x0018b4f0);
+                break;
+            default:
+                MeWarning(0, "McdGMCreateGeometry: Unknown Geometry type.");
+                return nullptr;
+            }
+            if (!Made)
+            {
+                MeWarning(0, "McdGMCreateGeometry: Failed to create primitive.");
+                return nullptr;
+            }
+            MeHashInsert(PrimitiveName, Made, Factory->GeometryByName);
+            MeHashInsert(Made, PrimitiveName, Factory->NameByGeometry);
+        }
+        McdAggregateAddElement(Aggregate, Made, Primitive->TM);
+    }
+    if (!Aggregate)
+    {
+        MeWarning(0, "McdGMCreateGeometry: Failed to create aggregate.");
+        return nullptr;
+    }
+    MeHashInsert(Name, &Aggregate->Base, Factory->GeometryByName);
+    MeHashInsert(&Aggregate->Base, Name, Factory->NameByGeometry);
+    return &Aggregate->Base;
+}
+
+// 0x0018dd60. frees geometry nothing references any more, with an aggregate's parts.
+void McdGMDestroyGeometry(MeAssetFactory* Factory, McdGeometry* Geometry)
+{
+    if (McdGeometryGetReferenceCount(Geometry) > 0)
+        return;
+    if ((Geometry->TypeId & 0xff) == 8)
+    {
+        McdAggregate* Aggregate = reinterpret_cast<McdAggregate*>(Geometry);
+        const INT Count = Aggregate->UsedCount;
+        for (INT i = 0; i < Count; i++)
+        {
+            if (McdGeometry* Element = McdAggregateGetElementGeometry(Aggregate, i))
+            {
+                McdAggregateRemoveElement(Aggregate, i);
+                McdGMDestroyGeometry(Factory, Element);
+            }
+        }
+    }
+    // the null geometry is never freed
+    if (!(Geometry->TypeId & 0xff))
+        return;
+    if (void* Name = MeHashLookup(Geometry, Factory->NameByGeometry))
+    {
+        MeHashRemove(Name, Factory->GeometryByName);
+        MeHashRemove(Geometry, Factory->NameByGeometry);
+        McdGeometryDestroy(Geometry);
+    }
 }
 
 // ---------------------------------------------------------------------------------------------- xml input

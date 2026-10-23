@@ -9,6 +9,8 @@
 
 template<typename T> inline T Max(const T A, const T B) { return A >= B ? A : B; }
 template<typename T> inline T Min(const T A, const T B) { return A <= B ? A : B; }
+template<typename T> inline T Abs(const T A) { return A >= T(0) ? A : -A; }
+template<typename T> inline T Clamp(const T X, const T Lo, const T Hi) { return X < Lo ? Lo : X < Hi ? X : Hi; }
 template<typename T> inline void Exchange(T& A, T& B)
 {
     const T Temp = A;
@@ -169,6 +171,17 @@ public:
         const INT Index = Add();
         new (&GetData()[Index]) T(Item);
         return Index;
+    }
+
+    // 0x0011c845 and its copies for each element type
+    INT AddUniqueItem(const T& Item)
+    {
+        for (INT Index = 0; Index < ArrayNum; Index++)
+        {
+            if (GetData()[Index] == Item)
+                return Index;
+        }
+        return AddItem(Item);
     }
 
     // 0x000fa0c0 and its copies for each element type: removes every match and returns how many

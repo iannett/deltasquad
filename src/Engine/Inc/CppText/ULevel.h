@@ -113,16 +113,22 @@
     // 0x000a5d06
     void NotifyReceivedFile(UNetConnection* Connection, INT PackageIndex, const TCHAR* Error, UBOOL Skipped) override;
 
+    // 0x00128802
+    INT GetActorIndex(AActor* Actor);
+
     ALevelInfo* GetLevelInfo() { return reinterpret_cast<ALevelInfo*>(Actors[0]); }
 
     UModel*                     Model;
     UTextBuffer*                TextBlocks[16];
     TMap<FString, FString>      TravelInfo;
     FCollisionHashBase*         Hash;
-    UObject*                    UnknownD0;
-    INT                         UnknownD4;
-    INT                         UnknownD8;
-    INT                         UnknownDC;
+    // destroyed actors waiting to be deleted, linked through AActor::Deleted
+    AActor*                     FirstDeleted;
+    // actors spawned while the level ticks
+    FActorLink*                 NewlySpawned;
+    UBOOL                       InTick;
+    // new actors start with bTicked set to the opposite of this
+    UBOOL                       Ticked;
     INT                         UnknownE0;
     INT                         iFirstDynamicActor;
     INT                         iFirstNetRelevantActor;
@@ -131,21 +137,26 @@
     BYTE                        ZoneDist[64][64];
     TArray<FLevelUnknown10F0>   Unknown10F0;
     TArray<TArray<INT>>         Unknown10F8;
-    TArray<TArray<INT>>         Unknown1100;
+    // the actors with an anti portal, by zone
+    TArray<TArray<AActor*>>     Unknown1100;
     // reference counted, with the count at +4
     TArray<void*>               Unknown1108;
     TArray<INT>                 Unknown1110;
     INT                         Unknown1118;
+    // toggled by the SHOWLINECHECK, SHOWEXTENTLINECHECK and SHOWPOINTCHECK commands
     INT                         Unknown111C;
     INT                         Unknown1120;
     INT                         Unknown1124;
-    // karma objects made by the level's karma init (0x0008f45a)
-    void*                       Unknown1128;
-    void*                       Unknown112C;
-    INT                         Unknown1130;
-    void*                       Unknown1134;
-    TArray<INT>                 Unknown1138;
+    // made by KInitLevelKarma (0x0008f45a)
+    struct MdtWorld*            KarmaWorld;
+    struct MstBridge*           KarmaBridge;
+    struct MeAssetInstanceFactory* KarmaFactory;
+    // collides with the level's own triangles
+    struct McdModel*            KarmaLevelModel;
+    // the ragdolls whose triangle lists karma refreshes each step
+    TArray<AActor*>             Unknown1138;
     TArray<INT>                 Unknown1140;
-    TArray<INT>                 Unknown1148;
+    // actors with bBlockKarma that collide, kept by KSetActorListed (0x0008946f)
+    TArray<AActor*>             Unknown1148;
     TMap<INT, INT>              Unknown1150;
     TMap<INT, INT>              Unknown1160;

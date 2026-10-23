@@ -2,6 +2,28 @@
 
 #include "Core.h"
 
+struct McdModel;
+
+// karma works in metres; one is 50 unreal units
+const FLOAT K_ME2UScale = 50.f;
+
+// 0x0007ea38. a karma transform: the rotation and the position in metres.
+inline void KU2METransform(FLOAT* TM, const FVector& Position, const FRotator& Rotation)
+{
+    FMatrix& M = *reinterpret_cast<FMatrix*>(TM);
+    M = FRotationTranslationMatrix(Rotation, Position);
+    M.M[3][0] *= 1.f / K_ME2UScale;
+    M.M[3][1] *= 1.f / K_ME2UScale;
+    M.M[3][2] *= 1.f / K_ME2UScale;
+    M.M[3][3] = 1.f;
+}
+
+// 0x0007eb49
+inline FVector KME2UPosition(const FLOAT* V)
+{
+    return FVector(V[0] * K_ME2UScale, V[1] * K_ME2UScale, V[2] * K_ME2UScale);
+}
+
 struct FKSphereElem
 {
     FMatrix Unknown0;

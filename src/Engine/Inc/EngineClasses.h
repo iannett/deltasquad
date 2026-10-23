@@ -12,6 +12,7 @@
 #include "UnKarma.h"
 #include "UnURL.h"
 #include "UnLevel.h"
+#include "UnTerrain.h"
 
 // the classes members point at, declared ahead
 class USound;
@@ -964,8 +965,8 @@ public:
     UStaticMesh* StaticMesh;
     AActor* Owner;
     AActor* Base;
-    FActorRenderDataPtr ActorRenderData;  // C++ only
-    FLightRenderDataPtr LightRenderData;  // C++ only
+    FActorRenderData* ActorRenderData;  // C++ only
+    FLightRenderData* LightRenderData;  // C++ only
     INT RenderRevision;  // C++ only
     BYTE StaticFilterState;  // C++ only
     TArrayNoInit<FBatchReference> StaticSectionBatches;  // C++ only
@@ -1098,7 +1099,7 @@ public:
     TArrayNoInit<ANavigationPoint*> NavPts;
     UClass* NavPtClass;
     TArrayNoInit<AActor*> Touching;
-    TArrayNoInit<INT> OctreeNodes;
+    TArrayNoInit<FOctreeNode*> OctreeNodes;
     FBox OctreeBox;
     AActor* Deleted;
     FLOAT LatentFloat;
@@ -1115,8 +1116,8 @@ public:
     FRotator RelativeRotation;
     ASquadMarker* SquadMarker;
     FLOAT HUDMarkerIconZOffset;
-    TArrayNoInit<FProjectorRenderInfoPtr> Projectors;  // C++ only
-    TArrayNoInit<FStaticMeshProjectorRenderInfoPtr> StaticMeshProjectors;  // C++ only
+    TArrayNoInit<FProjectorRenderInfo*> Projectors;  // C++ only
+    TArrayNoInit<FStaticMeshProjectorRenderInfo*> StaticMeshProjectors;  // C++ only
     UMaterial* Texture;
     UStaticMeshInstance* StaticMeshInstance;
     UModel* Brush;
@@ -1409,6 +1410,8 @@ public:
     DECLARE_FUNCTION(execInLatentExecution)
     DECLARE_FUNCTION(execStopWaiting)
     DECLARE_FUNCTION(execWeaponFired)
+
+#include "CppText/AController.h"
 };
 
 class AAIController : public AController
@@ -1662,6 +1665,8 @@ class UAnimNotify : public UObject
     DECLARE_CLASS(UAnimNotify, UObject, 0x0, UObject)
 public:
     INT Revision;
+
+#include "CppText/UAnimNotify.h"
 };
 
 class UAnimNotify_AnimLoopEnd : public UAnimNotify
@@ -1669,6 +1674,8 @@ class UAnimNotify_AnimLoopEnd : public UAnimNotify
     DECLARE_CLASS(UAnimNotify_AnimLoopEnd, UAnimNotify, 0x0, UObject)
 public:
     FLOAT LoopStart;
+
+#include "CppText/UAnimNotify_AnimLoopEnd.h"
 };
 
 class UAnimNotify_BreakJoint : public UAnimNotify
@@ -1678,6 +1685,8 @@ public:
     BITFIELD : 0;
     BITFIELD DestroyChildren : 1;
     FName Bone;
+
+#include "CppText/UAnimNotify_BreakJoint.h"
 };
 
 class UAnimNotify_CreateProjectile : public UAnimNotify
@@ -1690,6 +1699,8 @@ public:
     FRotator OffsetRotation;
     FVector DrawScale3D;
     FLOAT LifeSpan;
+
+#include "CppText/UAnimNotify_CreateProjectile.h"
 };
 
 class UAnimNotify_DestroyEffect : public UAnimNotify
@@ -1698,6 +1709,8 @@ class UAnimNotify_DestroyEffect : public UAnimNotify
 public:
     FName DestroyTag;
     BITFIELD bExpireParticles : 1;
+
+#include "CppText/UAnimNotify_DestroyEffect.h"
 };
 
 class UAnimNotify_Effect : public UAnimNotify
@@ -1713,6 +1726,8 @@ public:
     FLOAT DrawScale;
     FVector DrawScale3D;
     AActor* LastSpawnedEffect;
+
+#include "CppText/UAnimNotify_Effect.h"
 };
 
 class UAnimNotify_Footstep : public UAnimNotify
@@ -1721,6 +1736,8 @@ class UAnimNotify_Footstep : public UAnimNotify
 public:
     USound* DefaultSound;
     BYTE TypeOfWalk;
+
+#include "CppText/UAnimNotify_Footstep.h"
 };
 
 class UAnimNotify_GoRagdoll : public UAnimNotify
@@ -1734,18 +1751,24 @@ public:
     FLOAT VelocityMagnitude;
     FName Bone;
     BITFIELD PriorityRagdoll : 1;
+
+#include "CppText/UAnimNotify_GoRagdoll.h"
 };
 
 class UAnimNotify_HolsterAttachment : public UAnimNotify
 {
     DECLARE_CLASS(UAnimNotify_HolsterAttachment, UAnimNotify, 0x0, UObject)
 public:
+
+#include "CppText/UAnimNotify_HolsterAttachment.h"
 };
 
 class UAnimNotify_LoadAttachment : public UAnimNotify
 {
     DECLARE_CLASS(UAnimNotify_LoadAttachment, UAnimNotify, 0x0, UObject)
 public:
+
+#include "CppText/UAnimNotify_LoadAttachment.h"
 };
 
 class UAnimNotify_MatSubAction : public UAnimNotify
@@ -1753,6 +1776,8 @@ class UAnimNotify_MatSubAction : public UAnimNotify
     DECLARE_CLASS(UAnimNotify_MatSubAction, UAnimNotify, 0x0, UObject)
 public:
     UMatSubAction* SubAction;
+
+#include "CppText/UAnimNotify_MatSubAction.h"
 };
 
 class UAnimNotify_MeleeHit : public UAnimNotify
@@ -1761,6 +1786,8 @@ class UAnimNotify_MeleeHit : public UAnimNotify
 public:
     FName BoneName;
     FVector Offset;
+
+#include "CppText/UAnimNotify_MeleeHit.h"
 };
 
 class UAnimNotify_ReleaseGrenade : public UAnimNotify
@@ -1771,6 +1798,8 @@ public:
     FVector ReleaseDirection;
     FLOAT ReleaseSpeed;
     BITFIELD UseFlatTrajectory : 1;
+
+#include "CppText/UAnimNotify_ReleaseGrenade.h"
 };
 
 class UAnimNotify_Script : public UAnimNotify
@@ -1778,12 +1807,16 @@ class UAnimNotify_Script : public UAnimNotify
     DECLARE_CLASS(UAnimNotify_Script, UAnimNotify, 0x0, UObject)
 public:
     FName NotifyName;
+
+#include "CppText/UAnimNotify_Script.h"
 };
 
 class UAnimNotify_Scripted : public UAnimNotify
 {
     DECLARE_CLASS(UAnimNotify_Scripted, UAnimNotify, 0x0, UObject)
 public:
+
+#include "CppText/UAnimNotify_Scripted.h"
 };
 
 class UAnimNotify_Sound : public UAnimNotify
@@ -1791,6 +1824,8 @@ class UAnimNotify_Sound : public UAnimNotify
     DECLARE_CLASS(UAnimNotify_Sound, UAnimNotify, 0x0, UObject)
 public:
     USound* Sound;
+
+#include "CppText/UAnimNotify_Sound.h"
 };
 
 class UAnimNotify_SoundCue : public UAnimNotify
@@ -1800,12 +1835,16 @@ public:
     alignas(4) BYTE Cue;
     FLOAT MinInterval;
     FName EnumName;
+
+#include "CppText/UAnimNotify_SoundCue.h"
 };
 
 class UAnimNotify_ThrowScav : public UAnimNotify
 {
     DECLARE_CLASS(UAnimNotify_ThrowScav, UAnimNotify, 0x0, UObject)
 public:
+
+#include "CppText/UAnimNotify_ThrowScav.h"
 };
 
 class UAnimNotify_ToggleFlashlight : public UAnimNotify
@@ -1814,12 +1853,16 @@ class UAnimNotify_ToggleFlashlight : public UAnimNotify
 public:
     BITFIELD : 0;
     BITFIELD TurnLightOn : 1;
+
+#include "CppText/UAnimNotify_ToggleFlashlight.h"
 };
 
 class UAnimNotify_TurretFire : public UAnimNotify
 {
     DECLARE_CLASS(UAnimNotify_TurretFire, UAnimNotify, 0x0, UObject)
 public:
+
+#include "CppText/UAnimNotify_TurretFire.h"
 };
 
 class AProp : public AActor
@@ -2232,6 +2275,8 @@ public:
     FColor BrushColor;
     INT PolyFlags;
     BITFIELD bColored : 1;
+
+#include "CppText/ABrush.h"
 };
 
 class AVolume : public ABrush
@@ -2245,6 +2290,8 @@ public:
     TArrayNoInit<FDecorationType> DecoList;
 
     DECLARE_FUNCTION(execEncompasses)
+
+#include "CppText/AVolume.h"
 };
 
 class ABlockingVolume : public AVolume
@@ -2635,6 +2682,8 @@ public:
     DECLARE_FUNCTION(execUpdateRotation)
     DECLARE_FUNCTION(execLeaveVoiceChat)
     DECLARE_FUNCTION(execChangeVoiceChatter)
+
+#include "CppText/APlayerController.h"
 };
 
 class ACamera : public APlayerController
@@ -2730,6 +2779,8 @@ class UModifier : public UMaterial
     DECLARE_CLASS(UModifier, UMaterial, 0x0, UObject)
 public:
     UMaterial* Material;
+
+#include "CppText/UModifier.h"
 };
 
 class UColorModifier : public UModifier
@@ -2761,6 +2812,8 @@ public:
     BITFIELD InvertMask : 1;
     BITFIELD Modulate2X : 1;
     BITFIELD Modulate4X : 1;
+
+#include "CppText/UCombiner.h"
 };
 
 class UConsole : public UInteraction
@@ -2987,6 +3040,8 @@ public:
     FLOAT KExtraAngularDamping;
     FLOAT KBuoyancy;
     APhysicsVolume* NextPhysicsVolume;
+
+#include "CppText/APhysicsVolume.h"
 };
 
 class ADefaultPhysicsVolume : public APhysicsVolume
@@ -3261,6 +3316,8 @@ public:
     BITFIELD bHasWarmedUp : 1;
 
     DECLARE_FUNCTION(execPling)
+
+#include "CppText/AFluidSurfaceInfo.h"
 };
 
 class AFluidSurfaceOscillator : public AActor
@@ -3668,6 +3725,8 @@ public:
     INT PixelShader;
     INT NumVSConstants;
     INT NumPSConstants;
+
+#include "CppText/UHardwareShader.h"
 };
 
 class UHardwareShaderMacros : public UMaterial
@@ -3682,6 +3741,8 @@ class UHardwareShaderWrapper : public URenderedMaterial
     DECLARE_CLASS(UHardwareShaderWrapper, URenderedMaterial, 0x0, UObject)
 public:
     UHardwareShader* ShaderImplementation;
+
+#include "CppText/UHardwareShaderWrapper.h"
 };
 
 class UHelmet : public UObject
@@ -4147,6 +4208,8 @@ public:
     DECLARE_FUNCTION(execKUpdateConstraintParams)
     DECLARE_FUNCTION(execKGetConstraintForce)
     DECLARE_FUNCTION(execKGetConstraintTorque)
+
+#include "CppText/AKConstraint.h"
 };
 
 class AKAngularJoint : public AKConstraint
@@ -4205,7 +4268,7 @@ class UKarmaParamsCollision : public UObject
 {
     DECLARE_CLASS(UKarmaParamsCollision, UObject, 0x0, UObject)
 public:
-    INT KarmaData;
+    McdModel* KarmaData;
     FLOAT KScale;
     FVector KScale3D;
     FLOAT KFriction;
@@ -4328,6 +4391,8 @@ public:
     TArrayNoInit<AZoneInfo*> ManualExcludes;
 
     DECLARE_FUNCTION(execZoneActors)
+
+#include "CppText/AZoneInfo.h"
 };
 
 class ALevelInfo : public AZoneInfo
@@ -4695,6 +4760,8 @@ public:
     INT ClientUpdate;
     TArrayNoInit<AAntiPortalActor*> AntiPortals;
     FName AntiPortalTag;
+
+#include "CppText/AMover.h"
 };
 
 class UMovie : public UObject
@@ -5090,6 +5157,8 @@ public:
     DECLARE_FUNCTION(execIsWounded)
     DECLARE_FUNCTION(execUseWoundedAnims)
     DECLARE_FUNCTION(execIsLocallyControlled)
+
+#include "CppText/APawn.h"
 };
 
 class UPawnAudioTable : public UObject
@@ -5295,6 +5364,8 @@ public:
     FLOAT HitEffectsProbability;
 
     DECLARE_FUNCTION(execGetTossVelocity)
+
+#include "CppText/AProjectile.h"
 };
 
 class AProjector : public AActor
@@ -5340,6 +5411,8 @@ public:
     DECLARE_FUNCTION(execExcludeActor)
     DECLARE_FUNCTION(execIsActorExcluded)
     DECLARE_FUNCTION(execGetProjTexture)
+
+#include "CppText/AProjector.h"
 };
 
 class UProjectorMaterial : public URenderedMaterial
@@ -5582,6 +5655,8 @@ public:
     BITFIELD Wireframe : 1;
     BITFIELD ModulateStaticLighting2X : 1;
     BITFIELD PerformLightingOnSpecularPass : 1;
+
+#include "CppText/UShader.h"
 };
 
 class UShadowBitmapMaterial : public UBitmapMaterial
@@ -5627,6 +5702,8 @@ class UShowMaterialAlpha : public UMaterial
     DECLARE_CLASS(UShowMaterialAlpha, UMaterial, 0x0, UObject)
 public:
     UMaterial* Material;
+
+#include "CppText/UShowMaterialAlpha.h"
 };
 
 class ASkyZoneInfo : public AZoneInfo
@@ -5848,6 +5925,8 @@ public:
     DECLARE_FUNCTION(execGetMarkerSpotLocation)
     DECLARE_FUNCTION(execIsSetUpProperly)
     DECLARE_FUNCTION(execUnderwayCallback)
+
+#include "CppText/ASquadMarker.h"
 };
 
 class ASquadMarkerSpot : public ANavigationPoint
@@ -6063,18 +6142,20 @@ public:
     TArrayNoInit<FNormalPair> FaceNormals;  // C++ only
     FVector ToWorld[4];  // C++ only
     FVector ToHeightmap[4];  // C++ only
-    TArrayNoInit<INT> SelectedVertices;  // C++ only
+    TArrayNoInit<FSelectedTerrainVertex> SelectedVertices;  // C++ only
     INT ShowGrid;  // C++ only
     TArrayNoInit<INT> QuadVisibilityBitmap;
     TArrayNoInit<INT> EdgeTurnBitmap;
     TArrayNoInit<UMaterial*> QuadDomMaterialBitmap;
-    TArrayNoInit<INT> RenderCombinations;  // C++ only
-    TArrayNoInit<INT> VertexStreams;  // C++ only
+    TArrayNoInit<FTerrainRenderCombination> RenderCombinations;  // C++ only
+    TArrayNoInit<FTerrainVertexStream> VertexStreams;  // C++ only
     TArrayNoInit<FColor> VertexColors;  // C++ only
     TArrayNoInit<FColor> PaintedColor;  // C++ only
     UTexture* CollapsedLayers;  // C++ only
     UTexture* OldTerrainMap;  // C++ only
-    TArrayNoInit<BYTE> OldHeightmap;  // C++ only
+    TArrayNoInit<_WORD> OldHeightmap;  // C++ only
+
+#include "CppText/ATerrainInfo.h"
 };
 
 class UTerrainMaterial : public URenderedMaterial
@@ -6319,6 +6400,8 @@ public:
     FTurretInfo CoolStateEnemy;
     FTurretInfo CoolStateFriend;
     FTurretInfo DeadState;
+
+#include "CppText/ATurret.h"
 };
 
 class UVertexColor : public URenderedMaterial
@@ -6354,6 +6437,8 @@ public:
     BITFIELD FlashlightOn : 1;
     UI3DL2Listener* EAXEffect;
     UI3DL2Listener* EAXEffectXbox;
+
+#include "CppText/UVisionMode.h"
 };
 
 class UVisionModeDistort : public UVisionMode
@@ -6652,6 +6737,8 @@ public:
 class UConvexVolume : public UPrimitive
 {
     DECLARE_CLASS(UConvexVolume, UPrimitive, 0x0, UObject)
+public:
+#include "CppText/UConvexVolume.h"
 };
 
 // 96 bytes on the xbox
@@ -6688,6 +6775,8 @@ class UDemoRecConnection : public UNetConnection
 class UNetDriver : public USubsystem
 {
     DECLARE_CLASS(UNetDriver, USubsystem, 0xd, UObject)
+public:
+#include "CppText/UNetDriver.h"
 };
 
 // 268 bytes on the xbox
@@ -6706,6 +6795,8 @@ class UFileChannel : public UChannel
 class UFluidSurfacePrimitive : public UPrimitive
 {
     DECLARE_CLASS(UFluidSurfacePrimitive, UPrimitive, 0x0, UObject)
+public:
+#include "CppText/UFluidSurfacePrimitive.h"
 };
 
 // 80 bytes on the xbox
@@ -6786,12 +6877,16 @@ public:
 class UMeshInstance : public UPrimitive
 {
     DECLARE_CLASS(UMeshInstance, UPrimitive, 0x0, UObject)
+public:
+#include "CppText/UMeshInstance.h"
 };
 
 // 124 bytes on the xbox
 class ULodMeshInstance : public UMeshInstance
 {
     DECLARE_CLASS(ULodMeshInstance, UMeshInstance, 0x8, UObject)
+public:
+#include "CppText/ULodMeshInstance.h"
 };
 
 // 68 bytes on the xbox
@@ -6852,6 +6947,8 @@ public:
 class UProjectorPrimitive : public UPrimitive
 {
     DECLARE_CLASS(UProjectorPrimitive, UPrimitive, 0x0, UObject)
+public:
+#include "CppText/UProjectorPrimitive.h"
 };
 
 // 132 bytes on the xbox
@@ -6878,6 +6975,8 @@ public:
 class USkeletalMeshInstance : public ULodMeshInstance
 {
     DECLARE_CLASS(USkeletalMeshInstance, ULodMeshInstance, 0x8, UObject)
+public:
+#include "CppText/USkeletalMeshInstance.h"
 };
 
 // 52 bytes on the xbox
@@ -6898,18 +6997,24 @@ public:
 class UStaticMeshInstance : public UObject
 {
     DECLARE_CLASS(UStaticMeshInstance, UObject, 0x80, UObject)
+public:
+#include "CppText/UStaticMeshInstance.h"
 };
 
 // 88 bytes on the xbox
 class UTerrainPrimitive : public UPrimitive
 {
     DECLARE_CLASS(UTerrainPrimitive, UPrimitive, 0x0, UObject)
+public:
+#include "CppText/UTerrainPrimitive.h"
 };
 
 // 176 bytes on the xbox
 class UTerrainSector : public UObject
 {
     DECLARE_CLASS(UTerrainSector, UObject, 0x0, UObject)
+public:
+#include "CppText/UTerrainSector.h"
 };
 
 // 108 bytes on the xbox

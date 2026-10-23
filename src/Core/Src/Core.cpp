@@ -113,6 +113,17 @@ void FOutputDevice::Logf(const TCHAR* Fmt, ...)
     Serialize(Buffer, NAME_Log);
 }
 
+void appThrowf(const TCHAR* Fmt, ...)
+{
+    // 0x00451318
+    static TCHAR TempStr[4096];
+    va_list Args;
+    va_start(Args, Fmt);
+    vsnprintf(TempStr, sizeof(TempStr), Fmt, Args);
+    va_end(Args);
+    throw static_cast<const TCHAR*>(TempStr);
+}
+
 // 0x00035b8d
 void FOutputDevice::Logf(EName Event, const TCHAR* Fmt, ...)
 {
@@ -178,6 +189,15 @@ DOUBLE appSeconds()
 {
     static const std::chrono::steady_clock::time_point Start = std::chrono::steady_clock::now();
     return std::chrono::duration<DOUBLE>(std::chrono::steady_clock::now() - Start).count();
+}
+
+// the port counts nanoseconds of the same clock as appSeconds
+DOUBLE GSecondsPerCycle = 1e-9;
+
+DWORD appCycles()
+{
+    return static_cast<DWORD>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count());
 }
 
 // 0x0003b4cf

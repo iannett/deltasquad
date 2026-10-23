@@ -9,11 +9,12 @@ namespace
         NOT_DECOMPILED(0x001b3400);
     }
 
-    // 0x001b33f0
-    const char* McdGetVersion()
-    {
-        return "1.2.1 (build 631)";
-    }
+}
+
+// 0x001b33f0
+const char* McdGetVersion()
+{
+    return "1.2.1 (build 631)";
 }
 
 // 0x0018ca50
@@ -27,8 +28,8 @@ McdFramework* McdInit(INT GeometryTypeMaxCount, INT ModelCount, INT Unknown3, FL
     Framework->RegisteredTypes = 0;
     Framework->Types = static_cast<McdGeometryType*>(MeMemory.Create(Framework->GeometryTypeCount * sizeof(McdGeometryType)));
     memset(Framework->Types, 0, Framework->GeometryTypeCount * sizeof(McdGeometryType));
-    MePools.Init(&Framework->ModelPool, ModelCount, 0x78, 0);
-    MePools.Init(&Framework->Unknown60, Unknown3, 0x34, 0);
+    MePools.Init(&Framework->ModelPool, ModelCount, sizeof(McdModel), 0);
+    MePools.Init(&Framework->InstancePool, Unknown3, sizeof(McdGeometryInstance), 0);
     const INT InteractionCount = Framework->GeometryTypeCount * Framework->GeometryTypeCount;
     Framework->Interactions = static_cast<McdInteraction*>(MeMemory.Create(InteractionCount * sizeof(McdInteraction)));
     memset(Framework->Interactions, 0, InteractionCount * sizeof(McdInteraction));
@@ -37,11 +38,11 @@ McdFramework* McdInit(INT GeometryTypeMaxCount, INT ModelCount, INT Unknown3, FL
     Framework->Unknown84 = static_cast<INT*>(MeMemory.Create(2 * sizeof(INT)));
     Framework->Unknown84[0] = 4;
     Framework->Unknown84[1] = 0;
-    Framework->Unknown7C = Scale * 0.005f;
-    Framework->Unknown88 = Framework->Unknown84;
+    Framework->DefaultPadding = Scale * 0.005f;
+    Framework->DefaultRequest = Framework->Unknown84;
     Framework->Geometries = nullptr;
-    Framework->Unknown8 = 0;
-    Framework->Unknown10 = 0;
+    Framework->Models = nullptr;
+    Framework->ModelCount = 0;
     Framework->GeometryCount = 0;
     Framework->Scale = Scale;
     return Framework;
@@ -93,4 +94,10 @@ void McdFrameworkAddHook(McdFramework* Framework, void (*Fn)())
     Hook->Fn = Fn;
     Hook->Next = Framework->Hooks;
     Framework->Hooks = Hook;
+}
+
+// 0x0018cc40
+INT* McdFrameworkGetDefaultRequestPtr(McdFramework* Framework)
+{
+    return Framework->DefaultRequest;
 }

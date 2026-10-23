@@ -1,6 +1,7 @@
 #include <cfloat>
 
 #include "EngineClasses.h"
+#include "UnEngineGlobals.h"
 
 // ---------------------------------------------------------------------------------------------- old formats
 
@@ -394,7 +395,12 @@ void UMesh::Serialize(FArchive& Ar)
 {
     Super::Serialize(Ar);
     if (!Ar.IsPersistent())
-        Ar << Unknown54;
+        Ar << *reinterpret_cast<UObject**>(&DefMeshInstance);
+}
+
+UClass* ULodMesh::MeshGetInstanceClass()
+{
+    return ULodMeshInstance::StaticClass();
 }
 
 // 0x000412e8
@@ -445,6 +451,96 @@ void USkeletalMesh::AddSkelAnim(UMeshAnimation* Anim, INT Flag)
     Linkup->Anim = Anim;
     Linkup->Unknown0 = Flag;
     Linkup->Setup(this);
+}
+
+UClass* USkeletalMesh::MeshGetInstanceClass()
+{
+    return USkeletalMeshInstance::StaticClass();
+}
+
+// 0x0004aa60
+void USkeletalMesh::ActualizeAnimLinkups()
+{
+    for (INT i = 0; i < AnimLinkups.Num(); i++)
+        AnimLinkups[i].Setup(this);
+}
+
+// 0x00045672
+INT USkeletalMesh::MatchRefBone(FName Name, FMatrix* AliasOffset)
+{
+    if (Name == NAME_None)
+        return -1;
+    for (INT i = 0; i < AttachAliases.Num(); i++)
+    {
+        if (AttachAliases[i].Alias == Name)
+        {
+            Name = AttachAliases[i].BoneName;
+            if (AliasOffset)
+                *AliasOffset = AttachAliases[i].Offset;
+            break;
+        }
+    }
+    for (INT i = 0; i < RefSkeleton.Num(); i++)
+    {
+        if (RefSkeleton[i].Name == Name)
+            return i;
+    }
+    return -1;
+}
+
+// 0x00051a68
+void USkeletalMesh::PostLoad()
+{
+    UObject::PostLoad();
+    MoveBone = RefSkeleton.Num() >= 1 && RefSkeleton[0].Name == FName(TEXT("Move")) ? 0 : -1;
+    if (RefSkeleton.Num())
+        RefSkeleton[0].ParentIndex = -1;
+    // bones follow their parents, so each bone's counts are cleared before its children add to them
+    for (INT i = 0; i < RefSkeleton.Num(); i++)
+    {
+        RefSkeleton[i].Depth = 0;
+        RefSkeleton[i].NumChildren = 0;
+        for (INT Parent = RefSkeleton[i].ParentIndex; Parent >= 0; Parent = RefSkeleton[Parent].ParentIndex)
+        {
+            RefSkeleton[i].Depth++;
+            RefSkeleton[Parent].NumChildren++;
+        }
+    }
+    if (LodMeshVersion < 2)
+        NOT_DECOMPILED(0x00051b38);
+    if (!LODModels.Num())
+        NOT_DECOMPILED(0x00051b4d);
+    // the client's skeletal detail setting drops the finest lod models
+    if (GEngine && GEngine->Client)
+        NOT_DECOMPILED(0x00051bfc);
+    // the rest makes xbox push buffers for each lod model's sections
+}
+
+// 0x000455a6
+const FMeshAnimSeq* USkeletalMesh::GetAnimNamed(FName Name, UBOOL bRandom)
+{
+    if (Name == NAME_None)
+        return nullptr;
+    for (INT i = 0; i < AnimLinkups.Num(); i++)
+    {
+        UMeshAnimation* Anim = AnimLinkups[i].Anim;
+        if (!Anim)
+            continue;
+        if (bRandom)
+        {
+            for (INT j = 0; j < Anim->MultiAnims.Num(); j++)
+            {
+                if (Anim->MultiAnims[j].Name == Name)
+                    return Anim->MultiAnims[j].SelectAnim();
+            }
+        }
+        for (INT j = 0; j < Anim->Moves.Num(); j++)
+        {
+            if (Anim->Moves[j].Name == Name)
+                return &Anim->Moves[j];
+        }
+    }
+    return nullptr;
 }
 
 // 0x000522f6
@@ -563,6 +659,507 @@ void USkeletalMesh::Serialize(FArchive& Ar)
             Ar << Skipped1 << Skipped2 << Skipped3;
         }
     }
+}
+
+FBox USkeletalMesh::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    // a skeletal instance can keep its own box at +0x180 (the flags at +0x178/+0x17a and an array at +0x168 decide)
+    if (Owner->MeshInstance && Owner->MeshInstance->IsA(USkeletalMeshInstance::StaticClass()))
+        NOT_DECOMPILED(0x00168373);
+    return UPrimitive::GetCollisionBoundingBox(Owner);
+}
+
+UBOOL USkeletalMesh::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    NOT_DECOMPILED(0x00168308);
+    return 1;
+}
+
+void USkeletalMeshInstance::UpdateAttachments()
+{
+    NOT_DECOMPILED(0x00048cfe);
+}
+
+// ---------------------------------------------------------------------------------------------- mesh instances
+
+void KInitSkeletonKarma(USkeletalMeshInstance* Instance);
+
+// 0x0007bd00. an instance still being updated is told to delete itself instead of being deleted.
+UMeshInstance* UMesh::MeshGetInstance(const AActor* Owner)
+{
+    UMeshInstance** Instance;
+    if (!Owner || Owner->bDeleteMe)
+    {
+        Instance = &DefMeshInstance;
+        if (*Instance)
+            return *Instance;
+    }
+    else
+    {
+        Instance = &const_cast<AActor*>(Owner)->MeshInstance;
+        if (*Instance)
+        {
+            if ((*Instance)->GetActor() == Owner && (*Instance)->Mesh == this)
+                return *Instance;
+            if ((*Instance)->GetStatus() & 1)
+                (*Instance)->SetStatus(2);
+            else
+                delete *Instance;
+        }
+    }
+    UClass* InstanceClass = MeshGetInstanceClass();
+    if (!InstanceClass)
+        InstanceClass = UMeshInstance::StaticClass();
+    *Instance = static_cast<UMeshInstance*>(StaticConstructObject(InstanceClass, GetOuter(), NAME_None, RF_Transient | RF_Public | 0x80000, nullptr, GError));
+    (*Instance)->SetActor(const_cast<AActor*>(Owner));
+    (*Instance)->SetMesh(this);
+    return *Instance;
+}
+
+// 0x000407ee
+void ULodMeshInstance::SetMesh(UMesh* InMesh)
+{
+    Mesh = Cast<ULodMesh>(InMesh);
+}
+
+// 0x00040811
+UBOOL ULodMeshInstance::PlayAnim(const FPlayAnim& Anim)
+{
+    const FMeshAnimSeq* Seq = Mesh->GetAnimNamed(Anim.Sequence, 1);
+    if ((!Seq && Anim.Sequence != NAME_None) || !GetActor())
+        return 0;
+    AActor* Owner = GetActor();
+    FAnimChannel* Channel = GetChannel(Anim);
+    if (!Channel)
+        return 0;
+
+    // a quarter second, or half a sequence that doesn't loop, but never shorter than the sequence asks
+    FLOAT TweenTime = 0.25f;
+    if (Seq)
+    {
+        if (!Anim.bLoop)
+        {
+            const FLOAT Half = (Seq->NumFrames / Seq->Rate) * 0.5f;
+            if (Half < 0.25f)
+                TweenTime = Half;
+        }
+        if (TweenTime < Seq->MinTweenTime)
+            TweenTime = Seq->MinTweenTime;
+    }
+
+    UBOOL bStarted = 0;
+    if (Channel->Sequence == Anim.Sequence && (Channel->Rate != 0.f || Anim.Rate == 0.f))
+    {
+        // already playing: only jump to the frame asked for
+        if (Anim.Frame >= 0.f)
+            Channel->StartFrame = Channel->Frame = Anim.Frame;
+    }
+    else
+    {
+        Channel->Sequence = Anim.Sequence;
+        Channel->AnimSeq = Seq;
+        if (!Seq)
+        {
+            // stopping a channel tweens the channels before it at its rate
+            Channel->LastFrame = 0.f;
+            for (INT i = 0; i < Channels.Num() && &Channels[i] != Channel; i++)
+            {
+                Channels[i].TweenRate = Channel->TweenRate;
+                const FLOAT Alpha = Channel->TweenRate == 0.f ? 1.f : 0.f;
+                Channels[i].StartTweenAlpha = Alpha;
+                Channels[i].TweenAlpha = Alpha;
+            }
+        }
+        else
+        {
+            Channel->Alpha = 0.f;
+            Channel->LastFrame = 1.f - 1.f / Seq->NumFrames;
+            if (Anim.Frame < 0.f)
+            {
+                if (Seq->bRandomStart)
+                    Channel->StartFrame = Channel->Frame = appRand() * (1.f / 32767.f);
+                else if (Channel->Rate <= 0.f || !Channel->bLoop || !Anim.bLoop)
+                    Channel->StartFrame = Channel->Frame = 0.f;
+            }
+            else
+            {
+                Channel->StartFrame = Channel->Frame = Anim.Frame;
+            }
+        }
+        Channel->RateOffset = 0.f;
+        if (TweenTime == 0.f || !bTween || (Anim.Sequence != NAME_None && Anim.Frame >= 0.f))
+        {
+            Channel->TweenRate = 0.f;
+            Channel->TweenAlpha = 1.f;
+        }
+        else
+        {
+            Channel->TweenRate = 1.f / TweenTime;
+            Channel->TweenAlpha = 0.f;
+        }
+        Channel->StartTweenAlpha = Channel->TweenAlpha;
+        bStarted = 1;
+    }
+
+    Channel->bLoop = Anim.bLoop;
+    Channel->Rate = Anim.Rate;
+    Channel->BlendAlpha = Seq ? Anim.BlendAlpha : 0.f;
+    if (Channel->BlendRate == 0.f)
+        Channel->Alpha = Channel->BlendAlpha;
+    if (TweenTime == 0.f)
+        Channel->TweenAlpha = 1.f;
+    if (bStarted)
+    {
+        PostInitAnim(*Channel);
+        const INT Index = static_cast<INT>(Channel - &Channels[0]);
+        Owner->ReplicateAnim(Index, Index, *Channel, 1);
+    }
+    Unknown61 = 0;
+    return 1;
+}
+
+// 0x00040b00
+void ULodMeshInstance::UpdateAnimation(FLOAT DeltaSeconds)
+{
+    SetStatus(1);
+    if (DeltaSeconds != 0.f && !(GetStatus() & 2))
+    {
+        for (INT i = 0; i < Channels.Num(); i++)
+        {
+            FAnimChannel* Channel = &Channels[i];
+            Channel->TweenAlpha = Channel->TweenRate * DeltaSeconds + Channel->TweenAlpha;
+            if (Channel->TweenAlpha > 1.f)
+                Channel->TweenAlpha = 1.f;
+            // the blend alpha moves to its target at BlendRate
+            if (Channel->BlendAlpha > Channel->Alpha)
+                Channel->Alpha = Min(Channel->BlendRate * DeltaSeconds + Channel->Alpha, Channel->BlendAlpha);
+            else if (Channel->Alpha > Channel->BlendAlpha)
+                Channel->Alpha = Max(Channel->Alpha - Channel->BlendRate * DeltaSeconds, Channel->BlendAlpha);
+
+            // the time left is used up across notifies, loops and the end, at most four times
+            FLOAT TimeLeft = DeltaSeconds;
+            INT Steps = 0;
+            while (Channel->Sequence != NAME_None && Channel->Rate != 0.f && TimeLeft > 0.f && ++Steps <= 4)
+            {
+                const FMeshAnimSeq* Seq = Channel->AnimSeq;
+                const FLOAT OldFrame = Channel->Frame;
+                if (!Seq)
+                    continue;
+                if (Seq->RateJitter > 0.f)
+                {
+                    Channel->RateOffset += (appRand() * (1.f / 16383.5f) - 1.f) * Seq->RateJitter * TimeLeft * 10.f;
+                    Channel->RateOffset = Clamp(Channel->RateOffset, 0.f - Seq->RateJitter, Seq->RateJitter);
+                }
+                Channel->Frame += ((Channel->RateOffset + 1.f) / Seq->NumFrames) * Seq->Rate * Channel->Rate * TimeLeft;
+
+                // stop at the nearest notify passed, then carry on with the time after it
+                if (Seq->Notifys.Num() && GetActor()->Mesh && !Channel->bNoEvents)
+                {
+                    INT Best = -1;
+                    FLOAT BestDistance = 100000.f;
+                    for (INT j = 0; j < Seq->Notifys.Num(); j++)
+                    {
+                        const FLOAT Time = *reinterpret_cast<const FLOAT*>(&Seq->Notifys[j].Unknown0);
+                        if (OldFrame < Time && Time <= Channel->Frame && (Best == -1 || Time - OldFrame < BestDistance))
+                        {
+                            Best = j;
+                            BestDistance = Time - OldFrame;
+                        }
+                    }
+                    if (Best >= 0)
+                    {
+                        const FMeshAnimNotify& Notify = Seq->Notifys[Best];
+                        const FLOAT NewFrame = Channel->Frame;
+                        const FLOAT Time = *reinterpret_cast<const FLOAT*>(&Notify.Unknown0);
+                        Channel->Frame = Time;
+                        TimeLeft = ((NewFrame - Time) * TimeLeft) / (NewFrame - OldFrame);
+                        if (UAnimNotify* Object = static_cast<UAnimNotify*>(Notify.Notify))
+                        {
+                            Object->Notify(this, GetActor());
+                            if (Channels.Num() <= i)
+                                return;
+                            Channel = &Channels[i];
+                        }
+                        continue;
+                    }
+                }
+
+                if (Channel->Frame < Channel->LastFrame)
+                    break;
+                if (!Channel->bLoop)
+                {
+                    TimeLeft = ((Channel->Frame - Channel->LastFrame) * TimeLeft) / (Channel->Frame - OldFrame);
+                    Channel->Frame = Channel->LastFrame;
+                    if (Channel->Rate <= 0.f)
+                        continue;
+                    // a finished channel other than the base one is stopped
+                    if (Channel->StartBone > 0 || Channel->Channel > 0)
+                    {
+                        FPlayAnim Stop = *Channel;
+                        Stop.Sequence = NAME_None;
+                        PlayAnim(Stop);
+                    }
+                    Channel->Rate = 0.f;
+                }
+                else
+                {
+                    if (Channel->Frame >= 1.f)
+                    {
+                        TimeLeft = ((Channel->Frame - 1.f) * TimeLeft) / (Channel->Frame - OldFrame);
+                        Channel->Frame = 0.f;
+                    }
+                    else
+                    {
+                        TimeLeft = 0.f;
+                    }
+                    if (Channel->LastFrame <= OldFrame)
+                        continue;
+                }
+                if (!Channel->bNoEvents)
+                    GetActor()->NotifyAnimEnd(Channel->Channel);
+            }
+            GetActor()->ReplicateAnim(i, i, *Channel, 1);
+        }
+    }
+
+    Unknown61 = 0;
+    if (GetStatus() & 2)
+        delete this;
+    else
+        SetStatus(0);
+}
+
+// 0x00040f4b
+UBOOL ULodMeshInstance::IsAnimating(INT Channel)
+{
+    if (Channel >= Channels.Num() || Channel < 0)
+        return 0;
+    return Channels[Channel].Sequence != NAME_None && Channels[Channel].Rate != 0.f;
+}
+
+// 0x0004126a
+void ULodMeshInstance::DebugAnim(FOutputDevice& Out)
+{
+    for (INT i = 0; i < Channels.Num(); i++)
+    {
+        const FAnimChannel& C = Channels[i];
+        if (C.Sequence != NAME_None)
+            Out.Logf(TEXT("Sequence: %s Channel: %d Bone: %s Time: %.2f Alpha: %.2f Tween Alpha: %.2f Rate: %.2f\n"), *C.Sequence,
+                     C.Channel, *C.Bone, C.Frame, C.Alpha, C.TweenAlpha, C.Rate);
+    }
+}
+
+// 0x00040f8e
+void ULodMeshInstance::StopAnimating(UBOOL ClearAllButBase)
+{
+    for (INT i = 0; i < Channels.Num(); i++)
+        Channels[i].Rate = 0.f;
+    if (ClearAllButBase)
+    {
+        for (INT i = 1; i < Channels.Num(); i++)
+        {
+            Channels[i].Alpha = 0.f;
+            Channels[i].BlendAlpha = 0.f;
+            Channels[i].Sequence = NAME_None;
+            Channels[i].AnimSeq = nullptr;
+        }
+        Unknown61 = 0;
+    }
+}
+
+// 0x0004100c
+UBOOL ULodMeshInstance::IsPlayingAnim(FName Sequence, FName Bone)
+{
+    for (INT i = 0; i < Channels.Num(); i++)
+    {
+        if (Channels[i].Sequence == Sequence && (Bone == NAME_None || Channels[i].Bone == Bone) && Channels[i].Rate != 0.f)
+            return 1;
+    }
+    return 0;
+}
+
+// 0x000404d0
+UBOOL ULodMeshInstance::IsAnimLooping(INT Channel)
+{
+    if (Channel >= Channels.Num() || Channel < 0)
+        return 0;
+    return Channels[Channel].bLoop;
+}
+
+// 0x000404f6
+UBOOL ULodMeshInstance::IsAnimPastLastFrame(INT Channel)
+{
+    if (Channel >= Channels.Num() || Channel < 0)
+        return 0;
+    return !(Channels[Channel].Frame < Channels[Channel].LastFrame);
+}
+
+// 0x0004052d
+UBOOL ULodMeshInstance::AnimStopLooping(INT Channel)
+{
+    if (Channel >= Channels.Num() || Channel < 0)
+        return 0;
+    Channels[Channel].bLoop = 0;
+    return 1;
+}
+
+// 0x0004105a. GetChannel makes the channel when there is none on the bone yet.
+FPlayAnim ULodMeshInstance::GetActiveAnim(FName Bone)
+{
+    FPlayAnim Anim;
+    Anim.Bone = Bone;
+    Anim.Rate = 1.f;
+    if (FAnimChannel* Channel = GetChannel(Anim))
+        Anim = *Channel;
+    return Anim;
+}
+
+// 0x0004aa9c
+void USkeletalMeshInstance::SetMesh(UMesh* InMesh)
+{
+    USkeletalMesh* NewMesh = Cast<USkeletalMesh>(InMesh);
+    if (Mesh == NewMesh)
+        return;
+    Mesh = NewMesh;
+    // the arrays at +0xf8 and +0x100 are emptied here too, once they are in the port
+    SpaceBases.Empty();
+    Directors.Empty();
+    NewMesh->ActualizeAnimLinkups();
+    // the old ragdoll's models are dropped, not destroyed
+    KSkelModels.Empty();
+    KSkelJoints.Empty();
+    KInitSkeletonKarma(this);
+    Unknown61 = 0;
+}
+
+// 0x000434c9
+void USkeletalMeshInstance::UpdateAnimation(FLOAT DeltaSeconds)
+{
+    ULodMeshInstance::UpdateAnimation(DeltaSeconds);
+    if (Directors.Num())
+        NOT_DECOMPILED(0x000434d7);
+}
+
+// 0x00047f6b. clearing also drops the directors that aren't kept (+0x4a).
+void USkeletalMeshInstance::StopAnimating(UBOOL ClearAllButBase)
+{
+    ULodMeshInstance::StopAnimating(ClearAllButBase);
+    if (ClearAllButBase && Directors.Num())
+        NOT_DECOMPILED(0x00047f7d);
+}
+
+// 0x0004a914
+FAnimChannel* USkeletalMeshInstance::GetChannel(const FPlayAnim& Anim)
+{
+    USkeletalMesh* SkelMesh = static_cast<USkeletalMesh*>(Mesh);
+    const FName Bone = Anim.Bone == NAME_None || Channels.Num() < 1 ? SkelMesh->RefSkeleton[0].Name : Anim.Bone;
+    for (INT i = 0; i < Channels.Num(); i++)
+    {
+        if (Channels[i].Bone == Bone && Channels[i].Channel == Anim.Channel)
+            return &Channels[i];
+    }
+
+    const INT BoneIndex = SkelMesh ? SkelMesh->MatchRefBone(Bone) : -1;
+    if (BoneIndex < 0)
+        return nullptr;
+    // channels stay sorted by channel number, then by bone
+    INT Index = 0;
+    for (; Index < Channels.Num(); Index++)
+    {
+        if (Anim.Channel < Channels[Index].Channel || (Channels[Index].Channel == Anim.Channel && BoneIndex < Channels[Index].StartBone))
+            break;
+    }
+    Channels.InsertZeroed(Index);
+    FAnimChannel* Channel = &Channels[Index];
+    Channel->Bone = Bone;
+    Channel->StartBone = BoneIndex;
+    Channel->EndBone = SkelMesh->RefSkeleton[BoneIndex].NumChildren + 1 + BoneIndex;
+    Channel->Channel = Anim.Channel;
+    return Channel;
+}
+
+// 0x000430f4. undoes the root's pose so far from where the actor stands.
+void USkeletalMeshInstance::PostInitAnim(FAnimChannel& Channel)
+{
+    if (GetMoveCoords(&MoveStart, 0))
+        MoveStart = MoveStart.Inverse() * GetActor()->LocalToWorld();
+}
+
+// 0x00043af1
+UBOOL USkeletalMeshInstance::IsChannelActive(INT Channel, INT Bone)
+{
+    if (Channel < 0 || Channel >= Channels.Num())
+        return 0;
+    const FAnimChannel& C = Channels[Channel];
+    if (Channel != 0 && !(C.Alpha > 0.f))
+        return 0;
+    if (Bone >= 0 && (C.StartBone > Bone || C.EndBone <= Bone))
+        return 0;
+    for (INT i = Channel + 1; i < Channels.Num(); i++)
+    {
+        const FAnimChannel& Later = Channels[i];
+        if (Later.Alpha * Later.TweenAlpha != 1.f)
+            continue;
+        if (Bone >= 0)
+        {
+            if (Later.StartBone <= Bone && Bone < Later.EndBone)
+                return 0;
+        }
+        else if (C.StartBone >= Later.StartBone && C.EndBone <= Later.EndBone)
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// 0x00043bb3. root motion comes from base channels on the move bone whose sequence moves the root.
+UBOOL USkeletalMeshInstance::GetMoveCoords(FMatrix* Out, UBOOL bWorld)
+{
+    USkeletalMesh* SkelMesh = static_cast<USkeletalMesh*>(Mesh);
+    INT Count = 0;
+    for (INT i = 0; i < Channels.Num(); i++)
+    {
+        const FAnimChannel& C = Channels[i];
+        if (C.bLoop || C.StartBone != SkelMesh->MoveBone || !IsChannelActive(i, -1) || C.Rate == 0.f)
+            continue;
+        const FSkelAnimSeq* Seq = static_cast<const FSkelAnimSeq*>(GetSequence(i));
+        if (!Seq || !(Seq->Unknown54 & 1))
+            continue;
+        if (Out)
+        {
+            INT LODRequest;
+            GetFrame(GetActor(), nullptr, nullptr, 0, LODRequest, 3);
+            *Out = SpaceBases[0];
+            if (bWorld)
+                *Out = *Out * MoveStart;
+        }
+        Count++;
+    }
+    return Count > 0;
+}
+
+// 0x0004c082
+void USkeletalMeshInstance::GetFrame(AActor* Owner, FLevelSceneNode* SceneNode, FVector* Verts, INT Size, INT& LODRequest, DWORD TaskFlag)
+{
+    ApplyAnimation(Owner, TaskFlag == 3);
+}
+
+void USkeletalMeshInstance::ApplyAnimation(const AActor* Owner, UBOOL bUnknown)
+{
+    NOT_DECOMPILED(0x0004adcb);
+}
+
+UBOOL UMeshInstance::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    NOT_DECOMPILED(0x0003831d);
+    return 1;
+}
+
+FBox UMeshInstance::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    NOT_DECOMPILED(0x00038369);
+    return FBox{};
 }
 
 // ---------------------------------------------------------------------------------------------- mesh animations
@@ -748,13 +1345,13 @@ void AnalogTrack::Serialize(FArchive& Ar)
 void FMeshAnimSeq::Serialize(FArchive& Ar)
 {
     Ar << Unknown2C << Name << Groups << Unknown0C << NumFrames << Notifys << Rate;
-    Ar << Unknown18 << Unknown1C << Unknown20;
-    if (Ar.Ver() < 143 && Unknown1C < 0.f)
-        Unknown1C = 0.f;
+    Ar << RateJitter << MinTweenTime << bRandomStart;
+    if (Ar.Ver() < 143 && MinTweenTime < 0.f)
+        MinTweenTime = 0.f;
     if (Ar.Ver() < 144)
-        Unknown30 = 1.f;
+        RandomWeight = 1.f;
     else
-        Ar << Unknown30;
+        Ar << RandomWeight;
 }
 
 // 0x000512a8
@@ -781,4 +1378,219 @@ void UMeshAnimation::Serialize(FArchive& Ar)
 {
     Super::Serialize(Ar);
     Ar << Version << RefBones << Moves;
+}
+
+// 0x00051f89
+void UMeshAnimation::PostLoad()
+{
+    Super::PostLoad();
+    for (INT i = 0; i < Moves.Num(); i++)
+    {
+        FSkelAnimSeq& Move = Moves[i];
+        Move.Owner = this;
+        Move.UpdateOldNotifies(GetOuter());
+        if (RefBones[0].Name != FName(TEXT("Move")) || Move.Unknown50 != 0)
+            continue;
+
+        const AnalogTrack& Root = Move.Tracks[0];
+        Move.RootTranslation = Root.KeyPos[Root.KeyPos.Num() - 1].ToVector(Root.PosScale) - Root.KeyPos[0].ToVector(Root.PosScale);
+        // the last key's rotation times the inverse of the first
+        const FQuat A = Root.KeyQuat[Root.KeyQuat.Num() - 1].ToQuat();
+        const FQuat First = Root.KeyQuat[0].ToQuat();
+        const FQuat B(0.f - First.X, 0.f - First.Y, 0.f - First.Z, First.W);
+        Move.RootRotation = FQuat(
+            (A.Y * B.Z + A.W * B.X + B.W * A.X) - A.Z * B.Y,
+            (A.W * B.Y - B.Z * A.X) + A.Y * B.W + A.Z * B.X,
+            ((A.W * B.Z + B.Y * A.X) - A.Y * B.X) + A.Z * B.W,
+            ((A.W * B.W - A.X * B.X) - A.Y * B.Y) - A.Z * B.Z);
+
+        for (INT j = 1; j < Root.KeyPos.Num(); j++)
+        {
+            const FPackedPos& P = Root.KeyPos[j];
+            if (P.X != Root.KeyPos[0].X || P.Y != Root.KeyPos[0].Y || P.Z != Root.KeyPos[0].Z)
+            {
+                Move.Unknown54 |= 1;
+                break;
+            }
+        }
+        if (Move.Unknown54 & 1)
+            continue;
+        for (INT j = 1; j < Root.KeyQuat.Num(); j++)
+        {
+            const FQuat Q0 = Root.KeyQuat[0].ToQuat();
+            const FQuat Q = Root.KeyQuat[j].ToQuat();
+            if (Q.X != Q0.X || Q.Y != Q0.Y || Q.Z != Q0.Z || Q.W != Q0.W)
+            {
+                Move.Unknown54 |= 1;
+                break;
+            }
+        }
+    }
+    ConstructMultiAnims();
+}
+
+// 0x000517b9. a group holds every move named like another move plus trailing digits ("Idle", "Idle1", "Idle2"),
+// and replaces the groups the moves were saved with.
+void UMeshAnimation::ConstructMultiAnims()
+{
+    MultiAnims.Empty();
+    for (INT i = 0; i < Moves.Num(); i++)
+        Moves[i].Groups.Empty();
+
+    for (INT i = 0; i < Moves.Num(); i++)
+    {
+        FMeshMultiAnim Multi;
+        Multi.Name = Moves[i].Name;
+        for (INT j = 0; j < Moves.Num(); j++)
+        {
+            FString Base(*Moves[j].Name);
+            while (Base.Len() && appIsDigit((*Base)[Base.Len() - 1]))
+                Base = Base.Left(Base.Len() - 1);
+            if (FString(*Multi.Name) == Base)
+            {
+                Multi.Anims.AddItem(&Moves[j]);
+                Moves[j].Groups.AddUniqueItem(Multi.Name);
+            }
+        }
+        if (Multi.Anims.Num() > 1)
+            MultiAnims.AddItem(Multi);
+        else
+            Moves[i].Groups.Empty();
+    }
+
+    for (INT i = 0; i < MultiAnims.Num(); i++)
+    {
+        FMeshMultiAnim& Multi = MultiAnims[i];
+        Multi.TotalWeight = 0.f;
+        for (INT j = 0; j < Multi.Anims.Num(); j++)
+            Multi.TotalWeight += Multi.Anims[j]->RandomWeight;
+    }
+}
+
+// 0x00042ecd. the last sequence takes whatever weight the others leave.
+FMeshAnimSeq* FMeshMultiAnim::SelectAnim() const
+{
+    const FLOAT Pick = appRand() * TotalWeight * (1.f / 32767.f);
+    FLOAT Sum = 0.f;
+    INT i = 0;
+    for (; i < Anims.Num() - 1; i++)
+    {
+        Sum += Anims[i]->RandomWeight;
+        if (Pick < Sum)
+            break;
+    }
+    return Anims[i];
+}
+
+// 0x0007bdba
+void FMeshAnimSeq::UpdateOldNotifies(UObject* Outer)
+{
+    for (INT i = 0; i < Notifys.Num(); i++)
+    {
+        FMeshAnimNotify& N = Notifys[i];
+        if (N.Unknown4 == NAME_None)
+            continue;
+        UAnimNotify_Script* Script = static_cast<UAnimNotify_Script*>(
+            UObject::StaticConstructObject(UAnimNotify_Script::StaticClass(), Outer, NAME_None, RF_Public, nullptr, GError));
+        Script->NotifyName = N.Unknown4;
+        N.Notify = Script;
+        N.Unknown4 = NAME_None;
+    }
+}
+
+// ---------------------------------------------------------------------------------------------- anim notifies
+
+void UAnimNotify_AnimLoopEnd::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x0004452d);
+}
+
+void UAnimNotify_BreakJoint::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x000506f9);
+}
+
+void UAnimNotify_CreateProjectile::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x0004938c);
+}
+
+void UAnimNotify_DestroyEffect::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x00046bdf);
+}
+
+void UAnimNotify_Effect::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x00049173);
+}
+
+void UAnimNotify_Footstep::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x00044685);
+}
+
+void UAnimNotify_GoRagdoll::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x0004966e);
+}
+
+void UAnimNotify_HolsterAttachment::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x00044600);
+}
+
+void UAnimNotify_LoadAttachment::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x000445a0);
+}
+
+void UAnimNotify_MatSubAction::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x0005059d);
+}
+
+void UAnimNotify_MeleeHit::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x00046d0f);
+}
+
+void UAnimNotify_ReleaseGrenade::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x00049a9b);
+}
+
+void UAnimNotify_Script::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x000495d0);
+}
+
+void UAnimNotify_Scripted::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x00046d03);
+}
+
+void UAnimNotify_Sound::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x00046c61);
+}
+
+void UAnimNotify_SoundCue::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x00046c8a);
+}
+
+void UAnimNotify_ThrowScav::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x00044499);
+}
+
+void UAnimNotify_ToggleFlashlight::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x000444f1);
+}
+
+void UAnimNotify_TurretFire::Notify(UMeshInstance* Instance, AActor* Owner)
+{
+    NOT_DECOMPILED(0x00044660);
 }

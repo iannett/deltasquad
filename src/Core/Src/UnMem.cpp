@@ -3,6 +3,60 @@
 #include "Core.h"
 
 FMemStack GMem;
+FMemStack::FTaggedMemory* FMemStack::UnusedChunks = nullptr;
+
+void FMemStack::FreeChunks(FTaggedMemory* NewTopChunk)
+{
+    while (TopChunk != NewTopChunk)
+    {
+        FTaggedMemory* Remove = TopChunk;
+        TopChunk = TopChunk->Next;
+        Remove->Next = UnusedChunks;
+        UnusedChunks = Remove;
+    }
+    Top = nullptr;
+    End = nullptr;
+    if (TopChunk)
+    {
+        Top = TopChunk->Data;
+        End = Top + TopChunk->DataSize;
+    }
+}
+
+void FMemStack::Exit()
+{
+    while (UnusedChunks)
+    {
+        FTaggedMemory* Chunk = UnusedChunks;
+        UnusedChunks = Chunk->Next;
+        appFree(Chunk);
+    }
+}
+
+BYTE* FMemStack::AllocateNewChunk(INT MinSize)
+{
+    FTaggedMemory* Chunk = nullptr;
+    for (FTaggedMemory** Link = &UnusedChunks; *Link; Link = &(*Link)->Next)
+    {
+        if ((*Link)->DataSize >= MinSize)
+        {
+            Chunk = *Link;
+            *Link = Chunk->Next;
+            break;
+        }
+    }
+    if (!Chunk)
+    {
+        const INT DataSize = MinSize > DefaultChunkSize - static_cast<INT>(sizeof(FTaggedMemory)) ? MinSize : DefaultChunkSize - static_cast<INT>(sizeof(FTaggedMemory));
+        Chunk = static_cast<FTaggedMemory*>(appMalloc(DataSize + sizeof(FTaggedMemory)));
+        Chunk->DataSize = DataSize;
+    }
+    Chunk->Next = TopChunk;
+    TopChunk = Chunk;
+    Top = Chunk->Data;
+    End = Top + Chunk->DataSize;
+    return Top;
+}
 BYTE GBitLengths[257];
 
 // the seed of appSRand

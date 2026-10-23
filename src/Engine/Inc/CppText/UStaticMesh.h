@@ -10,7 +10,7 @@
     TArray<FStaticMeshCollisionTriangle> CollisionTriangles;
     TArray<FStaticMeshCollisionNode>     CollisionNodes;
     BYTE                                 Unknown138[12];
-    UObject*                             CollisionModel;
+    UModel*                              CollisionModel;
     UBOOL                                UseSimpleLineCollision;
     UBOOL                                UseSimpleBoxCollision;
     UBOOL                                UseVertexColor;
@@ -32,3 +32,13 @@
 
     void StaticConstructor();
     void Serialize(FArchive& Ar) override;
+    // 0x001937f7
+    FBox GetCollisionBoundingBox(const AActor* Owner) const override;
+    // 0x00192700
+    UBOOL UseCylinderCollision(const AActor* Owner) override { return Owner->bUseCylinderCollision; }
+    // 0x001960bf
+    UBOOL PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags) override;
+    // 0x000955c3. half the collision box.
+    FVector GetEncroachExtent(AActor* Owner) override { return GetCollisionBoundingBox(Owner).GetExtent(); }
+    // 0x00076cc4. the collision box's centre.
+    FVector GetEncroachCenter(AActor* Owner) override { return GetCollisionBoundingBox(Owner).GetCenter(); }

@@ -131,6 +131,7 @@ Ghidra's first pass missed about 15% of the code (functions reached only through
 - After every function call in bytecode, `SerializeExpr` peeks at the next token. If it is `EX_DebugInfo` (`0x42`) with version 100, the debug info is read as part of the call.
 - Bytecode differences from stock UE2: `EX_BoolVariable` (`0x2D`) has no operand, `EX_DelegateFunction` (`0x43`) is an object and a name with no parameter list, and `EX_DebugInfo` is three ints and a string.
 - `StaticLoadObject` returns an existing object at once if it is loaded or waiting to load (`RF_NeedLoad` or `RF_WasLoaded`). Load flag `0x40` skips package files entirely and `0x2000` returns null for a missing object instead of throwing. Inside a nested load, the newest linker with archive byte `0x16` set gets the first try.
+- Load errors are thrown as text by `appThrowf` (`0x35205`). `StaticLoadObject`, `StaticLoadClass`, `LoadPackage` and `GetPackageLinker` catch them and report through `SafeLoadError` (`0x22f2e`): a warning, unless the flags ask to pass the error on (`0x8`) or make it fatal (`0x1`). `GetPackageLinker` does not catch errors from an already loaded linker. `ULinkerLoad::Verify` drops the linker and passes the error on, and an error inside `EndLoad` is fatal.
 - Each class's destructor calls `ConditionalDestroy` while its own vtable is still in place. `StaticAllocateObject` relies on this when it replaces a native class in place with the copy from a package.
 - `UStaticMesh::Serialize` reads vertex colours into a temporary stream and drops them unless `LoadVertexColorInGame` is set. It empties the wireframe index buffer after reading it and sets `UseCollisionForBakedShadowsOnly` to 1 whatever was stored.
 - Static mesh collision data before version 133 is in an older format that is read and dropped. From version 148 the collision triangles, nodes and the 12 bytes after them are read with `ArSkipObjectRefs` set, so they are skipped too.
@@ -156,6 +157,7 @@ Ghidra's first pass missed about 15% of the code (functions reached only through
 
 - Xbox drive paths `T:\`, `U:\` and `Z:\` (title data, saves, scratch such as `Z:\Out\`) map to `~/Library/Application Support/deltasquad/<letter>/` on macOS, never into the game files.
 - `D:\` (the disc) maps to the parent of the base directory, so it is an absolute path and does not depend on the working directory.
+- The network driver uses POSIX sockets in place of the Xbox's Winsock. The calls and messages keep their Winsock names.
 - Pending: the game reads `Z:\Movies\Menu_BG.xmv` after copying it there from the disc. The port has to do that copy once the movie code is decompiled.
 
 ## Generated native classes
@@ -211,7 +213,12 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 
 - `Sqrt` and `appSqrt` use an exact square root. The Xbox inlines an SSE reciprocal square root estimate with one Newton step. That estimate differs between CPU makers, so it cannot be copied exactly.
 - `appRand` scales the host's `rand()` into 0 to 32767, the Xbox range, so `Rand`, `FRand`, `VRand` and `RotRand` see the same ranges. The sequences still differ.
+- The machine's own address comes from its network interfaces. The Xbox asks `XNetGetTitleXnAddr` for it. Either way the driver binds to any address unless `PRIMARYNET` is given.
+- Socket setup always succeeds here. The Xbox reports whether its network stack started.
+- Socket error messages print the error number. The Xbox passes the error's name to `%i`, which prints the address of the name.
 - The `<<` and `>>` vector-by-rotator natives inline `FCoords` math on the Xbox. Here they use the rotation matrix, which gives the same result up to float rounding.
+- `appCycles` counts nanoseconds of the clock `appSeconds` uses, and `GSecondsPerCycle` is 1e-9. The Xbox reads the CPU timestamp counter, which runs at 733 MHz.
+- UDP receives treat both `ECONNRESET` and `ECONNREFUSED` as Winsock's `WSAECONNRESET` (a port unreachable reply). macOS reports `ECONNREFUSED`.
 
 ## Bugs kept from the original
 
@@ -230,6 +237,8 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 - Karma collision data before version 113 reads the sphere array twice. The second read replaces the first.
 - The game's aligned allocator for Karma rounds the size up to the alignment but returns an unaligned block.
 - The game's Karma message handler sends info, warning and debug messages to the info output, and checks them all against the info level.
+- `UdpLink.BindPort` sets the socket to 0 when binding fails. Later calls then see a socket and fail with "already bound".
+- `UVisionMode`'s V size returns the U size of its shader's first texture. Both vtable slots point at the same function.
 - `LoadMap`'s timer keeps a second double next to the time that is never set, so the second value of each lap is garbage. The logs only print the first, and the port leaves the second out.
 
 ## Other port deviations
@@ -243,3 +252,7 @@ python3 tools/gen_layouts.py layouts.json generate Core Engine Gameplay CTGame C
 - Static mesh vertex, colour and UV streams are plain arrays. The Xbox allocates them from a second allocator (`0x430d5c`, likely memory the GPU reads) and locks them while loading.
 - `LoadMap` logs a memory watermark of 0 before and after loading. The Xbox reads a peak usage field from its allocator, which the port does not have.
 - The port's file managers keep no file statistics, so `LoadMap`'s file load stats lines show zeros. On the Xbox they come from slot `0x40` of its file manager.
+- `-SERVER` runs without a client. The Xbox always creates one, and `UGameEngine::Tick` uses it without a null check. The port checks for it before the client parts.
+- `ALevelInfo::IsSplitScreen` returns 0 when there is no client. The Xbox reads the client's viewports without a null check.
+- `AProjector::Attach` first checks a render global at `0x460af0`. The port has no render device, so it treats the global as null.
+- `MdtPartitionOutputCreateInChunk` puts the body and constraint pointer arrays before the integer arrays so they stay aligned with 8 byte pointers. The Xbox order is body starts, body sizes, bodies, constraint starts, constraint sizes, partition info, constraints.

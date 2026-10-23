@@ -1,6 +1,6 @@
 # Deltasquad
 
-![decompiled](https://img.shields.io/badge/decompiled-7.12%25-blue)
+![decompiled](https://img.shields.io/badge/decompiled-10.71%25-blue)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus)
 ![CMake](https://img.shields.io/badge/build-CMake-064F8C?logo=cmake)
 ![Clang](https://img.shields.io/badge/compiler-Clang-262D3A?logo=llvm)
@@ -17,7 +17,7 @@ This decompilation is non-matching.
 ## Status
 
 <!-- progress -->
-**7.12%** decompiled (191,914 / 2,694,583 bytes, 1,201 / 12,356 functions)
+**10.71%** decompiled (288,645 / 2,694,583 bytes, 1,766 / 12,356 functions)
 <!-- /progress -->
 
 Progress is measured against the game's own code in `Default.xbe` and weighted by function size. The C runtime, the Xbox system libraries and Xbox-specific engine code (Direct3D renderer, audio, Xbox Live, memory allocator and similar) are excluded. The excluded code is listed in `progress/platform-roots.txt` and expanded by `tools/platform.sh`.

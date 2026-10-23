@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "UnString.h"
 
 enum EName : INT;
 
@@ -40,6 +41,14 @@ public:
     virtual void SetProgressRange(FLOAT Start, FLOAT End) {}
 };
 
+// collects everything written to it in a string. ctor 0x000af74e, Serialize 0x000af96e
+class FStringOutputDevice : public FString, public FOutputDevice
+{
+public:
+    FStringOutputDevice(const TCHAR* InStr = TEXT("")) : FString(InStr) {}
+    void Serialize(const TCHAR* Text, EName Event) override { *this += Text; }
+};
+
 extern FOutputDevice*      GLog;
 extern FOutputDeviceError* GError;
 extern FFeedbackContext*   GWarn;
@@ -48,3 +57,6 @@ extern FOutputDevice*      GLogDetail;
 extern UBOOL               GIsCriticalError;
 
 #define appErrorf(...) GError->Logf(__VA_ARGS__)
+
+// 0x00035205. formats into a shared buffer and throws it as a const TCHAR*; the load functions catch it.
+[[noreturn]] void appThrowf(const TCHAR* Fmt, ...);

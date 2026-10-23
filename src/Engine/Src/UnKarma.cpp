@@ -1,3 +1,4 @@
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <new>
@@ -30,6 +31,8 @@ void UKMeshProps::Serialize(FArchive& Ar)
         Ar << Unknown28[i];
     Ar << Unknown40 << AggGeom;
 }
+
+void KSetActorListed(AActor* Actor, UBOOL bListed);
 
 // ---------------------------------------------------------------------------------------------- karma globals
 
@@ -65,9 +68,16 @@ namespace
         McdFramework* Framework;
         MeAssetDB*      AssetDB;
         MeAssetFactory* AssetFactory;
-        INT           Unknown15018[3];
+        INT           Unknown15018;
+        // the length of the current karma step
+        FLOAT         TimeStep;
+        // debug drawing flags toggled by KDRAW
+        DWORD         Unknown15020;
+        // steps the world this tick. toggled by KSTEP, set by each tick that is not stopped and cleared after it.
         UBOOL         Unknown15024;
+        // toggled by KSTOP; each karma tick sets it to whether the level is not players only
         UBOOL         Unknown15028;
+        // set by KSAFETIME
         UBOOL         Unknown1502C;
         // counts karma memory in the second stat instead of the first
         UBOOL         UseMemStat2;
@@ -326,4 +336,688 @@ void KInitGameKarma()
     KGData->Unknown15034 = 0;
     KGData->Unknown15038 = 0;
     KCreateAssetDB(&KGData->AssetDB, &KGData->AssetFactory);
+}
+
+// ---------------------------------------------------------------------------------------------- level karma
+
+namespace
+{
+    // 0x00431130. the [Karma] settings of System.ini, read again when each level starts.
+    struct KarmaSettings
+    {
+        FLOAT UnitLength           = 0.95f;
+        FLOAT UnitMass             = 0.95f;
+        FLOAT GammaPerSec          = 6.f;
+        FLOAT GammaMin             = 0.1f;
+        FLOAT GammaMax             = 0.5f;
+        FLOAT Epsilon              = 0.001f;
+        FLOAT PenOffset            = 0.015f;
+        FLOAT PenScale             = 1.f;
+        FLOAT ContactSoft          = 0.01f;
+        FLOAT FrictionScale        = 0.5f;
+        FLOAT MaxTimestep          = 0.04f;
+        FLOAT DoDoubleTickTimestep = 0.025f;
+        FLOAT MaxPenetration       = 0.1f;
+    } KSettings;
+
+    // what a karma model's user data points at (name invented)
+    struct KModelData
+    {
+        AActor* Actor;
+        INT Unknown4;
+        INT Unknown8;
+        INT UnknownC;
+        INT Unknown10;
+    };
+
+    // 0x0007ee4d (name invented)
+    AActor* KModelGetActor(McdModel* Model)
+    {
+        if (!Model)
+            return nullptr;
+        return static_cast<KModelData*>(Model->UserData)->Actor;
+    }
+
+    // 0x000842d4 (name invented)
+    AActor* KBodyGetActor(MdtBody* Body)
+    {
+        if (!Body)
+            return nullptr;
+        return KModelGetActor(Body->Model);
+    }
+
+    // 0x0008bc6b. an enabled body's actor that blocks karma goes on its level's list.
+    void KBodyEnableCB(void* Body)
+    {
+        AActor* Actor = KBodyGetActor(static_cast<MdtBody*>(Body));
+        if (Actor && Actor->getKModel() && !Actor->bDeleteMe && Actor->bBlockKarma && Actor->bCollideActors)
+            KSetActorListed(Actor, 1);
+    }
+
+    // 0x0008bc28
+    void KBodyDisableCB(void* Body)
+    {
+        AActor* Actor = KBodyGetActor(static_cast<MdtBody*>(Body));
+        if (Actor && Actor->getKModel() && !Actor->bDeleteMe)
+            Actor->XLevel->Unknown1148.RemoveItem(Actor);
+    }
+
+    // 0x0007d4c6
+    void KBodyUnknownCB(void* Body)
+    {
+        NOT_DECOMPILED(0x0007d4c6);
+    }
+
+    // 0x00082f5b. a model for the part, with a body unless the part's model is geometry only. TM places it.
+    McdModel* KModelCreateFromMeFPart(MeFPart* Part, McdGeometry* Geometry, MdtWorld* World, const FLOAT* TM)
+    {
+        MeFModel* Source = MeFPartGetModel(Part);
+        const INT Type = Source->Type;
+        McdModel* Model = McdModelCreate(Geometry);
+        MdtBody* Body = nullptr;
+        FLOAT* ModelTM;
+        if (Type == 2)
+        {
+            ModelTM = static_cast<FLOAT*>(MeMemory.CreateAligned(16 * sizeof(FLOAT), 0x10));
+            McdModelSetTransformPtr(Model, ModelTM);
+        }
+        else
+        {
+            Body = MdtBodyCreate(World);
+            ModelTM = MdtBodyGetTransformPtr(Body);
+        }
+        const FLOAT* PartTM = MeFPartGetTransformPtr(Part);
+        if (!TM)
+        {
+            for (INT i = 0; i < 16; i++)
+                ModelTM[i] = PartTM[i];
+        }
+        else
+        {
+            MeMatrix4MultiplyMatrix(ModelTM, PartTM, TM);
+        }
+        if (Type == 0 || Type == 1)
+        {
+            MdtBodyEnable(Body);
+            MdtBodySetTransform(Body, ModelTM);
+            MdtBodySetMass(Body, Source->Mass);
+            MdtBodySetCenterOfMassRelativePosition(Body, Source->MassOffset);
+            MdtBodySetFlag4(Body);
+            MdtBodySetFlag8(Body);
+            FLOAT Inertia[9];
+            MeFModelGetInertiaTensor(Source, Inertia);
+            MdtBodySetInertiaTensor(Body, Inertia);
+            MdtBodySetLinearVelocityDamping(Body, Source->LinearDamping);
+            MdtBodySetAngularVelocityDamping(Body, Source->AngularDamping);
+            if (Source->UseFastSpin)
+                MdtBodySetFastSpinAxis(Body, Source->FastSpin[0], Source->FastSpin[1], Source->FastSpin[2]);
+            McdModelSetBody(Model, Body);
+        }
+        return Model;
+    }
+
+    // 0x0008ec55. hands the level's triangles near a model to the collision.
+    INT KTriListGenerator(void* Pair, void* Triangles, FLOAT* Position, FLOAT Radius, INT MaxTriangles)
+    {
+        NOT_DECOMPILED(0x0008ec55);
+        return 0;
+    }
+
+    // 0x00086311
+    INT KIntersectCB(void* Unknown1, void* Unknown2, void* Unknown3)
+    {
+        NOT_DECOMPILED(0x00086311);
+        return 0;
+    }
+
+    // 0x000b3c92, which the xbox shares with UMapProperty::Identical. keeps every contact.
+    INT KPerContactCB(void* Unknown1, void* Unknown2)
+    {
+        return 1;
+    }
+}
+
+// 0x0008f45a. makes the level's dynamics world, its collision bridge and a model for the level's own triangles.
+void KInitLevelKarma(ULevel* Level)
+{
+    if (!KGData || Level->KarmaWorld || !KGData->Framework)
+        return;
+    GLog->Log(TEXT("(Karma): Initialising Karma for Level."));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_UNIT_LENGTH"), KSettings.UnitLength, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_UNIT_MASS"), KSettings.UnitMass, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_GAMMA_PERSEC"), KSettings.GammaPerSec, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_GAMMA_MIN"), KSettings.GammaMin, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_GAMMA_MAX"), KSettings.GammaMax, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_EPSILON"), KSettings.Epsilon, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_PENOFFSET"), KSettings.PenOffset, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_PENSCALE"), KSettings.PenScale, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_CONTACTSOFT"), KSettings.ContactSoft, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_FRICTIONSCALE"), KSettings.FrictionScale, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_MAX_TIMESTEP"), KSettings.MaxTimestep, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_DO_DOUBLETICK_TIMESTEP"), KSettings.DoDoubleTickTimestep, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("ME_MAX_PENETRATION"), KSettings.MaxPenetration, TEXT("System.ini"));
+
+    MdtWorld* World = MdtWorldCreate(1, 1, KSettings.UnitLength, KSettings.UnitMass);
+    Level->KarmaWorld = World;
+    MdtWorldSetUnknown22C(World, 1);
+    MdtWorldSetAutoDisable(Level->KarmaWorld, 1);
+    MdtWorldSetEpsilon(Level->KarmaWorld, KSettings.Epsilon);
+    FLOAT LinearVelocity = 0.02f;
+    FLOAT LinearAcceleration = 0.05f;
+    FLOAT AngularVelocity = 0.001f;
+    FLOAT AngularAcceleration = 0.05f;
+    FLOAT AliveTime = 1.f;
+    GConfig->GetFloat(TEXT("Karma"), TEXT("AutoDisableLinearVelocityThreshold"), LinearVelocity, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("AutoDisableLinearAccelerationThreshold"), LinearAcceleration, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("AutoDisableAngularVelocityThreshold"), AngularVelocity, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("AutoDisableAngularAccelerationThreshold"), AngularAcceleration, TEXT("System.ini"));
+    GConfig->GetFloat(TEXT("Karma"), TEXT("AutoDisableAliveTime"), AliveTime, TEXT("System.ini"));
+    MdtWorldSetAutoDisableVelocityThreshold(Level->KarmaWorld, LinearVelocity);
+    MdtWorldSetAutoDisableAccelerationThreshold(Level->KarmaWorld, LinearAcceleration);
+    MdtWorldSetAutoDisableAngularVelocityThreshold(Level->KarmaWorld, AngularVelocity);
+    MdtWorldSetAutoDisableAngularAccelerationThreshold(Level->KarmaWorld, AngularAcceleration);
+    MdtWorldSetAutoDisableAliveWindow(Level->KarmaWorld, AliveTime);
+    Level->KarmaWorld->BodyDisableCB = KBodyDisableCB;
+    Level->KarmaWorld->BodyEnableCB = KBodyEnableCB;
+    Level->KarmaWorld->Unknown1D4 = KBodyUnknownCB;
+
+    Level->KarmaBridge = MstBridgeCreate(KGData->Framework, 2);
+    MstBridgeSetUnknown0C(Level->KarmaBridge, 0x400);
+
+    Level->KarmaFactory = static_cast<MeAssetInstanceFactory*>(appMalloc(sizeof(MeAssetInstanceFactory)));
+    Level->KarmaFactory->Factory = KGData->AssetFactory;
+    Level->KarmaFactory->GeometryPostCreate = nullptr;
+    Level->KarmaFactory->GeometryContext = nullptr;
+    Level->KarmaFactory->CreateModel = KModelCreateFromMeFPart;
+    Level->KarmaFactory->ModelPostCreate = nullptr;
+    Level->KarmaFactory->ModelContext = nullptr;
+    Level->KarmaFactory->CreateJoint = MdtConstraintCreateFromMeFJoint;
+    Level->KarmaFactory->JointPostCreate = nullptr;
+    Level->KarmaFactory->JointContext = nullptr;
+
+    // the level model sits at the origin and its list covers everything
+    FLOAT* TM = static_cast<FLOAT*>(MeMemory.CreateAligned(16 * sizeof(FLOAT), 0x10));
+    for (INT i = 0; i < 16; i++)
+        TM[i] = i % 5 == 0 ? 1.f : 0.f;
+    const FLOAT Max[3] = { 524288.f, 524288.f, 524288.f };
+    const FLOAT Min[3] = { -524288.f, -524288.f, -524288.f };
+    McdTriangleList* TriList = McdTriangleListCreate(KGData->Framework, Min, Max, 0x400, KTriListGenerator);
+    KGData->Unknown15038++;
+    McdTriangleListSetUserData(TriList, Level);
+    Level->KarmaLevelModel = McdModelCreate(&TriList->Base);
+    KGData->Unknown15034++;
+    McdModelSetTransformPtr(Level->KarmaLevelModel, TM);
+    McdModelUpdate(Level->KarmaLevelModel);
+    KModelData* Data = static_cast<KModelData*>(KMemCreate(sizeof(KModelData)));
+    Data->Unknown4 = 0;
+    Data->Unknown8 = 0;
+    Data->UnknownC = 0;
+    Data->Unknown10 = 0;
+    Data->Actor = nullptr;
+    McdModelSetUserData(Level->KarmaLevelModel, Data);
+
+    INT* Request = McdFrameworkGetDefaultRequestPtr(KGData->Framework);
+    Request[1] = 1;
+    Request[0] = 10;
+    MstBridgeSetIntersectCB(Level->KarmaBridge, 0, 0, KIntersectCB);
+    MstBridgeSetPerContactCB(Level->KarmaBridge, 0, 0, KPerContactCB);
+    MdtContactParams* Params = MstBridgeGetContactParams(Level->KarmaBridge, 0, 0);
+    MdtContactParamsSetType(Params, 2);
+    MdtContactParamsSetFrictionModel(Params, 1);
+    MdtContactParamsSetPrimarySlip(Params, 0.5f);
+    MdtContactParamsSetSoftness(Params, KSettings.ContactSoft);
+    MdtContactParamsSetFriction(Params, 10.f);
+}
+
+namespace
+{
+    // 0x000905e9. refreshes the triangles a ragdoll collides with; the name is from its log lines.
+    void KUpdateRagdollTrilist(AActor* Actor)
+    {
+        NOT_DECOMPILED(0x000905e9);
+    }
+
+    // 0x0008fa66. collides the listed actors with each other and the level (name invented).
+    void KUpdateContacts(TArray<AActor*>& Actors, ULevel* Level)
+    {
+        if (!Level->Hash)
+            return;
+        FMemMark Mark(GMem);
+        // the xbox also builds a TMap here that only the actor loop uses
+        MeUnknown1CReset(KGData->Unknown15054);
+        if (Actors.Num())
+            NOT_DECOMPILED(0x0008fac3);
+        Mark.Pop();
+        if (MeUnknown1CCount14(KGData->Unknown15054) + MeUnknown1CCount10(KGData->Unknown15054) > 0)
+            NOT_DECOMPILED(0x00084631);
+    }
+
+    // 0x00081efa. called after each partition is built; Karma's MdtAutoDisableLastPartition does the same.
+    void KAutoDisableLastPartition(MdtPartitionOutput* Output, void* Params)
+    {
+        NOT_DECOMPILED(0x00081efa);
+    }
+
+    // 0x0007d90a. splits the enabled bodies into partitions of bodies joined by constraints; the name is from its
+    // error messages. the xbox passes Output in ESI.
+    void KBuildPartitions(MeDict* Bodies, void (*EndCB)(MdtPartitionOutput* Output, void* Params), void* Params,
+        MdtPartitionOutput* Output)
+    {
+        Output->NumPartitions = 0;
+        Output->TotalBodies = 0;
+        Output->TotalConstraints = 0;
+        Output->Unknown38 = 0;
+        Output->Unknown3C = 0;
+        Output->Unknown34 = 0;
+        // 0x0007d8e9 skips bodies that are already in a partition
+        if (MeDictFirst(Bodies))
+            NOT_DECOMPILED(0x0007d970);
+    }
+
+    // 0x00089d21. steps the world's dynamics by TimeStep (name invented).
+    void KWorldStep(MdtWorld* World, FLOAT TimeStep, ULevel* Level)
+    {
+        MdtPartitionOutput* Partitions = MdtPartitionOutputCreateInChunk(&World->Unknown14C, World->BodyCount, World->EnabledConstraintCount);
+        KBuildPartitions(&World->EnabledBodies, KAutoDisableLastPartition, &World->AutoDisable, Partitions);
+        // each partition's step, and the postKarmaStep and DestroyActor passes over the actors it collects
+        if (Partitions->NumPartitions > 0)
+            NOT_DECOMPILED(0x00089d88);
+        MeChunkPutMem(&World->Unknown14C, Partitions);
+        // clears each enabled body's forces
+        if (MeDictFirst(&World->EnabledBodies))
+            NOT_DECOMPILED(0x0008a4c5);
+    }
+}
+
+// 0x00090a71. steps the level's karma world, twice when the frame is long.
+void KTickLevelKarma(ULevel* Level, FLOAT DeltaSeconds)
+{
+    if (!KGData || !Level->KarmaWorld)
+        return;
+
+    INT Steps = 1;
+    if (Level->GetLevelInfo())
+        KGData->Unknown15028 = !Level->GetLevelInfo()->bPlayersOnly;
+    FLOAT Time = 0.03f;
+    if (KGData->Unknown15028)
+    {
+        KGData->Unknown15024 = 1;
+        Time = Level->GetLevelInfo()->KarmaTimeScale * DeltaSeconds;
+    }
+    if (KSettings.DoDoubleTickTimestep <= Time)
+        Steps = 2;
+
+    const FLOAT StepTime = Time / Steps;
+    for (; Steps; Steps--)
+    {
+        const FLOAT TimeStep = KSettings.MaxTimestep >= StepTime ? StepTime : KSettings.MaxTimestep;
+        const FLOAT Gamma = KSettings.GammaPerSec * TimeStep;
+        const FLOAT Capped = KSettings.GammaMax > Gamma ? Gamma : KSettings.GammaMax;
+        MdtWorldSetGamma(Level->KarmaWorld, KSettings.GammaMin > Capped ? KSettings.GammaMin : Capped);
+        KGData->TimeStep = TimeStep;
+        for (INT i = 0; i < Level->Unknown1138.Num(); i++)
+            KUpdateRagdollTrilist(Level->Unknown1138[i]);
+        KUpdateContacts(Level->Unknown1148, Level);
+        if (KGData->Unknown15024)
+            KWorldStep(Level->KarmaWorld, TimeStep, Level);
+    }
+}
+
+// ULevel::Tick clears this inline once its actors have ticked
+void KEndLevelTick()
+{
+    if (KGData)
+        KGData->Unknown15024 = 0;
+}
+
+// 0x0007ebd9. the karma debugging commands; the real name is not known.
+UBOOL KExec(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+    if (ParseCommand(&Cmd, TEXT("KDRAW")))
+    {
+        if (!KGData)
+        {
+            Ar.Log(TEXT("Cannot execute Karma debugging options (No KGData)."));
+            return 0;
+        }
+        if (ParseCommand(&Cmd, TEXT("COLLISION")))
+            KGData->Unknown15020 ^= 0x1;
+        else if (ParseCommand(&Cmd, TEXT("CONTACTS")))
+            KGData->Unknown15020 ^= 0x100;
+        else if (ParseCommand(&Cmd, TEXT("JOINTS")))
+            KGData->Unknown15020 ^= 0x30;
+        else if (ParseCommand(&Cmd, TEXT("TRIANGLES")))
+            KGData->Unknown15020 ^= 0x200;
+        else if (ParseCommand(&Cmd, TEXT("COM")))
+            KGData->Unknown15020 ^= 0x2;
+        else if (ParseCommand(&Cmd, TEXT("ORIGIN")))
+            KGData->Unknown15020 ^= 0x4;
+        else if (ParseCommand(&Cmd, TEXT("WHEEL")))
+            KGData->Unknown15020 ^= 0x400;
+        else if (ParseCommand(&Cmd, TEXT("SAFETIME")))
+            KGData->Unknown15020 ^= 0x800;
+        else if (ParseCommand(&Cmd, TEXT("REPULSORS")))
+            KGData->Unknown15020 ^= 0x1000;
+        else
+            return 0;
+        Ar.Log(TEXT("Karma debugging option recognized"));
+        return 1;
+    }
+    if (ParseCommand(&Cmd, TEXT("KSTEP")))
+    {
+        if (!KGData)
+        {
+            Ar.Log(TEXT("Cannot execute Karma debugging options (No KGData)."));
+            return 0;
+        }
+        KGData->Unknown15024 = !KGData->Unknown15024;
+        return 1;
+    }
+    if (ParseCommand(&Cmd, TEXT("KSTOP")))
+    {
+        if (!KGData)
+        {
+            Ar.Log(TEXT("Cannot execute Karma debugging options (No KGData)."));
+            return 0;
+        }
+        KGData->Unknown15028 = !KGData->Unknown15028;
+        return 1;
+    }
+    if (ParseCommand(&Cmd, TEXT("KSAFETIME")))
+    {
+        if (!KGData)
+        {
+            Ar.Log(TEXT("Cannot execute Karma debugging options (No KGData)."));
+            return 0;
+        }
+        if (ParseCommand(&Cmd, TEXT("0")))
+            KGData->Unknown1502C = 0;
+        else if (ParseCommand(&Cmd, TEXT("1")))
+            KGData->Unknown1502C = 1;
+        Ar.Log(KGData->Unknown1502C ? TEXT("Karma Safe-Time Enabled.") : TEXT("Karma Safe-Time Disabled."));
+        return 1;
+    }
+    return 0;
+}
+
+// 0x0008946f. name invented. adds the actor to its level's Unknown1148 list once, or takes it out.
+void KSetActorListed(AActor* Actor, UBOOL bListed)
+{
+    TArray<AActor*>& List = Actor->XLevel->Unknown1148;
+    if (!bListed)
+    {
+        List.RemoveItem(Actor);
+        return;
+    }
+    INT Index = 0;
+    if (!List.FindItem(Actor, Index))
+        List.AddItem(Actor);
+}
+
+namespace
+{
+    // 0x0007e6a0. a copy made with karma's allocator.
+    char* KStrdup(const char* Str)
+    {
+        char* Copy = static_cast<char*>(MeMemory.Create(static_cast<INT>(strlen(Str)) + 1));
+        strcpy(Copy, Str);
+        return Copy;
+    }
+
+    // 0x0008c6b4. the game's copy of MeAssetInstanceCreate (name invented): it also records the pairs of models
+    // the asset keeps from colliding.
+    MeAssetInstance* KAssetInstanceCreate(MeAssetInstanceFactory* Factory, MeFAsset* Asset, const FLOAT* TM, MdtWorld* World,
+        TMap<FKModelPair, INT>* DisabledPairs, UBOOL OwnsParts)
+    {
+        MeAssetInstance* Instance = static_cast<MeAssetInstance*>(MeMemory.Create(sizeof(MeAssetInstance)));
+        const char* AssetId = MeFAssetGetId(Asset);
+        Instance->Unknown8 = nullptr;
+        Instance->Factory = Factory;
+        Instance->Asset = Asset;
+        Instance->OwnsParts = OwnsParts;
+        Instance->World = World;
+        Instance->Geometries = MeHashCreate(17);
+        Instance->Models = MeHashCreate(17);
+        Instance->Joints = MeHashCreate(17);
+        MeHashSetKeyFreeFunction(Instance->Geometries, MeMemory.Destroy);
+        MeHashSetKeyFreeFunction(Instance->Models, MeMemory.Destroy);
+        MeHashSetKeyFreeFunction(Instance->Joints, MeMemory.Destroy);
+
+        MeFAssetIterator It;
+        MeFAssetGetGeometryIterator(Asset, &It);
+        while (MeFGeometry* Source = static_cast<MeFGeometry*>(MeFAssetIteratorGetNext(&It)))
+        {
+            McdGeometry* Geometry = McdGMCreateGeometry(Factory->Factory, Source, AssetId);
+            if (OwnsParts)
+                McdGeometryIncrementReferenceCount(Geometry);
+            if (Factory->GeometryPostCreate)
+                Factory->GeometryPostCreate(Geometry, Source, Factory->GeometryContext);
+            MeHashInsert(KStrdup(Source->Name), Geometry, Instance->Geometries);
+        }
+
+        // parts in name order
+        const INT PartCount = MeFAssetGetPartCount(Asset);
+        TArray<MeFPart*> Parts;
+        Parts.AddZeroed(PartCount);
+        MeFAssetGetPartsSortedByName(Asset, &Parts[0]);
+        for (INT i = 0; i < PartCount; i++)
+        {
+            MeFPart* Part = Parts[i];
+            McdModel* Model = nullptr;
+            MeFModel* Source = MeFPartGetModel(Part);
+            MeFGeometry* SourceGeometry = MeFModelGetGeometry(Source);
+            McdGeometry* Geometry;
+            if (Source->Type == 1 || !SourceGeometry)
+                Geometry = Factory->Factory->NullGeometry;
+            else
+                Geometry = static_cast<McdGeometry*>(MeHashLookup(SourceGeometry->Name, Instance->Geometries));
+            char* Name = KStrdup(Part->Name);
+            if (Factory->CreateModel)
+                Model = Factory->CreateModel(Part, Geometry, World, TM);
+            if (Factory->ModelPostCreate)
+                Factory->ModelPostCreate(Model, Part, Factory->ModelContext);
+            MeHashInsert(Name, Model, Instance->Models);
+        }
+
+        for (INT i = 0; i < PartCount; i++)
+        {
+            for (INT j = i + 1; j < PartCount; j++)
+            {
+                if (MeFPartIsCollisionEnabled(Parts[i], Parts[j]))
+                    continue;
+                McdModel* Model1 = static_cast<McdModel*>(MeHashLookup(Parts[i]->Name, Instance->Models));
+                McdModel* Model2 = static_cast<McdModel*>(MeHashLookup(Parts[j]->Name, Instance->Models));
+                if (Model1 && Model2 && (McdModelGetGeometry(Model1)->TypeId & 0xff) && (McdModelGetGeometry(Model2)->TypeId & 0xff))
+                {
+                    FKModelPair Pair;
+                    Pair.A = Model1 < Model2 ? Model2 : Model1;
+                    Pair.B = Model1 < Model2 ? Model1 : Model2;
+                    DisabledPairs->Set(Pair, 0);
+                }
+            }
+        }
+
+        // a joint needs a body on at least one end
+        MeFAssetGetJointIterator(Asset, &It);
+        while (MeFJoint* Joint = static_cast<MeFJoint*>(MeFAssetIteratorGetNext(&It)))
+        {
+            MeFPart* Part1 = MeFJointGetPart(Joint, 0);
+            MeFPart* Part2 = MeFJointGetPart(Joint, 1);
+            McdModel* Model1 = Part1 ? static_cast<McdModel*>(MeHashLookup(Part1->Name, Instance->Models)) : nullptr;
+            McdModel* Model2 = Part2 ? static_cast<McdModel*>(MeHashLookup(Part2->Name, Instance->Models)) : nullptr;
+            if ((!Model1 || !McdModelGetBody(Model1)) && (!Model2 || !McdModelGetBody(Model2)))
+                continue;
+            MdtConstraint* Constraint = nullptr;
+            if (Factory->CreateJoint)
+            {
+                Constraint = Factory->CreateJoint(Joint, World, Model1, Model2, TM);
+                if (Constraint)
+                    MdtConstraintEnable(Constraint);
+            }
+            // the xbox checks the context, not the callback
+            if (Factory->JointContext)
+                Factory->JointPostCreate(Constraint, Joint, Factory->JointContext);
+            MeHashInsert(KStrdup(Joint->Name), Constraint, Instance->Joints);
+        }
+        return Instance;
+    }
+
+    // 0x0007f133. McdGMDestroyGeometry for geometry the factory may not have made, which is counted against the
+    // second memory stat when freed.
+    void KGMDestroyGeometry(MeAssetFactory* Factory, McdGeometry* Geometry)
+    {
+        if (McdGeometryGetReferenceCount(Geometry) > 0)
+            return;
+        if ((Geometry->TypeId & 0xff) == 8)
+        {
+            McdAggregate* Aggregate = reinterpret_cast<McdAggregate*>(Geometry);
+            const INT Count = Aggregate->UsedCount;
+            for (INT i = 0; i < Count; i++)
+            {
+                if (McdGeometry* Element = McdAggregateGetElementGeometry(Aggregate, i))
+                {
+                    McdAggregateRemoveElement(Aggregate, i);
+                    KGMDestroyGeometry(Factory, Element);
+                }
+            }
+        }
+        if (!(Geometry->TypeId & 0xff))
+            return;
+        if (void* Name = MeHashLookup(Geometry, Factory->NameByGeometry))
+        {
+            MeHashRemove(Name, Factory->GeometryByName);
+            MeHashRemove(Geometry, Factory->NameByGeometry);
+            McdGeometryDestroy(Geometry);
+        }
+        else
+        {
+            KGData->UseMemStat2 = 1;
+            McdGeometryDestroy(Geometry);
+            KGData->Unknown15038--;
+            KGData->UseMemStat2 = 0;
+        }
+    }
+}
+
+// 0x0008ca26. builds the ragdoll of an actor whose karma params are UKarmaParamsSkel, once: a model for each bone
+// with a part of the same name in the KSkeleton asset, and the joint named after it. the bodies start disabled.
+void KInitSkeletonKarma(USkeletalMeshInstance* Instance)
+{
+    if (Instance->KSkelModels.Num() || !KGData)
+        return;
+    AActor* Actor = Instance->GetActor();
+    if (!Actor)
+        return;
+    ULevel* Level = Actor->XLevel;
+    if (!Level)
+        return;
+    USkeletalMesh* Mesh = static_cast<USkeletalMesh*>(Instance->Mesh);
+    UKarmaParamsSkel* Params = Cast<UKarmaParamsSkel>(Actor->KParams);
+    if (!Params || Params->KSkeleton == TEXT(""))
+        return;
+    MdtWorld* World = Level->KarmaWorld;
+    if (!World)
+    {
+        GLog->Log(TEXT("(Karma): KInitSkeletonKarma: Framework, but no world."));
+        return;
+    }
+    const INT NumBones = Mesh->RefSkeleton.Num();
+    INT NumJoints = 0;
+    INT NumModels = 0;
+    MeFAsset* Asset = MeAssetDBLookupAsset(KGData->AssetDB, *Params->KSkeleton);
+    if (!Asset)
+    {
+        // the xbox carries on with no asset
+        Params->KSkeleton = TEXT("");
+        GLog->Log(TEXT("(Karma): KInitSkeletonKarma: Asset not found."));
+    }
+    Instance->KSkelModels.AddZeroed(NumBones);
+    Instance->KSkelJoints.AddZeroed(NumBones);
+    MeAssetInstance* AssetInstance = KAssetInstanceCreate(Level->KarmaFactory, Asset, nullptr, World, &Instance->KSkelDisabledPairs, 0);
+    Instance->KSkelFirstBone = -1;
+    Instance->KSkelLastBone = -1;
+    for (INT i = 0; i < NumBones; i++)
+    {
+        char Name[512];
+        strncpy(Name, *Mesh->RefSkeleton[i].Name, sizeof(Name));
+        for (char* Ch = Name; *Ch; Ch++)
+            *Ch = static_cast<char>(tolower(static_cast<unsigned char>(*Ch)));
+        McdModel* Model = MeAssetInstanceGetModel(AssetInstance, Name);
+        MdtConstraint* Joint = MeAssetInstanceGetJoint(AssetInstance, Name);
+        if (!Model)
+            continue;
+        NumModels++;
+        KModelData* Data = static_cast<KModelData*>(KMemCreate(sizeof(KModelData)));
+        Data->Unknown4 = 0;
+        Data->Unknown8 = 0;
+        Data->UnknownC = 0;
+        Data->Unknown10 = 0;
+        Data->Actor = Actor;
+        McdModelSetUserData(Model, Data);
+        if (Instance->KSkelFirstBone == -1)
+            Instance->KSkelFirstBone = i;
+        Instance->KSkelLastBone = i;
+        if (MdtBody* Body = McdModelGetBody(Model))
+        {
+            MdtBodySetFlag4(Body);
+            MdtBodyClearFlag8(Body);
+            MdtBodySetLinearVelocityDamping(Body, Params->KLinearDamping);
+            MdtBodySetAngularVelocityDamping(Body, Params->KAngularDamping);
+            MdtBodyDisable(Body);
+        }
+        if (Joint)
+        {
+            if (!MdtConstraintIsEnabled(Joint))
+                MdtConstraintEnable(Joint);
+            if (MdtHinge* Hinge = MdtConstraintDCastHinge(Joint))
+                Hinge->Limit.Unknown8 = 1;
+            NumJoints++;
+            Instance->KSkelJoints[i] = Joint;
+        }
+        Instance->KSkelModels[i] = Model;
+    }
+    if (NumModels != MeFAssetGetPartCount(Asset))
+        GLog->Log(TEXT("(Karma): Not All Physics Parts Have Graphics Bones!"));
+    if (NumJoints != MeFAssetGetJointCount(Asset))
+        GLog->Log(TEXT("(Karma): Not All Physics Joints Have Graphics Bones!"));
+    KGData->Unknown15034 += NumModels;
+
+    // the instance only held the parts; geometry nothing uses is freed with it
+    TArray<McdGeometry*> Unused;
+    MeHashIterator It;
+    MeAssetInstanceGetGeometryIterator(AssetInstance, &It);
+    while (McdGeometry* Geometry = static_cast<McdGeometry*>(MeHashIteratorGetNext(&It)))
+    {
+        if (!McdGeometryGetReferenceCount(Geometry))
+            Unused.AddItem(Geometry);
+    }
+    MeAssetInstanceDestroy(AssetInstance);
+    for (INT i = 0; i < Unused.Num(); i++)
+        KGMDestroyGeometry(KGData->AssetFactory, Unused[i]);
+}
+
+// 0x00091192. sets up the karma parts of an actor in a level with karma.
+void KInitActorKarma(AActor* Actor)
+{
+    if (!KGData || Actor->bDeleteMe || !Actor->XLevel || !KGData->Framework)
+        return;
+    // physics 14 is ragdoll, 13 is karma
+    if (Actor->Physics == 14)
+    {
+        if (Actor->Mesh)
+            NOT_DECOMPILED(0x0008ce3c);
+        return;
+    }
+    if (AKConstraint* Constraint = Cast<AKConstraint>(Actor))
+    {
+        if (!Constraint->KConstraintActor1 && !Constraint->KConstraintActor2)
+            Constraint->Physics = 0;
+        else if (Constraint->Physics == 13)
+            NOT_DECOMPILED(0x000912a5);
+        return;
+    }
+    if (Actor->bBlockKarma)
+        NOT_DECOMPILED(0x0008c235);
+    if (Actor->Physics == 13)
+        NOT_DECOMPILED(0x00090c0f);
 }

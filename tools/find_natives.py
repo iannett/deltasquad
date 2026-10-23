@@ -108,6 +108,7 @@ def main():
     xbe = Xbe(XBE)
     runs = read_table(xbe)
     by_name, by_index, parents = read_scripts()
+    native_counts = collections.Counter(c for classes in by_name.values() for c in classes)
 
     for run in runs:
         for e in run:
@@ -125,6 +126,14 @@ def main():
                 if hits:
                     e[4] = hits[0]
                     break
+
+        # a run whose names several classes share goes to the one class with exactly that many natives
+        if not any(e[4] for e in run):
+            candidates = set.intersection(*(by_name.get(e[1], set()) for e in run))
+            exact = [c for c in candidates if native_counts[c] == len(run)]
+            if len(exact) == 1:
+                for e in run:
+                    e[4] = exact[0]
 
     entries = [e for run in runs for e in run]
     OUT.parent.mkdir(exist_ok=True)

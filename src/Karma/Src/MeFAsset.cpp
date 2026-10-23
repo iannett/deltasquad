@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 
 #include "Core.h"
@@ -138,7 +139,7 @@ void* MeHashInsert(const void* Key, void* Data, MeHash* Hash)
                 New->Data = Data;
                 New->Next = Entry->Next;
                 Entry->Next = New;
-                Hash->Unknown4++;
+                Hash->Count++;
                 return Data;
             }
             Entry = Entry->Next;
@@ -147,7 +148,7 @@ void* MeHashInsert(const void* Key, void* Data, MeHash* Hash)
     New->Data = Data;
     New->Key = Key;
     Hash->Table[Index] = New;
-    Hash->Unknown4++;
+    Hash->Count++;
     return Data;
 }
 
@@ -162,6 +163,94 @@ void* MeHashLookup(const void* Key, MeHash* Hash)
         if (Order < 0)
             return nullptr;
     }
+    return nullptr;
+}
+
+// 0x00189500. takes the entry out and returns its data, after the free functions have run.
+void* MeHashRemove(const void* Key, MeHash* Hash)
+{
+    const DWORD Index = Hash->Hash(Key, Hash->Size);
+    MeHashEntry* Prev = nullptr;
+    MeHashEntry* Entry = Hash->Table[Index];
+    for (;; Prev = Entry, Entry = Entry->Next)
+    {
+        if (!Entry)
+            return nullptr;
+        const INT Order = Hash->Compare(Key, Entry->Key);
+        if (Order == 0)
+            break;
+        if (Order < 0)
+            return nullptr;
+    }
+    if (Prev)
+        Prev->Next = Entry->Next;
+    else
+        Hash->Table[Index] = Entry->Next;
+    void* Data = Entry->Data;
+    if (Hash->FreeData)
+        Hash->FreeData(Data);
+    if (Hash->FreeKey)
+        Hash->FreeKey(const_cast<void*>(Entry->Key));
+    MeMemory.Destroy(Entry);
+    Hash->Count--;
+    return Data;
+}
+
+// 0x00189350
+void MeHashEmpty(MeHash* Hash)
+{
+    for (INT i = Hash->Size - 1; i >= 0; i--)
+    {
+        while (MeHashEntry* Entry = Hash->Table[i])
+        {
+            Hash->Table[i] = Entry->Next;
+            if (Hash->FreeData)
+                Hash->FreeData(Entry->Data);
+            if (Hash->FreeKey)
+                Hash->FreeKey(const_cast<void*>(Entry->Key));
+            MeMemory.Destroy(Entry);
+        }
+    }
+    Hash->Count = 0;
+}
+
+// 0x00189650
+void MeHashDestroy(MeHash* Hash)
+{
+    MeHashEmpty(Hash);
+    MeMemory.Destroy(Hash->Table);
+    MeMemory.Destroy(Hash);
+}
+
+// 0x00189590
+void MeHashIteratorInit(MeHashIterator* It, MeHash* Hash)
+{
+    if (!It)
+        return;
+    It->Entry = nullptr;
+    It->Bucket = 0;
+    It->Hash = Hash;
+}
+
+// 0x001895b0. the data of the next entry, or null once every bucket is done.
+void* MeHashIteratorGetNext(MeHashIterator* It)
+{
+    MeHash* Hash = It->Hash;
+    if (It->Entry && It->Entry->Next)
+    {
+        It->Entry = It->Entry->Next;
+        return It->Entry->Data;
+    }
+    for (It->Bucket = It->Entry ? It->Bucket + 1 : 0; It->Bucket < Hash->Size; It->Bucket++)
+    {
+        if (Hash->Table[It->Bucket])
+        {
+            It->Entry = Hash->Table[It->Bucket];
+            return It->Entry->Data;
+        }
+    }
+    It->Bucket = 0;
+    It->Entry = nullptr;
     return nullptr;
 }
 
@@ -329,13 +418,13 @@ void MeFAssetInsertJoint(MeFAsset* Asset, MeFJoint* Joint)
     Asset->JointCount++;
 }
 
-// 0x001921c0
+// 0x001921c0, which the xbox shares with MeAssetInstanceGetModel
 MeFGeometry* MeFAssetLookupGeometry(MeFAsset* Asset, const char* Name)
 {
     return static_cast<MeFGeometry*>(MeHashLookup(Name, Asset->GeometryHash));
 }
 
-// 0x001921e0
+// 0x001921e0, which the xbox shares with MeAssetInstanceGetJoint
 MeFModel* MeFAssetLookupModel(MeFAsset* Asset, const char* Name)
 {
     return static_cast<MeFModel*>(MeHashLookup(Name, Asset->ModelHash));
@@ -710,6 +799,26 @@ void MeFPartSetGraphicOffset(MeFPart* Part, FLOAT X, FLOAT Y, FLOAT Z)
     Part->GraphicOffset[2] = Z;
 }
 
+namespace
+{
+    // 0x0018d200. the word and bit of the pair in the asset's table.
+    DWORD* GetCollisionBit(MeFPart* Part1, MeFPart* Part2, DWORD& Bit)
+    {
+        MeFAsset* Asset = Part1->Owner;
+        INT Low = Part1->Id;
+        INT High = Part2->Id;
+        if (Low > High)
+        {
+            const INT Swap = Low;
+            Low = High;
+            High = Swap;
+        }
+        const INT Index = Asset->MaxParts * Low + High;
+        Bit = 0x80000000u >> (Index % 32);
+        return Asset->NoCollision + Index / 32;
+    }
+}
+
 // 0x0018d2f0. a set bit turns collision off between the two parts.
 void MeFPartSetCollision(MeFPart* Part1, MeFPart* Part2, UBOOL Enable)
 {
@@ -718,22 +827,108 @@ void MeFPartSetCollision(MeFPart* Part1, MeFPart* Part2, UBOOL Enable)
     MeFAsset* Asset = Part1->Owner;
     if (Asset && Asset->PartCount > Asset->MaxParts)
         return;
-    // 0x0018d200
-    INT Low = Part1->Id;
-    INT High = Part2->Id;
-    if (Low > High)
-    {
-        const INT Swap = Low;
-        Low = High;
-        High = Swap;
-    }
-    const INT Index = Asset->MaxParts * Low + High;
-    const DWORD Bit = 0x80000000u >> (Index % 32);
-    DWORD* Word = Asset->NoCollision + Index / 32;
+    DWORD Bit;
+    DWORD* Word = GetCollisionBit(Part1, Part2, Bit);
     if (Enable)
         *Word &= ~Bit;
     else
         *Word |= Bit;
+}
+
+// 0x0018d260. a part always collides with itself.
+UBOOL MeFPartIsCollisionEnabled(MeFPart* Part1, MeFPart* Part2)
+{
+    if (Part1 == Part2)
+        return 1;
+    DWORD Bit;
+    return !(*GetCollisionBit(Part1, Part2, Bit) & Bit);
+}
+
+// 0x0018d1a0
+MeFModel* MeFPartGetModel(MeFPart* Part)
+{
+    return MeFAssetLookupModel(Part->Owner, Part->Model);
+}
+
+// 0x0018d1c0
+FLOAT* MeFPartGetTransformPtr(MeFPart* Part)
+{
+    return Part->TM;
+}
+
+// 0x0018cee0. the symmetric tensor as nine floats.
+void MeFModelGetInertiaTensor(MeFModel* Model, FLOAT* Inertia)
+{
+    Inertia[0] = Model->Inertia00;
+    Inertia[4] = Model->Inertia11;
+    Inertia[8] = Model->Inertia22;
+    Inertia[1] = Inertia[3] = Model->Inertia01;
+    Inertia[2] = Inertia[6] = Model->Inertia02;
+    Inertia[5] = Inertia[7] = Model->Inertia12;
+}
+
+// 0x0018ce80
+MeFGeometry* MeFModelGetGeometry(MeFModel* Model)
+{
+    if (!Model->Owner || !Model->Geometry)
+        return nullptr;
+    return MeFAssetLookupGeometry(Model->Owner, Model->Geometry);
+}
+
+// 0x00191e70. the next item of the list, or null at its end.
+void* MeFAssetIteratorGetNext(MeFAssetIterator* It)
+{
+    void* Item = (*It)->Item;
+    *It = (*It)->Next;
+    return Item;
+}
+
+// 0x00190cc0
+void MeFAssetGetGeometryIterator(MeFAsset* Asset, MeFAssetIterator* It)
+{
+    *It = Asset->Geometries->Next;
+}
+
+// 0x00190ce0
+void MeFAssetGetJointIterator(MeFAsset* Asset, MeFAssetIterator* It)
+{
+    *It = Asset->Joints->Next;
+}
+
+// 0x00190cb0
+INT MeFAssetGetPartCount(MeFAsset* Asset)
+{
+    return Asset->PartCount;
+}
+
+// 0x00190ca0
+INT MeFAssetGetJointCount(MeFAsset* Asset)
+{
+    return Asset->JointCount;
+}
+
+// 0x00165900, through the shared getter
+const char* MeFAssetGetId(MeFAsset* Asset)
+{
+    return Asset->Id;
+}
+
+namespace
+{
+    // 0x00190d40
+    int ComparePartNames(const void* A, const void* B)
+    {
+        return strcmp((*static_cast<MeFPart* const*>(A))->Name, (*static_cast<MeFPart* const*>(B))->Name);
+    }
+}
+
+// 0x00190e30. Parts must have room for every part.
+void MeFAssetGetPartsSortedByName(MeFAsset* Asset, MeFPart** Parts)
+{
+    MeFPart** Out = Parts;
+    for (MeFAssetNode* Node = Asset->Parts->Next; Node->Item; Node = Node->Next)
+        *Out++ = static_cast<MeFPart*>(Node->Item);
+    qsort(Parts, Asset->PartCount, sizeof(MeFPart*), ComparePartNames);
 }
 
 // ---------------------------------------------------------------------------------------------- joints
@@ -894,4 +1089,66 @@ void MeFJointSetPart(MeFJoint* Joint, const char* Part, INT Body)
 {
     if (Body || Part)
         MeStrSet(&Joint->Parts[Body], Part);
+}
+
+// 0x001913d0
+MeFPart* MeFJointGetPart(MeFJoint* Joint, INT Body)
+{
+    if (!Joint->Owner || !Joint->Parts[Body])
+        return nullptr;
+    return MeFAssetLookupPart(Joint->Owner, Joint->Parts[Body]);
+}
+
+// 0x00188160, through the shared getter
+INT MeFJointGetType(MeFJoint* Joint)
+{
+    return Joint->Type;
+}
+
+// 0x00191400
+void MeFJointGetPosition(MeFJoint* Joint, INT Body, FLOAT* Pos)
+{
+    for (INT i = 0; i < 3; i++)
+        Pos[i] = Joint->Pos[Body][i];
+}
+
+// 0x00191430
+void MeFJointGetPrimaryAxis(MeFJoint* Joint, INT Body, FLOAT* Axis)
+{
+    for (INT i = 0; i < 3; i++)
+        Axis[i] = Joint->PrimaryAxis[Body][i];
+}
+
+// 0x00191460
+void MeFJointGetOrthogonalAxis(MeFJoint* Joint, INT Body, FLOAT* Axis)
+{
+    for (INT i = 0; i < 3; i++)
+        Axis[i] = Joint->OrthogonalAxis[Body][i];
+}
+
+// 0x00191540. properties 0 to 14 and 17 to 25 are reals.
+UBOOL MeFJointGetReal(MeFJoint* Joint, INT Property, FLOAT* Value)
+{
+    if ((Property < 0 || Property > 14) && (Property < 17 || Property > 25))
+        return 0;
+    *Value = Joint->Values[Property].Real;
+    return 1;
+}
+
+// 0x001914e0. properties 15, 16 and 28 are ints.
+UBOOL MeFJointGetInt(MeFJoint* Joint, INT Property, INT* Value)
+{
+    if (Property != 15 && Property != 16 && Property != 28)
+        return 0;
+    *Value = Joint->Values[Property].Int;
+    return 1;
+}
+
+// 0x00191490. properties 26 and 27 are enums.
+UBOOL MeFJointGetEnum(MeFJoint* Joint, INT Property, INT* Value)
+{
+    if (Property != 26 && Property != 27)
+        return 0;
+    *Value = Joint->Values[Property].Int;
+    return 1;
 }

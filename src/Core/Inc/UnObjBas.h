@@ -118,14 +118,16 @@ private:
         RF_Public | RF_Standalone | RF_Transient | RF_Native, TClass::InternalConstructor, \
         static_cast<UClass::FStaticConstructor>(&TClass::StaticConstructor));
 
-// logs an error and unwinds, like appErrorf but recoverable in the original
-#define appThrowf(...) GError->Logf(__VA_ARGS__)
-
 // looks up Section.Key in Package.int
 const TCHAR* Localize(const TCHAR* Section, const TCHAR* Key, const TCHAR* Package, const TCHAR* LangExt = nullptr, UBOOL Optional = 0);
 
 // looks up an error message in the [Errors] section of Package.int
 const TCHAR* LocalizeError(const TCHAR* Key, const TCHAR* Package, const TCHAR* LangExt = nullptr);
+// 0x000367e9
+inline const TCHAR* LocalizeProgress(const TCHAR* Key, const TCHAR* Package, const TCHAR* LangExt = nullptr)
+{
+    return Localize(TEXT("Progress"), Key, Package, LangExt);
+}
 // 0x00036819
 inline const TCHAR* LocalizeGeneral(const TCHAR* Key, const TCHAR* Package, const TCHAR* LangExt = nullptr)
 {
@@ -227,18 +229,27 @@ public:
     static UObject* StaticFindObjectFast(UClass* ObjectClass, UObject* InOuter, FName ObjectName, UBOOL ExactClass = 0);
     static FName MakeUniqueObjectName(UClass* Class);
     static UObject* StaticFindObject(UClass* ObjectClass, UObject* InOuter, const TCHAR* Name, UBOOL ExactClass = 0);
+    // 0x00024698. a missing object is a critical error.
+    static UObject* StaticFindObjectChecked(UClass* ObjectClass, UObject* InOuter, const TCHAR* Name, UBOOL ExactClass = 0);
     static UBOOL ResolveName(UObject*& InPackage, const TCHAR*& InName, UBOOL Create, UBOOL Throw);
     static UPackage* CreatePackage(UObject* InOuter, const TCHAR* PackageName);
     static UPackage* LoadPackage(UObject* InOuter, const TCHAR* Filename, DWORD LoadFlags);
     static void ProcessRegistrants();
     static void StaticInit();
     static void StaticExit();
+    // 0x00022dc5. warns about natives and casts registered twice at startup.
+    static void StaticTick();
     static void BeginLoad(const FString& Context = FString());
     static void EndLoad();
     static const TCHAR* GetLanguage();
     static void SetLanguage(const TCHAR* LanguageExt);
     static void ResetLoaders(UObject* Pkg, UBOOL DynamicOnly, UBOOL ForceLazyLoad);
     static void PurgeGarbage(UBOOL OnlyFlagged = 0);
+    // 0x00029bea. allocator, object and name debugging commands, GET and SET.
+    static UBOOL StaticExec(const TCHAR* Cmd, FOutputDevice& Ar);
+    // 0x00028fea. sets the property in the class's defaults and saves its config; Immediate also sets it in
+    // every object of the class.
+    static void GlobalSetProperty(const TCHAR* Value, UClass* Class, UProperty* Property, INT Offset, UBOOL Immediate);
     void RemoveFromRoot();
 
     // objects come from appMalloc in StaticAllocateObject
@@ -598,8 +609,14 @@ FArchive& operator<<(FArchive& Ar, T*& Object)
 }
 
 // globals of the object system
+// 0x0003531e. Match=Name in Stream names an object of Class, or NONE for null.
+UBOOL ParseObject(const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObject*& DestRes, UObject* InParent);
+
 extern TArray<UObject*>     GObjObjects;
 extern TArray<ULinkerLoad*> GObjLoaders;
+
+// maps keyed by objects hash them by object index
+inline DWORD GetTypeHash(const UObject* A) { return A ? static_cast<DWORD>(A->GetIndex()) : 0; }
 extern TArray<INT>          GObjAvailable;
 extern TArray<UObject*>     GObjRoot;
 extern UObject*             GObjTransientPkg;
@@ -608,6 +625,10 @@ extern INT                  GObjRegisterCount;
 extern UBOOL                GCheckConflicts;
 extern UBOOL                GObjInitialized;
 extern UBOOL                GNoGC;
+// 0x004595f4. a command handler UEngine::Exec tries; nothing on the xbox sets it.
+extern FExec*               GExec;
+// 0x0045a708. printed by GTIME; nothing on the xbox sets it.
+extern DOUBLE               GTime;
 extern INT                  GGarbageRefCount;
 extern TArray<UObject*>     GObjLoaded;
 extern UBOOL                GObjStaticInitStarted;

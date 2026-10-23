@@ -704,8 +704,17 @@ void ULinkerLoad::Verify()
     {
         if (LinkerRoot && LinkerRoot->IsA(UPackage::StaticClass()))
             static_cast<UPackage*>(LinkerRoot)->PackageFlags &= ~PKG_BrokenLinks;
-        for (INT i = 0; i < Summary.ImportCount; i++)
-            VerifyImport(i);
+        // a linker that fails to verify is forgotten before the error moves on
+        try
+        {
+            for (INT i = 0; i < Summary.ImportCount; i++)
+                VerifyImport(i);
+        }
+        catch (const TCHAR* Error)
+        {
+            GObjLoaders.RemoveItem(this);
+            throw Error;
+        }
     }
     Verified = 1;
 }
@@ -798,81 +807,90 @@ ULinkerLoad* GetPackageLinker(UObject* InOuter, const TCHAR* InFilename, DWORD L
     }
 
     ULinkerLoad* Result = nullptr;
-    TCHAR NewFilename[256] = TEXT("");
-    if (InFilename && *InFilename)
+    try
     {
-        // the package name is the file name without its directories and extension
-        TCHAR PackageName[256];
-        appStrncpy(PackageName, InFilename, 256);
-        TCHAR* Name = PackageName;
-        for (;;)
+        TCHAR NewFilename[256] = TEXT("");
+        if (InFilename && *InFilename)
         {
-            if (TCHAR* Found = appStrstr(Name, TEXT("\\")))
-                Name = Found + appStrlen(TEXT("\\"));
-            else if (TCHAR* Found = appStrstr(Name, TEXT("/")))
-                Name = Found + 1;
-            else if (TCHAR* Found = appStrstr(Name, TEXT(":")))
-                Name = Found + 1;
-            else
-                break;
-        }
-        if (TCHAR* Dot = appStrstr(Name, TEXT(".")))
-            *Dot = 0;
-
-        UPackage* FilenamePkg = UObject::CreatePackage(nullptr, Name);
-        if (!InOuter)
-        {
-            if (!FilenamePkg)
-                appThrowf(LocalizeError(TEXT("FilenameToPackage"), TEXT("Core")), InFilename);
-            InOuter = FilenamePkg;
-            for (INT i = 0; i < GObjLoaders.Num() && !Result; i++)
+            // the package name is the file name without its directories and extension
+            TCHAR PackageName[256];
+            appStrncpy(PackageName, InFilename, 256);
+            TCHAR* Name = PackageName;
+            for (;;)
             {
-                if (UObject::GetLoader(i)->LinkerRoot == InOuter)
-                    Result = UObject::GetLoader(i);
+                if (TCHAR* Found = appStrstr(Name, TEXT("\\")))
+                    Name = Found + appStrlen(TEXT("\\"));
+                else if (TCHAR* Found = appStrstr(Name, TEXT("/")))
+                    Name = Found + 1;
+                else if (TCHAR* Found = appStrstr(Name, TEXT(":")))
+                    Name = Found + 1;
+                else
+                    break;
+            }
+            if (TCHAR* Dot = appStrstr(Name, TEXT(".")))
+                *Dot = 0;
+
+            UPackage* FilenamePkg = UObject::CreatePackage(nullptr, Name);
+            if (!InOuter)
+            {
+                if (!FilenamePkg)
+                    appThrowf(LocalizeError(TEXT("FilenameToPackage"), TEXT("Core")), InFilename);
+                InOuter = FilenamePkg;
+                for (INT i = 0; i < GObjLoaders.Num() && !Result; i++)
+                {
+                    if (UObject::GetLoader(i)->LinkerRoot == InOuter)
+                        Result = UObject::GetLoader(i);
+                }
+            }
+            else if (InOuter != FilenamePkg)
+            {
+                GLog->Logf(TEXT("New File, Existing Package (%s, %s)"), InOuter->GetFullName(), FilenamePkg->GetFullName());
+                UObject::ResetLoaders(InOuter, 0, 1);
+            }
+
+            if (!Result && !appFindPackageFile(InFilename, CompatibleGuid, NewFilename))
+            {
+                if (!(LoadFlags & LOAD_Quiet) && (LoadFlags & LOAD_Throw))
+                    appThrowf(LocalizeError(TEXT("FileNotFound"), TEXT("Core")), InFilename);
+                return nullptr;
             }
         }
-        else if (InOuter != FilenamePkg)
+        else
         {
-            GLog->Logf(TEXT("New File, Existing Package (%s, %s)"), InOuter->GetFullName(), FilenamePkg->GetFullName());
-            UObject::ResetLoaders(InOuter, 0, 1);
-        }
+            if (!InOuter)
+                appThrowf(LocalizeError(TEXT("PackageResolveFailed"), TEXT("Core")));
 
-        if (!Result && !appFindPackageFile(InFilename, CompatibleGuid, NewFilename))
-        {
-            if (!(LoadFlags & LOAD_Quiet) && (LoadFlags & LOAD_Throw))
-                appThrowf(LocalizeError(TEXT("FileNotFound"), TEXT("Core")), InFilename);
-            return nullptr;
-        }
-    }
-    else
-    {
-        if (!InOuter)
-            appThrowf(LocalizeError(TEXT("PackageResolveFailed"), TEXT("Core")));
-
-        if (!appFindPackageFile(InOuter->GetName(), CompatibleGuid, NewFilename))
-        {
-            // a package with native code needs no file
-            if ((LoadFlags & LOAD_AllowDll) && InOuter->IsA(UPackage::StaticClass()) && static_cast<UPackage*>(InOuter)->DllHandle)
+            if (!appFindPackageFile(InOuter->GetName(), CompatibleGuid, NewFilename))
+            {
+                // a package with native code needs no file
+                if ((LoadFlags & LOAD_AllowDll) && InOuter->IsA(UPackage::StaticClass()) && static_cast<UPackage*>(InOuter)->DllHandle)
+                    return nullptr;
+                if (!(LoadFlags & LOAD_Quiet) && (LoadFlags & LOAD_Throw))
+                    appThrowf(LocalizeError(TEXT("PackageNotFound"), TEXT("Core")), InOuter->GetName());
                 return nullptr;
-            if (!(LoadFlags & LOAD_Quiet) && (LoadFlags & LOAD_Throw))
-                appThrowf(LocalizeError(TEXT("PackageNotFound"), TEXT("Core")), InOuter->GetName());
-            return nullptr;
+            }
         }
+
+        if (Sandbox && !Sandbox->SupportsPackage(InOuter))
+            appThrowf(LocalizeError(TEXT("Sandbox"), TEXT("Core")), InOuter->GetName());
+
+        if (!Result)
+        {
+            Result = new ULinkerLoad(InOuter, NewFilename, LoadFlags);
+            if (Result && !(LoadFlags & LOAD_Verify) && (Result->Summary.PackageFlags & PKG_NeedsVerify))
+                Result->Verify();
+        }
+
+        if (IsGuidCheckedPackage(InOuter) && CompatibleGuid && Result->Summary.Guid != *CompatibleGuid)
+            appThrowf(LocalizeError(TEXT("PackageVersion"), TEXT("Core")), InOuter->GetName());
+        return Result;
     }
-
-    if (Sandbox && !Sandbox->SupportsPackage(InOuter))
-        appThrowf(LocalizeError(TEXT("Sandbox"), TEXT("Core")), InOuter->GetName());
-
-    if (!Result)
+    catch (const TCHAR* Error)
     {
-        Result = new ULinkerLoad(InOuter, NewFilename, LoadFlags);
-        if (Result && !(LoadFlags & LOAD_Verify) && (Result->Summary.PackageFlags & PKG_NeedsVerify))
-            Result->Verify();
+        SafeLoadError(LoadFlags, Error, LocalizeError(TEXT("FailedLoad"), TEXT("Core")),
+            InFilename ? InFilename : InOuter ? InOuter->GetName() : TEXT("NULL"), Error);
+        return Result;
     }
-
-    if (IsGuidCheckedPackage(InOuter) && CompatibleGuid && Result->Summary.Guid != *CompatibleGuid)
-        appThrowf(LocalizeError(TEXT("PackageVersion"), TEXT("Core")), InOuter->GetName());
-    return Result;
 }
 
 

@@ -1,4 +1,5 @@
 #include "EngineClasses.h"
+#include "Karma.h"
 
 #define CPP_PROPERTY(Name) static_cast<INT>(reinterpret_cast<BYTE*>(&this->Name) - reinterpret_cast<BYTE*>(static_cast<UObject*>(this)))
 
@@ -13,29 +14,134 @@ void UPrimitive::Serialize(FArchive& Ar)
     Ar << static_cast<FPlane&>(BoundingSphere);
 }
 
+FBox UPrimitive::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    if (!Owner)
+        return BoundingBox;
+    const FLOAT Radius = Owner->CollisionRadius + 1.f;
+    const FLOAT Height = Owner->CollisionHeight + 1.f;
+    const FVector& Location = Owner->Location;
+    FBox Box;
+    Box.Min = FVector(Location.X - Radius, Location.Y - Radius, Location.Z - Height);
+    Box.Max = FVector(Location.X + Radius, Location.Y + Radius, Location.Z + Height);
+    Box.IsValid = 1;
+    return Box;
+}
+
+UBOOL UPrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    if (!Owner)
+        return 1;
+    const FLOAT DeltaZ = Owner->Location.Z - Location.Z;
+    const FLOAT Height = Owner->CollisionHeight + Extent.Z;
+    if (Height * Height <= DeltaZ * DeltaZ)
+        return 1;
+    const FLOAT DeltaY = Owner->Location.Y - Location.Y;
+    const FLOAT DeltaX = Owner->Location.X - Location.X;
+    const FLOAT Radius = Owner->CollisionRadius + Extent.X;
+    if (Radius * Radius <= DeltaY * DeltaY + DeltaX * DeltaX)
+        return 1;
+
+    Result.Actor = Owner;
+    Result.Normal = (Location - Owner->Location).SafeNormal();
+    // the xbox puts the hit at the bottom of the cylinder whether the point is above or below it
+    if (Result.Normal.Z < -0.5f || Result.Normal.Z > 0.5f)
+    {
+        Result.Location = FVector(Location.X, Location.Y, Owner->Location.Z - Extent.Z);
+    }
+    else
+    {
+        const FVector Side = FVector(Result.Normal.X, Result.Normal.Y, Result.Normal.Z * 0.f).SafeNormal();
+        Result.Location = FVector(Owner->Location.X - Side.X * Extent.X, Owner->Location.Y - Side.Y * Extent.X,
+            Owner->Location.Z - Side.Z * Extent.X + Location.Z);
+    }
+    return 0;
+}
+
+FVector UPrimitive::GetEncroachExtent(AActor* Owner)
+{
+    return FVector(Owner->CollisionRadius, Owner->CollisionRadius, Owner->CollisionHeight);
+}
+
+FVector UPrimitive::GetEncroachCenter(AActor* Owner)
+{
+    return Owner->Location;
+}
+
+UBOOL UStaticMesh::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    NOT_DECOMPILED(0x001960bf);
+    return 1;
+}
+
+void UConvexVolume::Serialize(FArchive& Ar)
+{
+    UPrimitive::Serialize(Ar);
+    Ar << Faces << Unknown5C << Unknown64;
+}
+
+UBOOL UFluidSurfacePrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    NOT_DECOMPILED(0x000a220b);
+    return 1;
+}
+
+// the owner is assumed to be a projector; the xbox dereferences the failed cast too
+UBOOL UProjectorPrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    AProjector* Projector = Cast<AProjector>(Owner);
+
+    for (INT i = 0; i < 6; i++)
+    {
+        const FPlane& Plane = Projector->FrustumPlanes[i];
+        const FLOAT PushOut = fabsf(Extent.Z * Plane.Z) + fabsf(Extent.Y * Plane.Y) + fabsf(Extent.X * Plane.X);
+        if ((Location | Plane) - Plane.W < -PushOut)
+            return 1;
+    }
+
+    // the projector's box grown by the extent, as six inward facing planes
+    const FBox Box = Projector->Box;
+    const FPlane BoxPlanes[6] =
+    {
+        FPlane(0.f, 0.f, 1.f, Box.Min.Z - Extent.Z),
+        FPlane(0.f, 0.f, -1.f, -(Extent.Z + Box.Max.Z)),
+        FPlane(1.f, 0.f, 0.f, Box.Min.X - Extent.X),
+        FPlane(-1.f, 0.f, 0.f, -(Extent.X + Box.Max.X)),
+        FPlane(0.f, 1.f, 0.f, Box.Min.Y - Extent.Y),
+        FPlane(0.f, -1.f, 0.f, -(Extent.Y + Box.Max.Y)),
+    };
+    for (INT i = 0; i < 6; i++)
+    {
+        if ((Location | BoxPlanes[i]) - BoxPlanes[i].W < 0.f)
+            return 1;
+    }
+
+    Result.Actor = Projector;
+    Result.Normal = Projector->Rotation.Vector();
+    Result.Location = Location;
+    return 0;
+}
+
+UBOOL UTerrainPrimitive::PointCheck(FCheckResult& Result, AActor* Owner, const FVector& Location, const FVector& Extent, DWORD ExtraNodeFlags)
+{
+    NOT_DECOMPILED(0x00069648);
+    return 1;
+}
+
+FBox UFluidSurfacePrimitive::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    return Info->FluidBoundingBox.TransformBy(Owner->ToWorld());
+}
+
+FBox UProjectorPrimitive::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    return static_cast<const AProjector*>(Owner)->Box;
+}
+
 // ---------------------------------------------------------------------------------------------- old formats
 
 namespace
 {
-    // materials before version 92
-    struct FStaticMeshLegacyMaterial
-    {
-        UObject* Material;
-        INT      Unknown4;
-
-        // 0x0009741b
-        friend FArchive& operator<<(FArchive& Ar, FStaticMeshLegacyMaterial& M)
-        {
-            Ar << M.Material;
-            if (Ar.Ver() < 147)
-            {
-                TArray<BYTE> Skipped;
-                Ar << Skipped;
-            }
-            return Ar << M.Unknown4;
-        }
-    };
-
     // the point where three planes meet, or zero when they nearly don't
     FVector IntersectPlanes(const FPlane& P1, const FPlane& P2, const FPlane& P3)
     {
@@ -202,6 +308,45 @@ FArchive& operator<<(FArchive& Ar, FStaticMeshTriangle& T)
 }
 
 // ---------------------------------------------------------------------------------------------- static meshes
+
+// 0x001937f7. the mesh's box turned with the actor, grown by the collision model and the actor's karma model.
+FBox UStaticMesh::GetCollisionBoundingBox(const AActor* Owner) const
+{
+    FBox Box;
+    if (!Owner->bUseCylinderCollision)
+    {
+        const FMatrix LocalToWorld = Owner->LocalToWorld();
+        Box = FBox();
+        for (INT X = 0; X < 2; X++)
+            for (INT Y = 0; Y < 2; Y++)
+                for (INT Z = 0; Z < 2; Z++)
+                {
+                    const FVector Corner(X ? BoundingBox.Max.X : BoundingBox.Min.X, Y ? BoundingBox.Max.Y : BoundingBox.Min.Y,
+                        Z ? BoundingBox.Max.Z : BoundingBox.Min.Z);
+                    Box += LocalToWorld.TransformFVector(Corner);
+                }
+        if (CollisionModel)
+            Box += CollisionModel->GetCollisionBoundingBox(Owner);
+    }
+    else
+    {
+        Box = UPrimitive::GetCollisionBoundingBox(Owner);
+    }
+    if (Owner->bBlockKarma)
+    {
+        if (McdModel* Model = Owner->getKModel())
+        {
+            FLOAT KMin[3], KMax[3];
+            McdModelGetAABB(Model, KMin, KMax);
+            FBox KBox;
+            KBox.Min = KME2UPosition(KMin);
+            KBox.Max = KME2UPosition(KMax);
+            KBox.IsValid = 1;
+            Box += KBox;
+        }
+    }
+    return Box;
+}
 
 // 0x00095a27
 void UStaticMesh::StaticConstructor()
@@ -384,4 +529,25 @@ void UStaticMesh::Serialize(FArchive& Ar)
         Ar << UseCollisionForBakedShadowsOnly;
         UseCollisionForBakedShadowsOnly = 1;
     }
+}
+
+// ---------------------------------------------------------------------------------------------- static mesh instance
+
+// 0x000991b5
+void UStaticMeshInstance::Serialize(FArchive& Ar)
+{
+    Super::Serialize(Ar);
+    if (Ar.Ver() < 112)
+    {
+        TArray<FRawColorStream> OldStreams;
+        Ar << OldStreams;
+    }
+    else
+    {
+        Ar << Unknown30;
+    }
+    if (Ar.Ver() >= 110)
+        Ar << Unknown28;
+    if (Ar.Ver() >= 147)
+        Ar << Unknown48;
 }

@@ -110,6 +110,23 @@ public:
     TArray<_WORD> Indices;
 };
 
+// vertex colours stored as a plain array, in old terrain sectors and static mesh instances (name invented)
+class FRawColorStream : public FRenderResource
+{
+public:
+    // 0x0006674e
+    FRawColorStream() { CacheId = MakeCacheId(RRT_VertexStream); Revision = 0; }
+
+    // 0x0006b384
+    friend FArchive& operator<<(FArchive& Ar, FRawColorStream& S)
+    {
+        S.FRenderResource::Serialize(Ar);
+        return Ar << S.Colors << S.Revision;
+    }
+
+    TArray<FColor> Colors;
+};
+
 // 0x0009869b for static mesh vertices, 0x0009833a for colours, 0x00097f43 for uvs and 0x00044d09 for skin vertices.
 // the xbox keeps these arrays in memory the gpu reads and locks it around the load; the port uses plain arrays.
 template<typename T>
@@ -139,4 +156,38 @@ void SerializeStreamData(FArchive& Ar, TArray<T>& Data)
     }
     if (Ar.IsCountingMem())
         Data.CountBytes(Ar);
+}
+
+// what the renderer keeps for an actor and for a light (names from CT's FActorRenderDataPtr and FLightRenderDataPtr).
+// layouts unknown; 0x144 and 0x4c bytes on the xbox.
+struct FActorRenderData;
+struct FLightRenderData;
+
+// a projector's render data, shared by everything it projects onto. only the fields serializers touch are known.
+struct FProjectorRenderInfo
+{
+    INT      Unknown0;
+    // freed when the last receiver lets go of it
+    INT      ReferenceCount;
+    UObject* Unknown18;
+    UObject* Unknown1C;
+};
+
+// 0x00061e8c
+inline FArchive& operator<<(FArchive& Ar, FProjectorRenderInfo* Info)
+{
+    return Ar << Info->Unknown18 << Info->Unknown1C;
+}
+
+// a projector attached to a static mesh or terrain sector (name from CT's FStaticMeshProjectorRenderInfoPtr)
+struct FStaticMeshProjectorRenderInfo
+{
+    FProjectorRenderInfo* RenderInfo;
+    UObject*              Unknown4;
+};
+
+// 0x00061ea5
+inline FArchive& operator<<(FArchive& Ar, FStaticMeshProjectorRenderInfo* Info)
+{
+    return Ar << Info->RenderInfo << Info->Unknown4;
 }

@@ -20,6 +20,14 @@ extern UBOOL   GIsStarted;
 extern UBOOL   GIsStrict;
 extern UBOOL   GIsUTracing;
 extern INT     GProfilingStackDepth;
+// 0x0045a740. set while the main loop runs.
+extern UBOOL   GIsRunning;
+// 0x0045a750. ends the main loop.
+extern UBOOL   GIsRequestingExit;
+// 0x0045a76c. time runs undilated while set; nothing on the xbox sets it.
+extern UBOOL   GIsBenchmarking;
+// 0x00430fc8. frames ticked by the engine.
+extern QWORD   GFrameCounter;
 // "XBox" on the original
 extern FString GPlatformName;
 // the processor description appPlatformInit logs
@@ -28,8 +36,12 @@ extern FString GMachineCPU;
 // starts Core: logging, files, config, names, objects and GSys
 void appInit(const TCHAR* InCmdLine, FOutputDevice* InLog, FOutputDeviceError* InError, FFeedbackContext* InWarn,
     FConfigCache* (*ConfigFactory)(), UBOOL RequireConfig);
+// 0x00036897. saves and closes the config and shuts down the object system.
+void appPreExit();
 // logs "Exiting." and shuts the engine down
 void appExit();
+// 0x0003b4a0. asks the main loop to end. a forced exit hangs on the xbox.
+void appRequestExit(UBOOL Force);
 void appPlatformPreInit();
 void appPlatformInit();
 

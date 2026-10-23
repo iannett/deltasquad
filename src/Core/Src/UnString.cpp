@@ -385,6 +385,25 @@ void ParseNext(const TCHAR** Stream)
     }
 }
 
+UBOOL ParseCommand(const TCHAR** Stream, const TCHAR* Match)
+{
+    while (**Stream == ' ' || **Stream == '\t')
+        (*Stream)++;
+    if (appStrnicmp(*Stream, Match, appStrlen(Match)) == 0)
+    {
+        *Stream += appStrlen(Match);
+        // the match has to end the word
+        if (!appIsAlnum(**Stream))
+        {
+            while (**Stream == ' ' || **Stream == '\t')
+                (*Stream)++;
+            return 1;
+        }
+        *Stream -= appStrlen(Match);
+    }
+    return 0;
+}
+
 // 0x000352e5
 UBOOL ParseParam(const TCHAR* Stream, const TCHAR* Param)
 {
@@ -446,4 +465,17 @@ UBOOL Parse(const TCHAR* Stream, const TCHAR* Match, INT& Value)
         return 0;
     Value = appAtoi(Found + appStrlen(Match));
     return 1;
+}
+
+const TCHAR* appSpc(INT Num)
+{
+    static TCHAR Spaces[256];
+    static INT OldNum = 0;
+    if (Num != OldNum)
+    {
+        for (OldNum = 0; OldNum < Num; OldNum++)
+            Spaces[OldNum] = ' ';
+        Spaces[Num] = 0;
+    }
+    return Spaces;
 }

@@ -26,3 +26,5 @@
     INT                  Unknown120;
 
     void Serialize(FArchive& Ar) override;
+    // 0x00038dca
+    UClass* MeshGetInstanceClass() override;

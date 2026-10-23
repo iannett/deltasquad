@@ -10,7 +10,7 @@ FEngineStats GEngineStats;
 // ---------------------------------------------------------------------------------------------- engine stats
 
 // 0x00168b27
-void FEngineStats::InitMemBudgets()
+void FEngineMemStats::InitMemBudgets()
 {
     static const INT Budgets[13] = { 0xc00000, 0x200000, 0x300000, 0x500000, 0x200000, 0x200000, 0x200000, 0x100000, 0x200000, 0x100000, 0x200000, 0, 0x200000 };
     static const INT Budgets2[8] = { 0x800000, 0x400000, 0x200000, 0, 0, 0x600000, 0x400000, 0 };
@@ -25,7 +25,7 @@ void FEngineStats::InitMemBudgets()
 }
 
 // 0x00168a57
-void FEngineStats::UpdateMemTotals()
+void FEngineMemStats::UpdateMemTotals()
 {
     Unknown28 = { 0, 0, 0, 0 };
     for (INT i = 12; i >= 0; i--)
@@ -287,14 +287,280 @@ INT UGameEngine::Browse(const FURL& InURL, const TMap<FString, FString>* TravelI
     return 0;
 }
 
+// 0x004321d8. a client flag the tick clears when there is no viewport; what it means is not known yet.
+static UBOOL GUnknown4321D8;
+
+void UGameEngine::Tick(FLOAT DeltaSeconds)
+{
+    // the client's start of a tick: closed windows, demo replay, attract mode and auto pause
+    if (Client)
+        NOT_DECOMPILED(0x001266cb);
+
+    if (DeltaSeconds < 0.f)
+        GError->Logf(TEXT("Negative delta time!"));
+    ElapsedInactiveTime += DeltaSeconds;
+
+    // exits after TimeUntilExit seconds of play, counted once the level has run a second or while it is paused
+    if (TimeUntilExit > 0.f && !GIsLoadingLevel)
+    {
+        ALevelInfo* Info = GLevel ? GLevel->GetLevelInfo() : nullptr;
+        if (!Info || Info->TimeSeconds >= 1.f || GLevel->IsPaused())
+        {
+            ElapsedExitTime += DeltaSeconds;
+            // the client can also exit when no movie plays, and stops a playing one first
+            if (ExitDuringMovie && TimeUntilExit <= ElapsedExitTime)
+            {
+                GIsRequestingExit = 1;
+                return;
+            }
+        }
+        else
+        {
+            ElapsedExitTime = 0.f;
+        }
+    }
+    // auto pause needs a client
+    if (TimeUntilAutoPause > 0.f && !GIsLoadingLevel)
+        ElapsedAutoPauseTime = 0.f;
+    GUnknown4321D8 = 0;
+
+    UObject::StaticTick();
+    GCache.Tick();
+
+    if (GLevel)
+        GLevel->Tick(LEVELTICK_All, DeltaSeconds);
+
+    // server travel once the level's switch countdown runs out
+    ALevelInfo* Info = GLevel ? GLevel->GetLevelInfo() : nullptr;
+    if (Info && Info->NextURL != TEXT(""))
+    {
+        Info->NextSwitchCountdown -= DeltaSeconds;
+        if (Info->NextSwitchCountdown <= 0.f)
+        {
+            TMap<FString, FString> TravelInfo;
+            if (Info->NextURL == TEXT("?RESTART"))
+            {
+                TravelInfo = GLevel->TravelInfo;
+            }
+            else if (Info->bNextItems)
+            {
+                TravelInfo = GLevel->TravelInfo;
+                // each player's pawn exports its inventory under the player's name
+                for (INT i = 0; i < GLevel->Actors.Num(); i++)
+                {
+                    APlayerController* PC = Cast<APlayerController>(GLevel->Actors[i]);
+                    if (PC && PC->Player && PC->Pawn)
+                        NOT_DECOMPILED(0x0011ea8e);
+                }
+            }
+            const FString URL = Info->NextURL;
+            Info->NextURL = TEXT("");
+            GLog->Logf(TEXT("Server switch level: %s"), *URL);
+            FString Error;
+            Browse(FURL(&LastURL, *URL, TRAVEL_Relative), &TravelInfo, Error);
+            return;
+        }
+    }
+
+    // the viewport's own travel, the pending level and the client's tick
+    if (GPendingLevel)
+        NOT_DECOMPILED(0x001266cb);
+
+    // the xbox also ticks an object at 0x00459600 here; nothing ever sets it
+    GStats.Tick();
+    CurrentTickRate = 1.f / (static_cast<FLOAT>(FStatRecord::Main().Pad1) * static_cast<FLOAT>(GSecondsPerCycle));
+
+    GFrameCounter++;
+}
+
+UBOOL UGameEngine::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+    const TCHAR* Str = Cmd;
+    if (ParseCommand(&Str, TEXT("OPEN")))
+    {
+        FString Error;
+        // the client travels its first viewport
+        if (Client)
+            NOT_DECOMPILED(0x001233e7);
+        else if (!Browse(FURL(&LastURL, Str, TRAVEL_Partial), nullptr, Error) && Error != TEXT(""))
+            Ar.Logf(TEXT("Open failed: %s"), *Error);
+    }
+    else if (ParseCommand(&Str, TEXT("START")))
+    {
+        FString Error;
+        if (Client)
+            NOT_DECOMPILED(0x00123497);
+        else if (!Browse(FURL(&LastURL, Str, TRAVEL_Absolute), nullptr, Error) && Error != TEXT(""))
+            Ar.Logf(TEXT("Start failed: %s"), *Error);
+    }
+    else if (ParseCommand(&Str, TEXT("SERVERTRAVEL")) && GIsServer && !GIsClient)
+    {
+        GLevel->GetLevelInfo()->eventServerTravel(FString(Str), 0);
+    }
+    else if (ParseCommand(&Str, TEXT("GAMELOG")))
+    {
+        // the rest goes to the client console's menu as HandleGameLog
+        if (GLevel->IsDedicatedServer() && Client)
+            NOT_DECOMPILED(0x001235bf);
+    }
+    else if (ParseCommand(&Str, TEXT("GET_HOST_DETAILS")))
+    {
+        if (GLevel->IsDedicatedServer())
+        {
+            ALevelInfo* Info = GLevel->GetLevelInfo();
+            Ar.Logf(TEXT("%s - %s"), *Info->Game->GameName, *Info->Title);
+        }
+    }
+    else if (ParseCommand(&Str, TEXT("GET_HOST_PLAYER_COUNT")))
+    {
+        if (GLevel->IsDedicatedServer())
+            Ar.Logf(TEXT("%d"), GLevel->GetLevelInfo()->Game->NumPlayers);
+    }
+    else if (ParseCommand(&Str, TEXT("GET_HOST_PLAYER_MAX")))
+    {
+        if (GLevel->IsDedicatedServer())
+            Ar.Logf(TEXT("%d"), GLevel->GetLevelInfo()->Game->MaxPlayers);
+    }
+    else if (GIsServer && !GIsClient && ParseCommand(&Str, TEXT("SAY")))
+    {
+        GLevel->GetLevelInfo()->Game->eventBroadcast(nullptr, FString(Str), NAME_None);
+    }
+    else if (ParseCommand(&Str, TEXT("DISCONNECT")))
+    {
+        FString Error;
+        // the client goes back to the menu named by the defaults' DisconnectMenuClass and drops its connections
+        if (Client)
+            NOT_DECOMPILED(0x001237f7);
+        else if (!Browse(FURL(&LastURL, TEXT("?closed?Menu=XInterfaceCommon.MenuConnectionFailed"), TRAVEL_Absolute), nullptr, Error) && Error != TEXT(""))
+            Ar.Logf(TEXT("Disconnect failed: %s"), *Error);
+    }
+    else if (ParseCommand(&Str, TEXT("RECONNECT")))
+    {
+        FString Error;
+        if (Client)
+            NOT_DECOMPILED(0x00123a67);
+        else if (!Browse(FURL(LastURL), nullptr, Error) && Error != TEXT(""))
+            Ar.Logf(TEXT("Reconnect failed: %s"), *Error);
+    }
+    else if (ParseCommand(&Cmd, TEXT("EXIT")) || ParseCommand(&Cmd, TEXT("QUIT")))
+    {
+        // closes the control channels of the level's and the pending level's server connections first
+        if (GLevel && GLevel->NetDriver && GLevel->NetDriver->ServerConnection)
+            NOT_DECOMPILED(0x00124077);
+        if (GPendingLevel)
+            NOT_DECOMPILED(0x001240b8);
+        Ar.Log(TEXT("Closing by request"));
+        appRequestExit(0);
+    }
+    else if (ParseCommand(&Str, TEXT("GETCURRENTTICKRATE")))
+    {
+        Ar.Logf(TEXT("%f"), CurrentTickRate);
+    }
+    else if (ParseCommand(&Str, TEXT("GETMAXTICKRATE")))
+    {
+        Ar.Logf(TEXT("%f"), GetMaxTickRate());
+    }
+    else if (ParseCommand(&Str, TEXT("SAVEGAME")))
+    {
+        // saves when the first viewport's pawn is alive in a standalone game. the xbox reads the client unchecked.
+        if (Client)
+            NOT_DECOMPILED(0x00123bb5);
+    }
+    else if (ParseCommand(&Cmd, TEXT("CANCEL")))
+    {
+        static UBOOL InCancel = 0;
+        if (!InCancel)
+        {
+            InCancel = 1;
+            if (GPendingLevel)
+                NOT_DECOMPILED(0x00123c5a);
+            else
+                SetProgress(TEXT(""), TEXT(""), 0.f);
+            CancelPending();
+            InCancel = 0;
+        }
+    }
+    else if (ParseCommand(&Cmd, TEXT("SOUND_REBOOT")))
+    {
+        // recreates the audio subsystem on the same viewport
+        if (Audio)
+            NOT_DECOMPILED(0x00123cf0);
+    }
+    else if (GLevel && ParseCommand(&Cmd, TEXT("DUMPMEM")))
+    {
+        const FString Label(*Cmd ? Cmd : TEXT("MANUAL"));
+        const FString MapName(GLevel->GetOutermostPackage()->GetName());
+        // GEngineStats.SaveMem(MapName, Label)
+        NOT_DECOMPILED(0x0016bd9d);
+    }
+    else if (GLevel && ParseCommand(&Cmd, TEXT("DUMPTIME")))
+    {
+        // the first viewport's location and view rotation
+        FString Position;
+        if (Client)
+            NOT_DECOMPILED(0x00123de3);
+        const FString Label(*Cmd ? Cmd : TEXT("MANUAL"));
+        const FString MapName(GLevel->GetOutermostPackage()->GetName());
+        // GStats.SaveStatsToFile(MapName, Label, Position)
+        NOT_DECOMPILED(0x000606cb);
+    }
+    else
+    {
+        if (GLevel && GLevel->Exec(Cmd, Ar))
+            return 1;
+        if (GLevel && GLevel->GetLevelInfo()->Game && GLevel->GetLevelInfo()->Game->ScriptConsoleExec(Cmd, Ar, nullptr))
+            return 1;
+        // a client may not set properties of actors other than the game info, except config ones
+        if (GLevel && GLevel->GetLevelInfo()->NetMode == 3)
+        {
+            const TCHAR* SetStr = Cmd;
+            TCHAR ClassName[256];
+            TCHAR PropertyName[256];
+            UClass* Class;
+            UProperty* Property;
+            if (ParseCommand(&SetStr, TEXT("SET"))
+                && ParseToken(SetStr, ClassName, ARRAY_COUNT(ClassName), 1)
+                && (Class = Cast<UClass>(UObject::StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, ClassName))) != nullptr
+                && ParseToken(SetStr, PropertyName, ARRAY_COUNT(PropertyName), 1)
+                && (Property = FindField<UProperty>(Class, PropertyName)) != nullptr
+                && Class->IsChildOf(AActor::StaticClass())
+                && !Class->IsChildOf(AGameInfo::StaticClass())
+                && !(Property->PropertyFlags & (CPF_Config | CPF_GlobalConfig)))
+            {
+                GLog->Logf(TEXT("Not allowing set command: %u %u %u"), Class->IsChildOf(AActor::StaticClass()),
+                    !Class->IsChildOf(AGameInfo::StaticClass()), 1);
+                return 0;
+            }
+        }
+        return UEngine::Exec(Cmd, Ar) != 0;
+    }
+    return 1;
+}
+
+void UGameEngine::CancelPending()
+{
+    // closes the pending level's server connection and deletes it
+    if (GPendingLevel)
+        NOT_DECOMPILED(0x0011d7c8);
+}
+
 // 0x0011eb07
 FLOAT UGameEngine::GetMaxTickRate()
 {
     // the net driver's lan rate applies with -lanplay
     static UBOOL LanPlay = ParseParam(appCmdLine(), TEXT("lanplay"));
-    if (GLevel && (GLevel->DemoRecDriver || GLevel->NetDriver))
-        NOT_DECOMPILED(0x0011eb4b);
-    (void)LanPlay;
+    if (!GLevel)
+        return 0.f;
+    UNetDriver* DemoDriver = GLevel->DemoRecDriver;
+    UNetDriver* NetDriver = GLevel->NetDriver;
+    // a server recording a demo
+    if (DemoDriver && !DemoDriver->ServerConnection && NetDriver && !GIsClient)
+        return static_cast<FLOAT>(Clamp(LanPlay ? DemoDriver->LanServerMaxTickRate : DemoDriver->NetServerMaxTickRate, 20, 60));
+    if (NetDriver && !GIsClient)
+        return static_cast<FLOAT>(Clamp(LanPlay ? NetDriver->LanServerMaxTickRate : NetDriver->NetServerMaxTickRate, 10, 120));
+    // a client capping its frame rate: the connection's speed over MoveRepSize, at most 90
+    if (NetDriver && NetDriver->ServerConnection && GLevel->GetLevelInfo()->bCapFramerate)
+        NOT_DECOMPILED(0x0011ebe6);
     return 0.f;
 }
 
@@ -510,7 +776,7 @@ ULevel* UGameEngine::LoadMap(const FURL& URL, UPendingLevel* Pending, const TMap
         GStatGraph->Reset();
     GWarn->SetProgressRange(-1.f, 0.25f);
     GLevel->iFirstDynamicActor = 0;
-    GLevel->UnknownDC = 1;
+    GLevel->Ticked = 1;
 
     if (!Info->bBegunPlay)
     {
@@ -697,6 +963,21 @@ ULevel* UGameEngine::LoadMap(const FURL& URL, UPendingLevel* Pending, const TMap
         NOT_DECOMPILED(0x00126629);
     GLog->Logf(TEXT("Exiting LoadMap %s"), appTimestamp(1, 1));
     return GLevel;
+}
+
+void UGameEngine::BuildServerMasterMap(UNetDriver* NetDriver, ULevel* InLevel)
+{
+    BeginLoad();
+    NetDriver->MasterMap->AddLinker(GetPackageLinker(InLevel->GetOutermostPackage(), nullptr, LOAD_NoFail, nullptr, nullptr));
+    for (INT i = 0; i < ServerPackages.Num(); i++)
+    {
+        GLog->Logf(TEXT("Server Package: %s"), *ServerPackages[i]);
+        ULinkerLoad* Linker = GetPackageLinker(nullptr, *ServerPackages[i], LOAD_NoFail, nullptr, nullptr);
+        if (NetDriver->MasterMap->AddLinker(Linker) == INDEX_NONE)
+            GLog->Logf(TEXT("   (server-side only)"));
+    }
+    NetDriver->MasterMap->Compute();
+    EndLoad();
 }
 
 // 0x0011e2f0. everything in it draws through the client's viewport.

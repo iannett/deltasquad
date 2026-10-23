@@ -51,6 +51,42 @@ FMatrix::FMatrix(const FPlane& InX, const FPlane& InY, const FPlane& InZ, const 
     }
 }
 
+FMatrix FCoords::Matrix() const
+{
+    const FVector Neg(0.f - Origin.X, 0.f - Origin.Y, 0.f - Origin.Z);
+    FMatrix R;
+    R.M[0][0] = XAxis.X; R.M[0][1] = YAxis.X; R.M[0][2] = ZAxis.X; R.M[0][3] = 0.f;
+    R.M[1][0] = XAxis.Y; R.M[1][1] = YAxis.Y; R.M[1][2] = ZAxis.Y; R.M[1][3] = 0.f;
+    R.M[2][0] = XAxis.Z; R.M[2][1] = YAxis.Z; R.M[2][2] = ZAxis.Z; R.M[2][3] = 0.f;
+    R.M[3][0] = XAxis.Z * Neg.Z + XAxis.Y * Neg.Y + XAxis.X * Neg.X;
+    R.M[3][1] = YAxis.Z * Neg.Z + YAxis.Y * Neg.Y + YAxis.X * Neg.X;
+    R.M[3][2] = ZAxis.Z * Neg.Z + ZAxis.Y * Neg.Y + Neg.X * ZAxis.X;
+    R.M[3][3] = 1.f;
+    return R;
+}
+
+FMatrix FMatrix::TransposeAdjoint() const
+{
+    FMatrix TA;
+    TA.M[0][0] = M[1][1] * M[2][2] - M[2][1] * M[1][2];
+    TA.M[0][1] = M[2][0] * M[1][2] - M[1][0] * M[2][2];
+    TA.M[0][2] = M[2][1] * M[1][0] - M[2][0] * M[1][1];
+    TA.M[0][3] = 0.f;
+    TA.M[1][0] = M[2][1] * M[0][2] - M[0][1] * M[2][2];
+    TA.M[1][1] = M[0][0] * M[2][2] - M[2][0] * M[0][2];
+    TA.M[1][2] = M[2][0] * M[0][1] - M[2][1] * M[0][0];
+    TA.M[1][3] = 0.f;
+    TA.M[2][0] = M[0][1] * M[1][2] - M[0][2] * M[1][1];
+    TA.M[2][1] = M[1][0] * M[0][2] - M[0][0] * M[1][2];
+    TA.M[2][2] = M[1][1] * M[0][0] - M[1][0] * M[0][1];
+    TA.M[2][3] = 0.f;
+    TA.M[3][0] = 0.f;
+    TA.M[3][1] = 0.f;
+    TA.M[3][2] = 0.f;
+    TA.M[3][3] = 1.f;
+    return TA;
+}
+
 // 0x00133d79. the inverse by cofactors.
 FMatrix FMatrix::Inverse() const
 {
@@ -142,6 +178,30 @@ FMatrix FRotationTranslationMatrix(const FRotator& Rot, const FVector& Origin)
     Result.M[3][2] = Origin.Z;
     Result.M[3][3] = 1.f;
     return Result;
+}
+
+FMatrix FMatrix::operator*(const FMatrix& Other) const
+{
+    FMatrix Result;
+    for (INT i = 0; i < 4; i++)
+        for (INT j = 0; j < 4; j++)
+            Result.M[i][j] = M[i][0] * Other.M[0][j] + M[i][1] * Other.M[1][j] + M[i][2] * Other.M[2][j] + M[i][3] * Other.M[3][j];
+    return Result;
+}
+
+FMatrix FTranslationMatrix(const FVector& Delta)
+{
+    return FMatrix(FPlane(1.f, 0.f, 0.f, 0.f), FPlane(0.f, 1.f, 0.f, 0.f), FPlane(0.f, 0.f, 1.f, 0.f), FPlane(Delta.X, Delta.Y, Delta.Z, 1.f));
+}
+
+FMatrix FScaleMatrix(const FVector& Scale)
+{
+    return FMatrix(FPlane(Scale.X, 0.f, 0.f, 0.f), FPlane(0.f, Scale.Y, 0.f, 0.f), FPlane(0.f, 0.f, Scale.Z, 0.f), FPlane(0.f, 0.f, 0.f, 1.f));
+}
+
+FMatrix FInverseRotationMatrix(const FRotator& Rot)
+{
+    return FRotationTranslationMatrix(Rot, FVector(0.f, 0.f, 0.f)).Inverse();
 }
 
 // 0x00134c9d. outside the positive trace case the w terms are sums, and the largest axis gets 0.25 / root

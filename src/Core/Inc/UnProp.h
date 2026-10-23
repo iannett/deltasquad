@@ -2,16 +2,7 @@
 
 #include "UnClass.h"
 
-// maps objects to and from network indices
-class UPackageMap : public UObject
-{
-    DECLARE_CLASS(UPackageMap, UObject, CLASS_Transient, UObject)
-public:
-    virtual UBOOL CanSerializeObject(UObject* Obj);
-    virtual UBOOL SerializeObject(FArchive& Ar, UClass* Class, UObject*& Obj);
-    // whether objects from this package may be sent over the network
-    virtual UBOOL SupportsPackage(UObject* InOuter);
-};
+class UPackageMap;
 
 // port flags for text import and export
 enum EPropertyPortFlags
@@ -141,6 +132,7 @@ class UFloatProperty : public UProperty
 {
     DECLARE_CLASS(UFloatProperty, UProperty, CLASS_IsAUProperty, UField)
 public:
+    using UProperty::UProperty;
     INT GetElementSize() const override { return sizeof(FLOAT); }
     UBOOL Identical(const void* A, const void* B) const override;
     void ExportCppItem(FOutputDevice& Out, UBOOL IsLocal) const override;
