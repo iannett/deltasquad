@@ -34,6 +34,60 @@ void McdGeometryDecrementReferenceCount(McdGeometry* Geometry)
     Geometry->TypeId -= 0x100;
 }
 
+// 0x00189120
+INT McdGeometryGetReferenceCount(McdGeometry* Geometry)
+{
+    return static_cast<DWORD>(Geometry->TypeId) >> 8;
+}
+
+// 0x00189150. the geometry's type frees it.
+void McdGeometryDestroy(McdGeometry* Geometry)
+{
+    if (static_cast<DWORD>(Geometry->TypeId) & 0xffffff00)
+        MeWarning(0, "Destroying geometry with non-zero reference count!");
+    Geometry->Framework->Types[Geometry->TypeId & 0xff].Destroy(Geometry);
+}
+
+// 0x00189750
+McdAggregate* McdAggregateCreate(McdFramework* Framework, INT MaxElements)
+{
+    McdAggregate* Aggregate = static_cast<McdAggregate*>(MeMemory.CreateAligned(sizeof(McdAggregate), 0x10));
+    if (!Aggregate)
+        return nullptr;
+    McdGeometryInit(&Aggregate->Base, Framework, 8);
+    Aggregate->Elements = static_cast<McdAggregateElement*>(MeMemory.Create(MaxElements * static_cast<INT>(sizeof(McdAggregateElement))));
+    Aggregate->ElementCount = MaxElements;
+    Aggregate->UsedCount = 0;
+    for (INT i = 0; i < MaxElements; i++)
+        Aggregate->Elements[i].Geometry = nullptr;
+    return Aggregate;
+}
+
+// 0x001897c0. the first free slot, or -1 when full.
+INT McdAggregateAddElement(McdAggregate* Aggregate, McdGeometry* Geometry, const FLOAT* TM)
+{
+    INT Index = 0;
+    while (Index < Aggregate->ElementCount && Aggregate->Elements[Index].Geometry)
+        Index++;
+    if (Index >= Aggregate->ElementCount)
+        return -1;
+    McdAggregateElement& Element = Aggregate->Elements[Index];
+    for (INT i = 0; i < 16; i++)
+        Element.TM[i] = TM[i];
+    Element.Geometry = Geometry;
+    Aggregate->UsedCount++;
+    McdGeometryIncrementReferenceCount(Geometry);
+    return Index;
+}
+
+// 0x00189880
+void McdAggregateRemoveElement(McdAggregate* Aggregate, INT Index)
+{
+    McdGeometryDecrementReferenceCount(Aggregate->Elements[Index].Geometry);
+    Aggregate->Elements[Index].Geometry = nullptr;
+    Aggregate->UsedCount--;
+}
+
 // 0x001898b0
 INT McdAggregateGetElementCount(McdAggregate* Aggregate)
 {
@@ -179,15 +233,15 @@ McdModel* McdModelCreate(McdGeometry* Geometry)
     Model->BodyTM = nullptr;
     Model->Body = nullptr;
     Model->Unknown28 = 0;
-    Model->UnknownC = 0;
-    Model->Unknown1C = -1;
+    Model->Space = nullptr;
+    Model->SpaceIndex = -1;
     Model->UserData = nullptr;
-    Model->Unknown10 = 0;
-    Model->Unknown14 = 0;
+    Model->LinearVelocity = nullptr;
+    Model->AngularVelocity = nullptr;
     Model->Unknown2C = nullptr;
     Model->Unknown20 = 0;
     Model->Unknown38 = 0;
-    Model->Unknown3C = 0;
+    Model->Flags = 0;
     McdGeometryInstanceReset(&Model->Instance);
     Model->Padding = Framework->DefaultPadding;
     Model->Framework = Framework;
@@ -241,9 +295,113 @@ McdGeometry* McdModelGetGeometry(McdModel* Model)
 }
 
 // 0x00188700. the dynamics body the model follows, if any.
-void* McdModelGetBody(McdModel* Model)
+MdtBody* McdModelGetBody(McdModel* Model)
 {
     return Model->Body;
+}
+
+namespace
+{
+    // 0x00188710. moves the old body's constraints that hold this model over to the new body.
+    void McdModelMoveConstraint(MdtConstraint* Constraint, void* Context)
+    {
+        NOT_DECOMPILED(0x00188710);
+    }
+}
+
+// 0x00188820. the model follows the body: its transform and velocities point into it.
+void McdModelSetBody(McdModel* Model, MdtBody* Body)
+{
+    MdtBody* Old = Model->Body;
+    if (Body == Old && (!Body || Body->Model == Model))
+        return;
+    if (Old)
+    {
+        struct
+        {
+            MdtBody*  Old;
+            MdtBody*  New;
+            McdModel* Model;
+            void*     Space;
+        } Context = { Old, Body, Model, McdModelGetSpace(Model) };
+        MdtBodyForAllConstraints(Old, McdModelMoveConstraint, &Context);
+        if (Old->Model == Model)
+            Old->Model = nullptr;
+    }
+    if (!Body)
+    {
+        if (Old)
+        {
+            if (McdModelGetTransformPtr(Model) == MdtBodyGetTransformPtr(Old))
+                McdModelSetTransformPtr(Model, nullptr);
+            if (McdModelGetLinearVelocityPtr(Model) == MdtBodyGetLinearVelocityPtr(Old))
+                McdModelSetLinearVelocityPtr(Model, nullptr);
+            if (McdModelGetAngularVelocityPtr(Model) == MdtBodyGetAngularVelocityPtr(Old))
+                McdModelSetAngularVelocityPtr(Model, nullptr);
+        }
+        if (McdModelGetSpace(Model))
+            NOT_DECOMPILED(0x001b1680);
+    }
+    else
+    {
+        Body->Model = Model;
+        McdModelSetTransformPtr(Model, MdtBodyGetTransformPtr(Body));
+        McdModelSetLinearVelocityPtr(Model, MdtBodyGetLinearVelocityPtr(Body));
+        McdModelSetAngularVelocityPtr(Model, MdtBodyGetAngularVelocityPtr(Body));
+        // a model in a space is enabled there with its body
+        if (McdModelGetSpace(Model))
+            NOT_DECOMPILED(MdtBodyIsEnabled(Body) ? 0x001b16a0 : 0x001b1680);
+    }
+    Model->Body = Body;
+}
+
+// 0x00188080
+void McdModelDestroy(McdModel* Model)
+{
+    if (Model->Flags & 1)
+    {
+        MeMemory.DestroyAligned(Model->RelTM);
+        MeMemory.DestroyAligned(Model->Instance.TM);
+        Model->Flags &= ~1;
+    }
+    McdGeometryInstanceSetGeometry(&Model->Instance, nullptr);
+    McdFramework* Framework = Model->Framework;
+    if (Framework->Models == Model)
+        Framework->Models = Model->Next == Model ? nullptr : Model->Next;
+    Model->Next->Prev = Model->Prev;
+    Model->Prev->Next = Model->Next;
+    MePools.PutStruct(&Framework->ModelPool, Model);
+    Framework->ModelCount--;
+}
+
+// 0x001b3730, through the shared getter
+void* McdModelGetSpace(McdModel* Model)
+{
+    return Model->Space;
+}
+
+// 0x00188160
+FLOAT* McdModelGetLinearVelocityPtr(McdModel* Model)
+{
+    return Model->LinearVelocity;
+}
+
+// 0x00188150, which the xbox shares with MeHashSetKeyFreeFunction
+void McdModelSetLinearVelocityPtr(McdModel* Model, FLOAT* V)
+{
+    Model->LinearVelocity = V;
+}
+
+// 0x001b3690, through the shared getter
+FLOAT* McdModelGetAngularVelocityPtr(McdModel* Model)
+{
+    return Model->AngularVelocity;
+}
+
+// 0x00188170
+void McdModelSetAngularVelocityPtr(McdModel* Model, FLOAT* V)
+{
+    Model->AngularVelocity = V;
 }
 
 // 0x001882c0. moves the model to its body and recomputes its padded box.

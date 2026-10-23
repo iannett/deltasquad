@@ -4,9 +4,6 @@
 #include "Core.h"
 #include "Karma.h"
 
-// the xbox's body and constraint sizes, used until those structs are decompiled
-static constexpr INT MdtBodySize = 0x240;
-static constexpr INT MdtConstraintSize = 0x1ec;
 
 namespace
 {
@@ -70,20 +67,20 @@ MdtWorld* MdtWorldCreate(INT MaxBodies, INT MaxConstraints, FLOAT LengthScale, F
     // 0x001d4190 returns 0
     World->Unknown1F8 = 0;
     MeChunkInit(&World->Unknown9C, 0x10);
-    World->UnknownB8 = 0;
-    World->UnknownBC = 0;
+    World->BodyCount = 0;
+    World->EnabledBodyCount = 0;
     World->MaxBodies = MaxBodies;
     MeChunkInit(&World->UnknownDC, 0x10);
-    MePools.Init(&World->BodyPool, World->MaxBodies, MdtBodySize, 0x10);
+    MePools.Init(&World->BodyPool, World->MaxBodies, sizeof(MdtBody), 0x10);
     World->MaxConstraints = MaxConstraints;
-    World->UnknownF8 = 0;
-    MePools.Init(&World->ConstraintPool, MaxConstraints, MdtConstraintSize, 0);
-    MeDictInit(&World->Unknown0, 1000000, MeDictCompareKeys);
-    MeDictAllowDupes(&World->Unknown0);
+    World->EnabledConstraintCount = 0;
+    MePools.Init(&World->ConstraintPool, MaxConstraints, sizeof(MdtConstraintStorage), 0);
+    MeDictInit(&World->Bodies, 1000000, MeDictCompareKeys);
+    MeDictAllowDupes(&World->Bodies);
     MeDictInit(&World->EnabledBodies, 1000000, MeDictCompareKeys);
     MeDictAllowDupes(&World->EnabledBodies);
-    MeDictInit(&World->Unknown34, 1000000, MeDictCompareKeys);
-    MeDictAllowDupes(&World->Unknown34);
+    MeDictInit(&World->EnabledConstraints, 1000000, MeDictCompareKeys);
+    MeDictAllowDupes(&World->EnabledConstraints);
     MeChunkInit(&World->Unknown14C, 0);
     MeChunkInit(&World->Unknown134, 0);
     World->BodyDisableCB = nullptr;

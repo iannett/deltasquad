@@ -150,7 +150,7 @@
     // made by KInitLevelKarma (0x0008f45a)
     struct MdtWorld*            KarmaWorld;
     struct MstBridge*           KarmaBridge;
-    struct KLevelFactory*       KarmaFactory;
+    struct MeAssetInstanceFactory* KarmaFactory;
     // collides with the level's own triangles
     struct McdModel*            KarmaLevelModel;
     // the ragdolls whose triangle lists karma refreshes each step

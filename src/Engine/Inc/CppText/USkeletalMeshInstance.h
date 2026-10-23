@@ -4,6 +4,14 @@
     TArray<BYTE>         Directors;
     // where the actor's root motion started, from PostInitAnim (name invented)
     FMatrix              MoveStart;
+    // the ragdoll's collision model and joint of each bone, from KInitSkeletonKarma (names invented)
+    TArray<struct McdModel*>      KSkelModels;
+    TArray<struct MdtConstraint*> KSkelJoints;
+    // the first and last bones with a model
+    INT                  KSkelFirstBone;
+    INT                  KSkelLastBone;
+    // pairs of the ragdoll's models that do not collide
+    TMap<FKModelPair, INT> KSkelDisabledPairs;
 
     // 0x0004aa9c
     void SetMesh(UMesh* InMesh) override;

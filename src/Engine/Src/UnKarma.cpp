@@ -1,3 +1,4 @@
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <new>
@@ -30,6 +31,8 @@ void UKMeshProps::Serialize(FArchive& Ar)
         Ar << Unknown28[i];
     Ar << Unknown40 << AggGeom;
 }
+
+void KSetActorListed(AActor* Actor, UBOOL bListed);
 
 // ---------------------------------------------------------------------------------------------- karma globals
 
@@ -337,20 +340,6 @@ void KInitGameKarma()
 
 // ---------------------------------------------------------------------------------------------- level karma
 
-// the level's asset factory and the callbacks it builds karma objects with (name invented)
-struct KLevelFactory
-{
-    MeAssetFactory* Factory;
-    INT             Unknown4;
-    INT             Unknown8;
-    McdModel*       (*CreateModel)(void* Unknown1, void* Unknown2, void* Unknown3, void* Unknown4);
-    INT             Unknown10;
-    INT             Unknown14;
-    INT             (*Unknown18)(void* Unknown1, void* Unknown2, void* Unknown3, void* Unknown4, void* Unknown5);
-    INT             Unknown1C;
-    INT             Unknown20;
-};
-
 namespace
 {
     // 0x00431130. the [Karma] settings of System.ini, read again when each level starts.
@@ -371,26 +360,46 @@ namespace
         FLOAT MaxPenetration       = 0.1f;
     } KSettings;
 
-    // what the level model's user data points at (name invented)
+    // what a karma model's user data points at (name invented)
     struct KModelData
     {
-        INT Unknown0;
+        AActor* Actor;
         INT Unknown4;
         INT Unknown8;
         INT UnknownC;
         INT Unknown10;
     };
 
-    // 0x0008bc6b
+    // 0x0007ee4d (name invented)
+    AActor* KModelGetActor(McdModel* Model)
+    {
+        if (!Model)
+            return nullptr;
+        return static_cast<KModelData*>(Model->UserData)->Actor;
+    }
+
+    // 0x000842d4 (name invented)
+    AActor* KBodyGetActor(MdtBody* Body)
+    {
+        if (!Body)
+            return nullptr;
+        return KModelGetActor(Body->Model);
+    }
+
+    // 0x0008bc6b. an enabled body's actor that blocks karma goes on its level's list.
     void KBodyEnableCB(void* Body)
     {
-        NOT_DECOMPILED(0x0008bc6b);
+        AActor* Actor = KBodyGetActor(static_cast<MdtBody*>(Body));
+        if (Actor && Actor->getKModel() && !Actor->bDeleteMe && Actor->bBlockKarma && Actor->bCollideActors)
+            KSetActorListed(Actor, 1);
     }
 
     // 0x0008bc28
     void KBodyDisableCB(void* Body)
     {
-        NOT_DECOMPILED(0x0008bc28);
+        AActor* Actor = KBodyGetActor(static_cast<MdtBody*>(Body));
+        if (Actor && Actor->getKModel() && !Actor->bDeleteMe)
+            Actor->XLevel->Unknown1148.RemoveItem(Actor);
     }
 
     // 0x0007d4c6
@@ -399,18 +408,52 @@ namespace
         NOT_DECOMPILED(0x0007d4c6);
     }
 
-    // 0x00082f5b
-    McdModel* KFactoryCreateModel(void* Unknown1, void* Unknown2, void* Unknown3, void* Unknown4)
+    // 0x00082f5b. a model for the part, with a body unless the part's model is geometry only. TM places it.
+    McdModel* KModelCreateFromMeFPart(MeFPart* Part, McdGeometry* Geometry, MdtWorld* World, const FLOAT* TM)
     {
-        NOT_DECOMPILED(0x00082f5b);
-        return nullptr;
-    }
-
-    // 0x00196f30
-    INT KFactoryUnknown18(void* Unknown1, void* Unknown2, void* Unknown3, void* Unknown4, void* Unknown5)
-    {
-        NOT_DECOMPILED(0x00196f30);
-        return 0;
+        MeFModel* Source = MeFPartGetModel(Part);
+        const INT Type = Source->Type;
+        McdModel* Model = McdModelCreate(Geometry);
+        MdtBody* Body = nullptr;
+        FLOAT* ModelTM;
+        if (Type == 2)
+        {
+            ModelTM = static_cast<FLOAT*>(MeMemory.CreateAligned(16 * sizeof(FLOAT), 0x10));
+            McdModelSetTransformPtr(Model, ModelTM);
+        }
+        else
+        {
+            Body = MdtBodyCreate(World);
+            ModelTM = MdtBodyGetTransformPtr(Body);
+        }
+        const FLOAT* PartTM = MeFPartGetTransformPtr(Part);
+        if (!TM)
+        {
+            for (INT i = 0; i < 16; i++)
+                ModelTM[i] = PartTM[i];
+        }
+        else
+        {
+            MeMatrix4MultiplyMatrix(ModelTM, PartTM, TM);
+        }
+        if (Type == 0 || Type == 1)
+        {
+            MdtBodyEnable(Body);
+            MdtBodySetTransform(Body, ModelTM);
+            MdtBodySetMass(Body, Source->Mass);
+            MdtBodySetCenterOfMassRelativePosition(Body, Source->MassOffset);
+            MdtBodySetFlag4(Body);
+            MdtBodySetFlag8(Body);
+            FLOAT Inertia[9];
+            MeFModelGetInertiaTensor(Source, Inertia);
+            MdtBodySetInertiaTensor(Body, Inertia);
+            MdtBodySetLinearVelocityDamping(Body, Source->LinearDamping);
+            MdtBodySetAngularVelocityDamping(Body, Source->AngularDamping);
+            if (Source->UseFastSpin)
+                MdtBodySetFastSpinAxis(Body, Source->FastSpin[0], Source->FastSpin[1], Source->FastSpin[2]);
+            McdModelSetBody(Model, Body);
+        }
+        return Model;
     }
 
     // 0x0008ec55. hands the level's triangles near a model to the collision.
@@ -481,16 +524,16 @@ void KInitLevelKarma(ULevel* Level)
     Level->KarmaBridge = MstBridgeCreate(KGData->Framework, 2);
     MstBridgeSetUnknown0C(Level->KarmaBridge, 0x400);
 
-    Level->KarmaFactory = static_cast<KLevelFactory*>(appMalloc(sizeof(KLevelFactory)));
+    Level->KarmaFactory = static_cast<MeAssetInstanceFactory*>(appMalloc(sizeof(MeAssetInstanceFactory)));
     Level->KarmaFactory->Factory = KGData->AssetFactory;
-    Level->KarmaFactory->Unknown4 = 0;
-    Level->KarmaFactory->Unknown8 = 0;
-    Level->KarmaFactory->CreateModel = KFactoryCreateModel;
-    Level->KarmaFactory->Unknown10 = 0;
-    Level->KarmaFactory->Unknown14 = 0;
-    Level->KarmaFactory->Unknown18 = KFactoryUnknown18;
-    Level->KarmaFactory->Unknown1C = 0;
-    Level->KarmaFactory->Unknown20 = 0;
+    Level->KarmaFactory->GeometryPostCreate = nullptr;
+    Level->KarmaFactory->GeometryContext = nullptr;
+    Level->KarmaFactory->CreateModel = KModelCreateFromMeFPart;
+    Level->KarmaFactory->ModelPostCreate = nullptr;
+    Level->KarmaFactory->ModelContext = nullptr;
+    Level->KarmaFactory->CreateJoint = MdtConstraintCreateFromMeFJoint;
+    Level->KarmaFactory->JointPostCreate = nullptr;
+    Level->KarmaFactory->JointContext = nullptr;
 
     // the level model sits at the origin and its list covers everything
     FLOAT* TM = static_cast<FLOAT*>(MeMemory.CreateAligned(16 * sizeof(FLOAT), 0x10));
@@ -510,7 +553,7 @@ void KInitLevelKarma(ULevel* Level)
     Data->Unknown8 = 0;
     Data->UnknownC = 0;
     Data->Unknown10 = 0;
-    Data->Unknown0 = 0;
+    Data->Actor = nullptr;
     McdModelSetUserData(Level->KarmaLevelModel, Data);
 
     INT* Request = McdFrameworkGetDefaultRequestPtr(KGData->Framework);
@@ -574,7 +617,7 @@ namespace
     // 0x00089d21. steps the world's dynamics by TimeStep (name invented).
     void KWorldStep(MdtWorld* World, FLOAT TimeStep, ULevel* Level)
     {
-        MdtPartitionOutput* Partitions = MdtPartitionOutputCreateInChunk(&World->Unknown14C, World->UnknownB8, World->UnknownF8);
+        MdtPartitionOutput* Partitions = MdtPartitionOutputCreateInChunk(&World->Unknown14C, World->BodyCount, World->EnabledConstraintCount);
         KBuildPartitions(&World->EnabledBodies, KAutoDisableLastPartition, &World->AutoDisable, Partitions);
         // each partition's step, and the postKarmaStep and DestroyActor passes over the actors it collects
         if (Partitions->NumPartitions > 0)
@@ -711,16 +754,246 @@ void KSetActorListed(AActor* Actor, UBOOL bListed)
         List.AddItem(Actor);
 }
 
-// 0x0008ca26. builds the ragdoll bodies of an actor whose karma params are UKarmaParamsSkel, once.
+namespace
+{
+    // 0x0007e6a0. a copy made with karma's allocator.
+    char* KStrdup(const char* Str)
+    {
+        char* Copy = static_cast<char*>(MeMemory.Create(static_cast<INT>(strlen(Str)) + 1));
+        strcpy(Copy, Str);
+        return Copy;
+    }
+
+    // 0x0008c6b4. the game's copy of MeAssetInstanceCreate (name invented): it also records the pairs of models
+    // the asset keeps from colliding.
+    MeAssetInstance* KAssetInstanceCreate(MeAssetInstanceFactory* Factory, MeFAsset* Asset, const FLOAT* TM, MdtWorld* World,
+        TMap<FKModelPair, INT>* DisabledPairs, UBOOL OwnsParts)
+    {
+        MeAssetInstance* Instance = static_cast<MeAssetInstance*>(MeMemory.Create(sizeof(MeAssetInstance)));
+        const char* AssetId = MeFAssetGetId(Asset);
+        Instance->Unknown8 = nullptr;
+        Instance->Factory = Factory;
+        Instance->Asset = Asset;
+        Instance->OwnsParts = OwnsParts;
+        Instance->World = World;
+        Instance->Geometries = MeHashCreate(17);
+        Instance->Models = MeHashCreate(17);
+        Instance->Joints = MeHashCreate(17);
+        MeHashSetKeyFreeFunction(Instance->Geometries, MeMemory.Destroy);
+        MeHashSetKeyFreeFunction(Instance->Models, MeMemory.Destroy);
+        MeHashSetKeyFreeFunction(Instance->Joints, MeMemory.Destroy);
+
+        MeFAssetIterator It;
+        MeFAssetGetGeometryIterator(Asset, &It);
+        while (MeFGeometry* Source = static_cast<MeFGeometry*>(MeFAssetIteratorGetNext(&It)))
+        {
+            McdGeometry* Geometry = McdGMCreateGeometry(Factory->Factory, Source, AssetId);
+            if (OwnsParts)
+                McdGeometryIncrementReferenceCount(Geometry);
+            if (Factory->GeometryPostCreate)
+                Factory->GeometryPostCreate(Geometry, Source, Factory->GeometryContext);
+            MeHashInsert(KStrdup(Source->Name), Geometry, Instance->Geometries);
+        }
+
+        // parts in name order
+        const INT PartCount = MeFAssetGetPartCount(Asset);
+        TArray<MeFPart*> Parts;
+        Parts.AddZeroed(PartCount);
+        MeFAssetGetPartsSortedByName(Asset, &Parts[0]);
+        for (INT i = 0; i < PartCount; i++)
+        {
+            MeFPart* Part = Parts[i];
+            McdModel* Model = nullptr;
+            MeFModel* Source = MeFPartGetModel(Part);
+            MeFGeometry* SourceGeometry = MeFModelGetGeometry(Source);
+            McdGeometry* Geometry;
+            if (Source->Type == 1 || !SourceGeometry)
+                Geometry = Factory->Factory->NullGeometry;
+            else
+                Geometry = static_cast<McdGeometry*>(MeHashLookup(SourceGeometry->Name, Instance->Geometries));
+            char* Name = KStrdup(Part->Name);
+            if (Factory->CreateModel)
+                Model = Factory->CreateModel(Part, Geometry, World, TM);
+            if (Factory->ModelPostCreate)
+                Factory->ModelPostCreate(Model, Part, Factory->ModelContext);
+            MeHashInsert(Name, Model, Instance->Models);
+        }
+
+        for (INT i = 0; i < PartCount; i++)
+        {
+            for (INT j = i + 1; j < PartCount; j++)
+            {
+                if (MeFPartIsCollisionEnabled(Parts[i], Parts[j]))
+                    continue;
+                McdModel* Model1 = static_cast<McdModel*>(MeHashLookup(Parts[i]->Name, Instance->Models));
+                McdModel* Model2 = static_cast<McdModel*>(MeHashLookup(Parts[j]->Name, Instance->Models));
+                if (Model1 && Model2 && (McdModelGetGeometry(Model1)->TypeId & 0xff) && (McdModelGetGeometry(Model2)->TypeId & 0xff))
+                {
+                    FKModelPair Pair;
+                    Pair.A = Model1 < Model2 ? Model2 : Model1;
+                    Pair.B = Model1 < Model2 ? Model1 : Model2;
+                    DisabledPairs->Set(Pair, 0);
+                }
+            }
+        }
+
+        // a joint needs a body on at least one end
+        MeFAssetGetJointIterator(Asset, &It);
+        while (MeFJoint* Joint = static_cast<MeFJoint*>(MeFAssetIteratorGetNext(&It)))
+        {
+            MeFPart* Part1 = MeFJointGetPart(Joint, 0);
+            MeFPart* Part2 = MeFJointGetPart(Joint, 1);
+            McdModel* Model1 = Part1 ? static_cast<McdModel*>(MeHashLookup(Part1->Name, Instance->Models)) : nullptr;
+            McdModel* Model2 = Part2 ? static_cast<McdModel*>(MeHashLookup(Part2->Name, Instance->Models)) : nullptr;
+            if ((!Model1 || !McdModelGetBody(Model1)) && (!Model2 || !McdModelGetBody(Model2)))
+                continue;
+            MdtConstraint* Constraint = nullptr;
+            if (Factory->CreateJoint)
+            {
+                Constraint = Factory->CreateJoint(Joint, World, Model1, Model2, TM);
+                if (Constraint)
+                    MdtConstraintEnable(Constraint);
+            }
+            // the xbox checks the context, not the callback
+            if (Factory->JointContext)
+                Factory->JointPostCreate(Constraint, Joint, Factory->JointContext);
+            MeHashInsert(KStrdup(Joint->Name), Constraint, Instance->Joints);
+        }
+        return Instance;
+    }
+
+    // 0x0007f133. McdGMDestroyGeometry for geometry the factory may not have made, which is counted against the
+    // second memory stat when freed.
+    void KGMDestroyGeometry(MeAssetFactory* Factory, McdGeometry* Geometry)
+    {
+        if (McdGeometryGetReferenceCount(Geometry) > 0)
+            return;
+        if ((Geometry->TypeId & 0xff) == 8)
+        {
+            McdAggregate* Aggregate = reinterpret_cast<McdAggregate*>(Geometry);
+            const INT Count = Aggregate->UsedCount;
+            for (INT i = 0; i < Count; i++)
+            {
+                if (McdGeometry* Element = McdAggregateGetElementGeometry(Aggregate, i))
+                {
+                    McdAggregateRemoveElement(Aggregate, i);
+                    KGMDestroyGeometry(Factory, Element);
+                }
+            }
+        }
+        if (!(Geometry->TypeId & 0xff))
+            return;
+        if (void* Name = MeHashLookup(Geometry, Factory->NameByGeometry))
+        {
+            MeHashRemove(Name, Factory->GeometryByName);
+            MeHashRemove(Geometry, Factory->NameByGeometry);
+            McdGeometryDestroy(Geometry);
+        }
+        else
+        {
+            KGData->UseMemStat2 = 1;
+            McdGeometryDestroy(Geometry);
+            KGData->Unknown15038--;
+            KGData->UseMemStat2 = 0;
+        }
+    }
+}
+
+// 0x0008ca26. builds the ragdoll of an actor whose karma params are UKarmaParamsSkel, once: a model for each bone
+// with a part of the same name in the KSkeleton asset, and the joint named after it. the bodies start disabled.
 void KInitSkeletonKarma(USkeletalMeshInstance* Instance)
 {
-    if (!KGData)
+    if (Instance->KSkelModels.Num() || !KGData)
         return;
     AActor* Actor = Instance->GetActor();
-    if (!Actor || !Actor->XLevel)
+    if (!Actor)
         return;
-    if (Cast<UKarmaParamsSkel>(Actor->KParams))
-        NOT_DECOMPILED(0x0008ca26);
+    ULevel* Level = Actor->XLevel;
+    if (!Level)
+        return;
+    USkeletalMesh* Mesh = static_cast<USkeletalMesh*>(Instance->Mesh);
+    UKarmaParamsSkel* Params = Cast<UKarmaParamsSkel>(Actor->KParams);
+    if (!Params || Params->KSkeleton == TEXT(""))
+        return;
+    MdtWorld* World = Level->KarmaWorld;
+    if (!World)
+    {
+        GLog->Log(TEXT("(Karma): KInitSkeletonKarma: Framework, but no world."));
+        return;
+    }
+    const INT NumBones = Mesh->RefSkeleton.Num();
+    INT NumJoints = 0;
+    INT NumModels = 0;
+    MeFAsset* Asset = MeAssetDBLookupAsset(KGData->AssetDB, *Params->KSkeleton);
+    if (!Asset)
+    {
+        // the xbox carries on with no asset
+        Params->KSkeleton = TEXT("");
+        GLog->Log(TEXT("(Karma): KInitSkeletonKarma: Asset not found."));
+    }
+    Instance->KSkelModels.AddZeroed(NumBones);
+    Instance->KSkelJoints.AddZeroed(NumBones);
+    MeAssetInstance* AssetInstance = KAssetInstanceCreate(Level->KarmaFactory, Asset, nullptr, World, &Instance->KSkelDisabledPairs, 0);
+    Instance->KSkelFirstBone = -1;
+    Instance->KSkelLastBone = -1;
+    for (INT i = 0; i < NumBones; i++)
+    {
+        char Name[512];
+        strncpy(Name, *Mesh->RefSkeleton[i].Name, sizeof(Name));
+        for (char* Ch = Name; *Ch; Ch++)
+            *Ch = static_cast<char>(tolower(static_cast<unsigned char>(*Ch)));
+        McdModel* Model = MeAssetInstanceGetModel(AssetInstance, Name);
+        MdtConstraint* Joint = MeAssetInstanceGetJoint(AssetInstance, Name);
+        if (!Model)
+            continue;
+        NumModels++;
+        KModelData* Data = static_cast<KModelData*>(KMemCreate(sizeof(KModelData)));
+        Data->Unknown4 = 0;
+        Data->Unknown8 = 0;
+        Data->UnknownC = 0;
+        Data->Unknown10 = 0;
+        Data->Actor = Actor;
+        McdModelSetUserData(Model, Data);
+        if (Instance->KSkelFirstBone == -1)
+            Instance->KSkelFirstBone = i;
+        Instance->KSkelLastBone = i;
+        if (MdtBody* Body = McdModelGetBody(Model))
+        {
+            MdtBodySetFlag4(Body);
+            MdtBodyClearFlag8(Body);
+            MdtBodySetLinearVelocityDamping(Body, Params->KLinearDamping);
+            MdtBodySetAngularVelocityDamping(Body, Params->KAngularDamping);
+            MdtBodyDisable(Body);
+        }
+        if (Joint)
+        {
+            if (!MdtConstraintIsEnabled(Joint))
+                MdtConstraintEnable(Joint);
+            if (MdtHinge* Hinge = MdtConstraintDCastHinge(Joint))
+                Hinge->Limit.Unknown8 = 1;
+            NumJoints++;
+            Instance->KSkelJoints[i] = Joint;
+        }
+        Instance->KSkelModels[i] = Model;
+    }
+    if (NumModels != MeFAssetGetPartCount(Asset))
+        GLog->Log(TEXT("(Karma): Not All Physics Parts Have Graphics Bones!"));
+    if (NumJoints != MeFAssetGetJointCount(Asset))
+        GLog->Log(TEXT("(Karma): Not All Physics Joints Have Graphics Bones!"));
+    KGData->Unknown15034 += NumModels;
+
+    // the instance only held the parts; geometry nothing uses is freed with it
+    TArray<McdGeometry*> Unused;
+    MeHashIterator It;
+    MeAssetInstanceGetGeometryIterator(AssetInstance, &It);
+    while (McdGeometry* Geometry = static_cast<McdGeometry*>(MeHashIteratorGetNext(&It)))
+    {
+        if (!McdGeometryGetReferenceCount(Geometry))
+            Unused.AddItem(Geometry);
+    }
+    MeAssetInstanceDestroy(AssetInstance);
+    for (INT i = 0; i < Unused.Num(); i++)
+        KGMDestroyGeometry(KGData->AssetFactory, Unused[i]);
 }
 
 // 0x00091192. sets up the karma parts of an actor in a level with karma.

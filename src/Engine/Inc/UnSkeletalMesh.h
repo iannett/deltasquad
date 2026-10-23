@@ -69,6 +69,20 @@ struct FLodMeshUnknownE8
 
 // ---------------------------------------------------------------------------------------------- skeletal meshes
 
+// two karma models whose collision is turned off, the higher address first (name invented)
+struct FKModelPair
+{
+    struct McdModel* A;
+    struct McdModel* B;
+
+    bool operator==(const FKModelPair& Other) const { return A == Other.A && B == Other.B; }
+};
+
+inline DWORD GetTypeHash(const FKModelPair& Pair)
+{
+    return static_cast<DWORD>(reinterpret_cast<UPTRINT>(Pair.B)) * 23 + static_cast<DWORD>(reinterpret_cast<UPTRINT>(Pair.A));
+}
+
 struct FMeshBone
 {
     FName   Name;

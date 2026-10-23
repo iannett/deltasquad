@@ -1021,10 +1021,13 @@ void USkeletalMeshInstance::SetMesh(UMesh* InMesh)
     if (Mesh == NewMesh)
         return;
     Mesh = NewMesh;
-    // the arrays at +0xf8, +0x100, +0x168 and +0x170 are emptied here too, once they are in the port
-    Directors.Empty();
+    // the arrays at +0xf8 and +0x100 are emptied here too, once they are in the port
     SpaceBases.Empty();
+    Directors.Empty();
     NewMesh->ActualizeAnimLinkups();
+    // the old ragdoll's models are dropped, not destroyed
+    KSkelModels.Empty();
+    KSkelJoints.Empty();
     KInitSkeletonKarma(this);
     Unknown61 = 0;
 }
